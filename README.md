@@ -4,6 +4,8 @@ Personal stock portfolio tracker for IBI brokerage (Tel Aviv Stock Exchange). Fe
 
 Built for tracking Israeli securities with full Hebrew support, FIFO tax lot accounting, and daily P&L analytics.
 
+Created with Claude Code.
+
 ## Features
 
 - **Daily portfolio snapshots** — Import daily holdings from IBI Excel exports, track value changes over time
