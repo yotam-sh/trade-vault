@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="{{ lang }}" dir="{{ dir }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>תיק השקעות</title>
+    <title>{{ t.brand }}</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <nav>
-        <span class="brand">תיק השקעות</span>
-        <a href="/" class="active">ראשי</a>
-        <a href="/transactions">כללי</a>
-        <a href="/trades">עסקאות</a>
-        <a href="/daily-summary">סיכום יומי</a>
-        <a href="/daily-details">יומי מלא</a>
+        <span class="brand">{{ t.brand }}</span>
+        <a href="/" class="active">{{ t.nav_home }}</a>
+        <a href="/transactions">{{ t.nav_transactions }}</a>
+        <a href="/trades">{{ t.nav_trades }}</a>
+        <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+        <a href="/daily-details">{{ t.nav_daily_details }}</a>
+        <a href="/set-lang/{{ 'he' if lang == 'en' else 'en' }}" class="lang-toggle">{{ 'עב' if lang == 'en' else 'EN' }}</a>
     </nav>
 
     <div class="container">
@@ -26,21 +27,21 @@
         {% endif %}
         {% endwith %}
 
-        <h1>סקירת תיק</h1>
+        <h1>{{ t.page_overview }}</h1>
 
         <!-- Upload daily file -->
         <div class="card upload-card">
-            <div class="card-header">ייבוא קובץ יומי</div>
+            <div class="card-header">{{ t.upload_title }}</div>
             <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
                 <div class="upload-row">
-                    <label>קובץ:</label>
+                    <label>{{ t.label_file }}</label>
                     <input type="file" name="file" id="file-input" accept=".xlsx,.xls" required hidden>
-                    <button type="button" class="file-picker-btn" onclick="document.getElementById('file-input').click()">בחר קובץ</button>
-                    <span class="file-name">לא נבחר קובץ</span>
-                    <label>תאריך:</label>
+                    <button type="button" class="file-picker-btn" onclick="document.getElementById('file-input').click()">{{ t.pick_file }}</button>
+                    <span class="file-name">{{ t.no_file_selected }}</span>
+                    <label>{{ t.label_date }}</label>
                     <input type="hidden" name="date" id="upload-date" required>
                     <div class="calendar-picker" data-input="upload-date" data-mode="single" data-default="today">
-                        <button type="button" class="date-picker-btn">בחר תאריך</button>
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
                         <div class="date-picker-dropdown">
                             <div class="calendar-header">
                                 <button type="button" class="next-month">&#9654;</button>
@@ -48,21 +49,21 @@
                                 <button type="button" class="prev-month">&#9664;</button>
                             </div>
                             <div class="calendar-grid">
-                                <div class="day-header">א</div>
-                                <div class="day-header">ב</div>
-                                <div class="day-header">ג</div>
-                                <div class="day-header">ד</div>
-                                <div class="day-header">ה</div>
-                                <div class="day-header">ו</div>
-                                <div class="day-header">ש</div>
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
                             </div>
-                            <div class="selected-dates">לא נבחר תאריך</div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
                             <div class="date-picker-actions">
-                                <button type="button" class="clear-btn">נקה</button>
+                                <button type="button" class="clear-btn">{{ t.clear }}</button>
                             </div>
                         </div>
                     </div>
-                    <button type="submit">ייבא</button>
+                    <button type="submit">{{ t.btn_import }}</button>
                 </div>
             </form>
         </div>
@@ -70,45 +71,45 @@
         {% if portfolio %}
         <div class="dashboard-grid">
             <div class="stat-card">
-                <div class="stat-label">שווי תיק</div>
+                <div class="stat-label">{{ t.stat_total_value }}</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.total_value) }}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">עלות</div>
+                <div class="stat-label">{{ t.stat_cost }}</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.total_cost) }}</div>
             </div>
             <div class="stat-card {{ 'green' if portfolio.unrealized_pnl >= 0 else 'red' }}">
-                <div class="stat-label">שינוי מעלות</div>
+                <div class="stat-label">{{ t.stat_cost_change }}</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.unrealized_pnl) }} ({{ '{:.2f}'.format(portfolio.unrealized_pnl_pct) }}%)</div>
             </div>
             <div class="stat-card {{ 'green' if portfolio.daily_pnl >= 0 else 'red' }}">
-                <div class="stat-label">רווח/הפסד יומי</div>
+                <div class="stat-label">{{ t.stat_daily_pnl }}</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.daily_pnl) }}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">מספר אחזקות</div>
+                <div class="stat-label">{{ t.stat_num_positions }}</div>
                 <div class="stat-value">{{ portfolio.num_positions }}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">תאריך נתונים</div>
+                <div class="stat-label">{{ t.stat_data_date }}</div>
                 <div class="stat-value">{{ portfolio.date }}</div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-header">אחזקות</div>
-            <input type="text" class="table-search" placeholder="חיפוש נייר..." data-table="holdings-table">
+            <div class="card-header">{{ t.holdings_title }}</div>
+            <input type="text" class="table-search" placeholder="{{ t.search_placeholder }}" data-table="holdings-table">
             <div class="table-wrapper">
                 <table id="holdings-table" class="sortable">
                     <thead>
                         <tr>
-                            <th>שם</th>
-                            <th>סימבול</th>
-                            <th>שווי (₪)</th>
-                            <th>עלות (₪)</th>
-                            <th>רווח/הפסד (₪)</th>
-                            <th>רווח/הפסד (%)</th>
-                            <th>משקל</th>
+                            <th>{{ t.th_name }}</th>
+                            <th>{{ t.th_symbol }}</th>
+                            <th>{{ t.th_value_ils }}</th>
+                            <th>{{ t.th_cost_ils }}</th>
+                            <th>{{ t.th_pnl_ils }}</th>
+                            <th>{{ t.th_pnl_pct }}</th>
+                            <th>{{ t.th_weight }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -131,17 +132,18 @@
         </div>
         {% else %}
         <div class="card">
-            <p>אין נתונים. ייבא קובץ יומי כדי להתחיל:</p>
+            <p>{{ t.empty_no_data }}</p>
             <pre style="direction:ltr; text-align:left; padding:12px; border-radius:4px; margin-top:8px;">python main.py import daily data/daily_data/feb_2026/data.xlsx --date 2026-02-02</pre>
         </div>
         {% endif %}
     </div>
 
+    <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
     <script>
     document.getElementById('file-input').addEventListener('change', function() {
         var label = document.querySelector('.file-name');
-        label.textContent = this.files.length ? this.files[0].name : 'לא נבחר קובץ';
+        label.textContent = this.files.length ? this.files[0].name : T.no_file_selected;
         label.classList.toggle('has-file', this.files.length > 0);
     });
     </script>

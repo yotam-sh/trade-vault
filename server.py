@@ -6,11 +6,12 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
 from app.excel_importer import import_daily_portfolio
 from app.transactions import add_deposit
+from app.i18n import get_translations, get_translations_json, t as _t
 from app.queries import (
     get_portfolio_value,
     get_transaction_log,
@@ -36,6 +37,23 @@ MONTH_NAMES = {
 }
 
 
+def _get_lang():
+    """Read language from cookie, default to Hebrew."""
+    return request.cookies.get('lang', 'he')
+
+
+@app.context_processor
+def inject_translations():
+    """Make t, lang, dir, and t_json available in every template."""
+    lang = _get_lang()
+    return {
+        't': get_translations(lang),
+        't_json': get_translations_json(lang),
+        'lang': lang,
+        'dir': 'ltr' if lang == 'en' else 'rtl',
+    }
+
+
 @app.before_request
 def ensure_db():
     get_db()
@@ -47,6 +65,17 @@ def shutdown_db(exception=None):
     pass  # DB stays open for the app's lifetime; flushed via atexit
 
 
+@app.route('/set-lang/<lang>')
+def set_lang(lang):
+    """Switch UI language and redirect back."""
+    if lang not in ('he', 'en'):
+        lang = 'he'
+    referrer = request.referrer or url_for('index')
+    resp = make_response(redirect(referrer))
+    resp.set_cookie('lang', lang, max_age=365 * 24 * 3600)
+    return resp
+
+
 @app.route('/')
 def index():
     portfolio = get_portfolio_value()
@@ -56,22 +85,23 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_daily():
     """Upload a daily portfolio Excel file, save to data/daily_data/<month>/, and import."""
+    lang = _get_lang()
     file = request.files.get('file')
     date_str = request.form.get('date')
 
     if not file or not file.filename:
-        flash('לא נבחר קובץ', 'error')
+        flash(_t('flash_no_file', lang), 'error')
         return redirect(url_for('index'))
 
     if not date_str:
-        flash('לא הוזן תאריך', 'error')
+        flash(_t('flash_no_date', lang), 'error')
         return redirect(url_for('index'))
 
     # Validate date
     try:
         data_date = datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
-        flash('תאריך לא תקין', 'error')
+        flash(_t('flash_invalid_date', lang), 'error')
         return redirect(url_for('index'))
 
     # Build target folder: data/daily_data/<mon>_<year>/
@@ -90,13 +120,13 @@ def upload_daily():
     try:
         result = import_daily_portfolio(target_path, data_date=date_str)
         if result['status'] == 'duplicate':
-            flash(f'קובץ כבר יובא בעבר ({date_str})', 'warning')
+            flash(f"{_t('flash_duplicate', lang)} ({date_str})", 'warning')
         else:
             imported = result['rows_imported']
             new_h = result['new_holdings']
-            flash(f'יובאו {imported} שורות ({new_h} אחזקות חדשות) לתאריך {date_str}', 'success')
+            flash(_t('flash_import_success', lang, rows=imported, new=new_h, date=date_str), 'success')
     except Exception as e:
-        flash(f'שגיאה בייבוא: {str(e)}', 'error')
+        flash(f"{_t('flash_import_error', lang)}: {str(e)}", 'error')
 
     return redirect(url_for('index'))
 
@@ -127,34 +157,35 @@ def transactions_view():
 @app.route('/add-deposit', methods=['POST'])
 def add_deposit_route():
     """Add a deposit via the web form."""
+    lang = _get_lang()
     amount_str = request.form.get('amount', '').strip()
     date_str = request.form.get('date', '').strip()
 
     if not amount_str:
-        flash('לא הוזן סכום', 'error')
+        flash(_t('flash_no_amount', lang), 'error')
         return redirect(url_for('transactions_view'))
 
     if not date_str:
-        flash('לא הוזן תאריך', 'error')
+        flash(_t('flash_no_date', lang), 'error')
         return redirect(url_for('transactions_view'))
 
     try:
         amount = float(amount_str)
     except ValueError:
-        flash('סכום לא תקין', 'error')
+        flash(_t('flash_invalid_amount', lang), 'error')
         return redirect(url_for('transactions_view'))
 
     try:
         datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
-        flash('תאריך לא תקין', 'error')
+        flash(_t('flash_invalid_date', lang), 'error')
         return redirect(url_for('transactions_view'))
 
     try:
         add_deposit(date=date_str, amount=amount)
-        flash(f'הפקדה בסך {amount:,.0f} ₪ נוספה בהצלחה לתאריך {date_str}', 'success')
+        flash(_t('flash_deposit_success', lang, amount=f'{amount:,.0f}', date=date_str), 'success')
     except Exception as e:
-        flash(f'שגיאה בהוספת הפקדה: {str(e)}', 'error')
+        flash(f"{_t('flash_deposit_error', lang)}: {str(e)}", 'error')
 
     return redirect(url_for('transactions_view'))
 

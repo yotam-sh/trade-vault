@@ -1,4 +1,4 @@
-/* my-stocks - Dark Mode RTL Hebrew Portfolio Tracker */
+/* my-stocks - Dark Mode Bilingual Portfolio Tracker */
 
 * {
     margin: 0;
@@ -646,4 +646,38 @@ pre {
 
 .upload-form button:hover {
     background: #2ea043;
+}
+
+/* Language toggle */
+.lang-toggle {
+    margin-right: auto;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 4px 10px !important;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+}
+
+/* LTR overrides */
+[dir="ltr"] body, body[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+[dir="ltr"] nav .brand {
+    margin-left: 0;
+    margin-right: 24px;
+}
+[dir="ltr"] .stat-card {
+    border-right: none;
+    border-left: 4px solid #58a6ff;
+}
+[dir="ltr"] .stat-card.green { border-left-color: #3fb950; border-right: none; }
+[dir="ltr"] .stat-card.red { border-left-color: #f85149; border-right: none; }
+[dir="ltr"] .date-picker-dropdown {
+    right: auto;
+    left: 0;
+}
+[dir="ltr"] .lang-toggle {
+    margin-right: 0;
+    margin-left: auto;
 }

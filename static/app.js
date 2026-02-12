@@ -1,5 +1,7 @@
 /* my-stocks - Table sorting, filtering, and calendar date picker */
 
+// T is a global translation object injected by the server via <script>var T = ...;</script>
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // ─── Table sorting ───
@@ -280,8 +282,10 @@ function initCalendarPickers() {
             }
 
             // Update month label
-            var months = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
-                          'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+            var months = [
+                T.month_1, T.month_2, T.month_3, T.month_4, T.month_5, T.month_6,
+                T.month_7, T.month_8, T.month_9, T.month_10, T.month_11, T.month_12
+            ];
             dropdown.querySelector('.month-label').textContent =
                 months[state.viewMonth] + ' ' + state.viewYear;
 
@@ -327,7 +331,7 @@ function initCalendarPickers() {
                 else text += '  ←  ...';
                 display.textContent = text;
             } else {
-                display.textContent = 'לא נבחר תאריך';
+                display.textContent = T.no_date_selected;
             }
 
             updateButtonLabel();
@@ -400,7 +404,7 @@ function initCalendarPickers() {
             } else if (state.mode === 'range' && state.rangeStart) {
                 btn.textContent = formatDate(state.rangeStart) + ' - ...';
             } else {
-                btn.textContent = 'בחר תאריך';
+                btn.textContent = T.pick_date;
             }
         }
 
