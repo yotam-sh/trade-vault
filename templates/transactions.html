@@ -65,6 +65,43 @@
             </form>
         </div>
 
+        <div class="filters">
+            <label>תאריך:</label>
+            <div class="calendar-picker">
+                <button type="button" class="date-picker-btn">בחר תאריך</button>
+                <div class="date-picker-dropdown">
+                    <div class="mode-tabs">
+                        <div class="mode-tab" data-mode="single">יום בודד</div>
+                        <div class="mode-tab active" data-mode="range">טווח</div>
+                    </div>
+                    <div class="calendar-header">
+                        <button type="button" class="next-month">&#9654;</button>
+                        <span class="month-label"></span>
+                        <button type="button" class="prev-month">&#9664;</button>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="day-header">א</div>
+                        <div class="day-header">ב</div>
+                        <div class="day-header">ג</div>
+                        <div class="day-header">ד</div>
+                        <div class="day-header">ה</div>
+                        <div class="day-header">ו</div>
+                        <div class="day-header">ש</div>
+                    </div>
+                    <div class="selected-dates">לא נבחר תאריך</div>
+                    <div class="date-picker-actions">
+                        <button type="button" class="clear-btn">נקה</button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="clear-filters-btn" id="clear-dates">נקה תאריך</button>
+            <div class="date-presets">
+                <button type="button" class="date-preset" data-range="week">השבוע</button>
+                <button type="button" class="date-preset" data-range="month">החודש</button>
+                <button type="button" class="date-preset" data-range="30">30 יום</button>
+            </div>
+        </div>
+
         <div class="two-col">
             <!-- Left panel - Transaction table -->
             <div class="card">

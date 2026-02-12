@@ -48,6 +48,12 @@
                     </div>
                 </div>
             </div>
+            <button type="button" class="clear-filters-btn" id="clear-dates">נקה תאריך</button>
+            <div class="date-presets">
+                <button type="button" class="date-preset" data-range="week">השבוע</button>
+                <button type="button" class="date-preset" data-range="month">החודש</button>
+                <button type="button" class="date-preset" data-range="30">30 יום</button>
+            </div>
             <label>סוג:</label>
             <select id="type-filter">
                 <option value="">הכל</option>
@@ -56,6 +62,7 @@
                 <option value="etf">תעודות סל</option>
                 <option value="bond">אג"ח</option>
             </select>
+            <input type="text" class="table-search" placeholder="חיפוש נייר..." data-table="details-table">
         </div>
 
         <div class="two-col">
@@ -64,7 +71,7 @@
                 <div class="card">
                     <div class="card-header">פירוט יומי לפי נייר</div>
                     <div class="table-wrapper">
-                        <table class="sortable filterable">
+                        <table id="details-table" class="sortable filterable">
                             <thead>
                                 <tr>
                                     <th>תאריך</th>

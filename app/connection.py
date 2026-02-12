@@ -1,6 +1,7 @@
 """TinyDB database connection singleton and table constants."""
 
 import os
+import atexit
 from tinydb import TinyDB
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
@@ -47,5 +48,8 @@ def close_db():
     if _db_instance is not None:
         _db_instance.close()
         _db_instance = None
+
+
+atexit.register(close_db)
 
 

@@ -58,6 +58,69 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ─── Clear date filters ───
+    var clearDates = document.getElementById('clear-dates');
+    if (clearDates) {
+        clearDates.addEventListener('click', function () {
+            var p = new URLSearchParams(window.location.search);
+            p.delete('start');
+            p.delete('end');
+            window.location.search = p.toString();
+        });
+    }
+
+    // ─── Tax Year Filter ───
+    var yearFilter = document.getElementById('year-filter');
+    if (yearFilter) {
+        yearFilter.addEventListener('change', function () {
+            var p = new URLSearchParams(window.location.search);
+            p.set('year', yearFilter.value);
+            window.location.search = p.toString();
+        });
+    }
+
+    // ─── Date Presets ───
+    document.querySelectorAll('.date-preset').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var range = btn.dataset.range;
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+            var start, end = formatDate(today);
+
+            if (range === 'week') {
+                var sun = new Date(today);
+                sun.setDate(today.getDate() - today.getDay());
+                start = formatDate(sun);
+            } else if (range === 'month') {
+                start = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-01';
+            } else if (range === '30') {
+                var d = new Date(today);
+                d.setDate(today.getDate() - 30);
+                start = formatDate(d);
+            }
+
+            var p = new URLSearchParams(window.location.search);
+            p.set('start', start);
+            p.set('end', end);
+            window.location.search = p.toString();
+        });
+    });
+
+    // ─── Table Text Search ───
+    document.querySelectorAll('.table-search').forEach(function (input) {
+        var tableId = input.dataset.table;
+        var table = document.getElementById(tableId);
+        if (!table) return;
+        input.addEventListener('input', function () {
+            var query = input.value.trim().toLowerCase();
+            table.querySelectorAll('tbody tr').forEach(function (row) {
+                if (!query) { row.style.display = ''; return; }
+                var text = row.textContent.toLowerCase();
+                row.style.display = text.indexOf(query) !== -1 ? '' : 'none';
+            });
+        });
+    });
+
     // ─── Calendar Date Picker ───
     initCalendarPickers();
 });

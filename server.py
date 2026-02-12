@@ -21,6 +21,7 @@ from app.queries import (
     get_pivot_by_date,
     get_trade_history,
     get_closed_positions,
+    compute_yearly_tax,
 )
 
 app = Flask(__name__)
@@ -43,7 +44,7 @@ def ensure_db():
 
 @app.teardown_appcontext
 def shutdown_db(exception=None):
-    close_db()
+    pass  # DB stays open for the app's lifetime; flushed via atexit
 
 
 @app.route('/')
@@ -102,19 +103,25 @@ def upload_daily():
 
 @app.route('/transactions')
 def transactions_view():
+    start = request.args.get('start')
+    end = request.args.get('end')
     log = get_transaction_log()
     # Only show deposits and monthly summaries, not buy/sell trades
     log = [e for e in log if e['action'] in ('deposit', 'month_summary')]
+    if start:
+        log = [e for e in log if e.get('date', '') >= start]
+    if end:
+        log = [e for e in log if e.get('date', '') <= end]
     summary = get_transaction_summary()
 
-    # Net tax from realized sell trades
-    trades = get_trade_history()
-    total_gains = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) > 0)
-    total_losses = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) < 0)
-    net_pnl = total_gains + total_losses
-    summary['net_tax'] = max(0, net_pnl * 0.25)
+    # Net tax from current year (with loss carryover)
+    by_year, _ = compute_yearly_tax()
+    current_year = datetime.now().year
+    year_tax = by_year.get(current_year, {})
+    summary['net_tax'] = year_tax.get('net_tax', 0)
 
-    return render_template('transactions.html', log=log, summary=summary)
+    return render_template('transactions.html', log=log, summary=summary,
+                           start=start, end=end)
 
 
 @app.route('/add-deposit', methods=['POST'])
@@ -199,27 +206,48 @@ def api_daily_details():
 
 @app.route('/trades')
 def trades_view():
-    start = request.args.get('start')
-    end = request.args.get('end')
+    # Yearly tax with loss carryover
+    by_year, tax_years = compute_yearly_tax()
+    current_year = datetime.now().year
+    year_param = request.args.get('year', str(current_year))
+    selected_year = 'all' if year_param == 'all' else int(year_param)
+
+    # Date picker overrides year bounds; otherwise default to selected year
+    if selected_year == 'all':
+        start = request.args.get('start')
+        end = request.args.get('end')
+    else:
+        start = request.args.get('start') or f'{selected_year}-01-01'
+        end = request.args.get('end') or f'{selected_year}-12-31'
     trades = get_trade_history(start_date=start, end_date=end)
     closed = get_closed_positions()
 
-    # Sales tax summary (25% capital gains tax)
-    total_gains = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) > 0)
-    total_losses = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) < 0)
-    net_pnl = total_gains + total_losses
-    tax_rate = 0.25
-    sales_summary = {
-        'total_gains': total_gains,
-        'total_losses': total_losses,
-        'net_pnl': net_pnl,
-        'tax_on_gains': total_gains * tax_rate,
-        'tax_offset_from_losses': abs(total_losses) * tax_rate,
-        'net_tax': max(0, net_pnl * tax_rate),
-    }
+    if selected_year == 'all':
+        # Aggregate across all years
+        all_gains = sum(y['total_gains'] for y in by_year.values())
+        all_losses = sum(y['total_losses'] for y in by_year.values())
+        all_net = all_gains + all_losses
+        last_year = by_year[tax_years[-1]] if tax_years else {}
+        sales_summary = {
+            'year': 'all', 'total_gains': all_gains, 'total_losses': all_losses,
+            'net_pnl': all_net, 'loss_carryover_in': 0, 'taxable': max(0, all_net),
+            'loss_carryover_out': last_year.get('loss_carryover_out', 0),
+            'tax_on_gains': all_gains * 0.25,
+            'tax_offset_from_losses': abs(all_losses) * 0.25,
+            'net_tax': max(0, all_net * 0.25),
+        }
+    else:
+        sales_summary = by_year.get(selected_year, {
+            'year': selected_year, 'total_gains': 0, 'total_losses': 0,
+            'net_pnl': 0, 'loss_carryover_in': 0, 'taxable': 0,
+            'loss_carryover_out': 0, 'tax_on_gains': 0,
+            'tax_offset_from_losses': 0, 'net_tax': 0,
+        })
 
     return render_template('trades.html', trades=trades, closed=closed,
-                           sales_summary=sales_summary, start=start, end=end)
+                           sales_summary=sales_summary, tax_years=tax_years,
+                           selected_year=selected_year,
+                           start=start, end=end)
 
 
 if __name__ == '__main__':

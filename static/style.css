@@ -467,6 +467,60 @@ tr.group-header {
     background: #21262d;
 }
 
+.clear-filters-btn {
+    padding: 5px 12px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #21262d;
+    color: #8b949e;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.clear-filters-btn:hover {
+    background: #30363d;
+    color: #e6edf3;
+}
+
+.date-presets {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.date-preset {
+    padding: 4px 10px;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    background: #21262d;
+    color: #8b949e;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.date-preset:hover {
+    background: #30363d;
+    color: #e6edf3;
+    border-color: #58a6ff;
+}
+
+.table-search {
+    padding: 6px 12px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #0d1117;
+    color: #e6edf3;
+    font-size: 13px;
+    width: 220px;
+    margin-bottom: 12px;
+}
+
+.table-search::placeholder {
+    color: #484f58;
+}
+
 .selected-dates {
     font-size: 12px;
     color: #8b949e;

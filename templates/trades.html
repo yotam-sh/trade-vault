@@ -20,6 +20,13 @@
         <h1>עסקאות - קניות ומכירות</h1>
 
         <div class="filters">
+            <label>שנת מס:</label>
+            <select id="year-filter">
+                <option value="all" {{ 'selected' if selected_year == 'all' }}>כל התקופה</option>
+                {% for y in tax_years %}
+                <option value="{{ y }}" {{ 'selected' if y == selected_year }}>{{ y }}</option>
+                {% endfor %}
+            </select>
             <label>תאריך:</label>
             <div class="calendar-picker">
                 <button type="button" class="date-picker-btn">בחר תאריך</button>
@@ -48,6 +55,12 @@
                     </div>
                 </div>
             </div>
+            <button type="button" class="clear-filters-btn" id="clear-dates">נקה תאריך</button>
+            <div class="date-presets">
+                <button type="button" class="date-preset" data-range="week">השבוע</button>
+                <button type="button" class="date-preset" data-range="month">החודש</button>
+                <button type="button" class="date-preset" data-range="30">30 יום</button>
+            </div>
         </div>
 
         <!-- Sales Tax Dashboard -->
@@ -65,6 +78,12 @@
                 <div class="stat-label">יתרה נטו</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.net_pnl) }}</div>
             </div>
+            {% if sales_summary.loss_carryover_in < 0 %}
+            <div class="stat-card">
+                <div class="stat-label">הפסד מועבר משנים קודמות</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.loss_carryover_in) }}</div>
+            </div>
+            {% endif %}
             <div class="stat-card">
                 <div class="stat-label">מס על רווחים (25%)</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.tax_on_gains) }}</div>
