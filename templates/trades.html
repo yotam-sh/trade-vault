@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עסקאות - תיק השקעות</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <span class="brand">תיק השקעות</span>
+        <a href="/">ראשי</a>
+        <a href="/transactions">כללי</a>
+        <a href="/trades" class="active">עסקאות</a>
+        <a href="/daily-summary">סיכום יומי</a>
+        <a href="/daily-details">יומי מלא</a>
+    </nav>
+
+    <div class="container">
+        <h1>עסקאות - קניות ומכירות</h1>
+
+        <div class="filters">
+            <label>תאריך:</label>
+            <div class="calendar-picker">
+                <button type="button" class="date-picker-btn">בחר תאריך</button>
+                <div class="date-picker-dropdown">
+                    <div class="mode-tabs">
+                        <div class="mode-tab" data-mode="single">יום בודד</div>
+                        <div class="mode-tab active" data-mode="range">טווח</div>
+                    </div>
+                    <div class="calendar-header">
+                        <button type="button" class="next-month">&#9654;</button>
+                        <span class="month-label"></span>
+                        <button type="button" class="prev-month">&#9664;</button>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="day-header">א</div>
+                        <div class="day-header">ב</div>
+                        <div class="day-header">ג</div>
+                        <div class="day-header">ד</div>
+                        <div class="day-header">ה</div>
+                        <div class="day-header">ו</div>
+                        <div class="day-header">ש</div>
+                    </div>
+                    <div class="selected-dates">לא נבחר תאריך</div>
+                    <div class="date-picker-actions">
+                        <button type="button" class="clear-btn">נקה</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trade Log -->
+        <div class="card">
+            <div class="card-header">יומן עסקאות</div>
+            <div class="table-wrapper">
+                <table class="sortable">
+                    <thead>
+                        <tr>
+                            <th>תאריך</th>
+                            <th>פעולה</th>
+                            <th>סוג</th>
+                            <th>שם</th>
+                            <th>סימבול</th>
+                            <th>כמות</th>
+                            <th>מחיר (₪)</th>
+                            <th>סכום (₪)</th>
+                            <th>רווח/הפסד (₪)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in trades %}
+                        <tr data-pnl="{{ t.realized_pnl or 0 }}">
+                            <td>{{ t.date }}</td>
+                            <td>
+                                {% if t.type == 'buy' %}
+                                    <span class="badge badge-buy">קניה</span>
+                                {% else %}
+                                    <span class="badge badge-sell">מכירה</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ t.position_type }}</td>
+                            <td>{{ t.name_he }}</td>
+                            <td>{{ t.symbol }}</td>
+                            <td class="num">{{ '{:,.0f}'.format(t.shares or 0) }}</td>
+                            <td class="num">₪{{ '{:,.2f}'.format(t.price_per_share or 0) }}</td>
+                            <td class="num">₪{{ '{:,.2f}'.format(t.total_amount or 0) }}</td>
+                            <td class="num pnl">
+                                {% if t.realized_pnl %}
+                                    ₪{{ '{:,.2f}'.format(t.realized_pnl) }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if not trades %}
+        <div class="card">
+            <p>אין עסקאות. ייבא קבצי עסקאות כדי להתחיל:</p>
+            <pre style="direction:ltr; text-align:left; padding:12px; border-radius:4px; margin-top:8px;">python main.py import trades data/trades/</pre>
+        </div>
+        {% endif %}
+
+        <!-- Closed Positions -->
+        {% if closed %}
+        <div class="card">
+            <div class="card-header">פוזיציות סגורות</div>
+            <div class="table-wrapper">
+                <table class="sortable">
+                    <thead>
+                        <tr>
+                            <th>שם</th>
+                            <th>סוג</th>
+                            <th>כמות</th>
+                            <th>עלות ממוצעת (₪)</th>
+                            <th>מחיר מכירה ממוצע (₪)</th>
+                            <th>רווח/הפסד (₪)</th>
+                            <th>%</th>
+                            <th>תקופה</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in closed %}
+                        <tr data-pnl="{{ c.total_pnl }}">
+                            <td>{{ c.name_he }}</td>
+                            <td>
+                                {% if c.security_type == 'stock' %}מניות
+                                {% elif c.security_type == 'mutual_fund' %}קרן
+                                {% elif c.security_type == 'etf' %}תעודת סל
+                                {% elif c.security_type == 'bond' %}אג"ח
+                                {% else %}{{ c.security_type }}{% endif %}
+                            </td>
+                            <td class="num">{{ '{:,.0f}'.format(c.total_shares) }}</td>
+                            <td class="num">₪{{ '{:,.2f}'.format(c.avg_buy_price) }}</td>
+                            <td class="num">₪{{ '{:,.2f}'.format(c.avg_sell_price) }}</td>
+                            <td class="num pnl">₪{{ '{:,.2f}'.format(c.total_pnl) }}</td>
+                            <td class="num pnl">{{ '{:.2f}'.format(c.pnl_pct) }}%</td>
+                            <td>{{ c.period }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="grand-total">
+                            <td colspan="5">סה"כ</td>
+                            <td class="num pnl">₪{{ '{:,.2f}'.format(closed|sum(attribute='total_pnl')) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

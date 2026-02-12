@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>כללי - תיק השקעות</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <span class="brand">תיק השקעות</span>
+        <a href="/">ראשי</a>
+        <a href="/transactions" class="active">כללי</a>
+        <a href="/trades">עסקאות</a>
+        <a href="/daily-summary">סיכום יומי</a>
+        <a href="/daily-details">יומי מלא</a>
+    </nav>
+
+    <div class="container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <h1>כללי - יומן פעולות</h1>
+
+        <!-- Add deposit form -->
+        <div class="card upload-card">
+            <div class="card-header">הוספת הפקדה</div>
+            <form action="/add-deposit" method="post" class="upload-form">
+                <div class="upload-row">
+                    <label>סכום:</label>
+                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                    <label>תאריך:</label>
+                    <input type="hidden" name="date" id="deposit-date" required>
+                    <div class="calendar-picker" data-input="deposit-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">בחר תאריך</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">א</div>
+                                <div class="day-header">ב</div>
+                                <div class="day-header">ג</div>
+                                <div class="day-header">ד</div>
+                                <div class="day-header">ה</div>
+                                <div class="day-header">ו</div>
+                                <div class="day-header">ש</div>
+                            </div>
+                            <div class="selected-dates">לא נבחר תאריך</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">נקה</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit">הוסף הפקדה</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="two-col">
+            <!-- Left panel - Transaction table -->
+            <div class="card">
+                <div class="card-header">פעולות</div>
+                <div class="table-wrapper">
+                    <table class="sortable">
+                        <thead>
+                            <tr>
+                                <th>תאריך</th>
+                                <th>פעולה</th>
+                                <th>סכום</th>
+                                <th>יתרה</th>
+                                <th>שינוי מעלות (%)</th>
+                                <th>שינוי מעלות (₪)</th>
+                                <th>הערות</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in log %}
+                            <tr>
+                                <td>{{ entry.date }}</td>
+                                <td>{{ entry.action_he }}</td>
+                                <td class="num">
+                                    {% if entry.amount and entry.amount != 0 %}
+                                        {{ '{:,.0f}'.format(entry.amount) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="num">
+                                    {% if entry.balance %}
+                                        {{ '{:,.2f}'.format(entry.balance) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="num pnl">
+                                    {% if entry.cost_change_pct is not none %}
+                                        {{ '{:.3f}%'.format(entry.cost_change_pct * 100) }}
+                                    {% endif %}
+                                </td>
+                                <td class="num pnl">
+                                    {% if entry.cost_change_ils is not none %}
+                                        {{ '{:,.2f}'.format(entry.cost_change_ils) }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ entry.notes or '' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right panel - Summary metrics -->
+            <div>
+                <div class="summary-panel">
+                    <div class="card-header">סיכום</div>
+                    <div class="summary-row">
+                        <span class="summary-label">סך הפקדות</span>
+                        <span class="summary-value">₪{{ '{:,.2f}'.format(summary.total_deposits) }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">סך הפקדות לחישוב שינוי מעלות</span>
+                        <span class="summary-value">₪{{ '{:,.2f}'.format(summary.deposits_for_change_calc) }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">שינוי מעלות (₪)</span>
+                        <span class="summary-value {{ 'positive' if summary.cost_change_ils >= 0 else 'negative' }}">
+                            ₪{{ '{:,.2f}'.format(summary.cost_change_ils) }}
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">שינוי מעלות (%)</span>
+                        <span class="summary-value {{ 'positive' if summary.cost_change_pct >= 0 else 'negative' }}">
+                            {{ '{:.3f}%'.format(summary.cost_change_pct * 100) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

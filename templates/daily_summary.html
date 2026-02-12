@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סיכום יומי - תיק השקעות</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <span class="brand">תיק השקעות</span>
+        <a href="/">ראשי</a>
+        <a href="/transactions">כללי</a>
+        <a href="/trades">עסקאות</a>
+        <a href="/daily-summary" class="active">סיכום יומי</a>
+        <a href="/daily-details">יומי מלא</a>
+    </nav>
+
+    <div class="container">
+        <h1>סיכום יומי</h1>
+
+        <div class="filters">
+            <label>תאריך:</label>
+            <div class="calendar-picker">
+                <button type="button" class="date-picker-btn">בחר תאריך</button>
+                <div class="date-picker-dropdown">
+                    <div class="mode-tabs">
+                        <div class="mode-tab" data-mode="single">יום בודד</div>
+                        <div class="mode-tab active" data-mode="range">טווח</div>
+                    </div>
+                    <div class="calendar-header">
+                        <button type="button" class="next-month">&#9654;</button>
+                        <span class="month-label"></span>
+                        <button type="button" class="prev-month">&#9664;</button>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="day-header">א</div>
+                        <div class="day-header">ב</div>
+                        <div class="day-header">ג</div>
+                        <div class="day-header">ד</div>
+                        <div class="day-header">ה</div>
+                        <div class="day-header">ו</div>
+                        <div class="day-header">ש</div>
+                    </div>
+                    <div class="selected-dates">לא נבחר תאריך</div>
+                    <div class="date-picker-actions">
+                        <button type="button" class="clear-btn">נקה</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-wrapper">
+                <table class="sortable">
+                    <thead>
+                        <tr>
+                            <th>תאריך</th>
+                            <th>שווי בוקר</th>
+                            <th>שווי נוכחי</th>
+                            <th>הפקדות</th>
+                            <th>רווח/הפסד יומי</th>
+                            <th>שינוי (%)</th>
+                            <th>מניה חזקה</th>
+                            <th>₪</th>
+                            <th>%</th>
+                            <th>מניה חלשה</th>
+                            <th>₪</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in data %}
+                        <tr data-pnl="{{ day.daily_pnl }}">
+                            <td>{{ day.date }}</td>
+                            <td class="num">{{ '{:,.2f}'.format(day.morning_value) }}</td>
+                            <td class="num">{{ '{:,.2f}'.format(day.current_value) }}</td>
+                            <td class="num">
+                                {% if day.deposits %}
+                                    {{ '{:,.0f}'.format(day.deposits) }}
+                                {% endif %}
+                            </td>
+                            <td class="num pnl">{{ '{:,.2f}'.format(day.daily_pnl) }}</td>
+                            <td class="num pnl">{{ '{:.2f}'.format(day.change_pct) }}%</td>
+
+                            <!-- Best performer -->
+                            {% if day.best %}
+                            <td>{{ day.best.ticker }}</td>
+                            <td class="num positive">{{ '{:,.2f}'.format(day.best.daily_pnl) }}</td>
+                            <td class="num positive">{{ '{:.2f}'.format(day.best.daily_pnl_pct) }}%</td>
+                            {% else %}
+                            <td>-</td><td>-</td><td>-</td>
+                            {% endif %}
+
+                            <!-- Worst performer -->
+                            {% if day.worst %}
+                            <td>{{ day.worst.ticker }}</td>
+                            <td class="num negative">{{ '{:,.2f}'.format(day.worst.daily_pnl) }}</td>
+                            <td class="num negative">{{ '{:.2f}'.format(day.worst.daily_pnl_pct) }}%</td>
+                            {% else %}
+                            <td>-</td><td>-</td><td>-</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if not data %}
+        <div class="card">
+            <p>אין נתוני סיכום יומי. ייבא קבצים יומיים כדי ליצור היסטוריה.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

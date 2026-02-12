@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>יומי מלא - תיק השקעות</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <span class="brand">תיק השקעות</span>
+        <a href="/">ראשי</a>
+        <a href="/transactions">כללי</a>
+        <a href="/trades">עסקאות</a>
+        <a href="/daily-summary">סיכום יומי</a>
+        <a href="/daily-details" class="active">יומי מלא</a>
+    </nav>
+
+    <div class="container">
+        <h1>יומי מלא - פירוט ניירות</h1>
+
+        <div class="filters">
+            <label>תאריך:</label>
+            <div class="calendar-picker">
+                <button type="button" class="date-picker-btn">בחר תאריך</button>
+                <div class="date-picker-dropdown">
+                    <div class="mode-tabs">
+                        <div class="mode-tab" data-mode="single">יום בודד</div>
+                        <div class="mode-tab active" data-mode="range">טווח</div>
+                    </div>
+                    <div class="calendar-header">
+                        <button type="button" class="next-month">&#9654;</button>
+                        <span class="month-label"></span>
+                        <button type="button" class="prev-month">&#9664;</button>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="day-header">א</div>
+                        <div class="day-header">ב</div>
+                        <div class="day-header">ג</div>
+                        <div class="day-header">ד</div>
+                        <div class="day-header">ה</div>
+                        <div class="day-header">ו</div>
+                        <div class="day-header">ש</div>
+                    </div>
+                    <div class="selected-dates">לא נבחר תאריך</div>
+                    <div class="date-picker-actions">
+                        <button type="button" class="clear-btn">נקה</button>
+                    </div>
+                </div>
+            </div>
+            <label>סוג:</label>
+            <select id="type-filter">
+                <option value="">הכל</option>
+                <option value="stock">מניות</option>
+                <option value="mutual_fund">קרנות נאמנות</option>
+                <option value="etf">תעודות סל</option>
+                <option value="bond">אג"ח</option>
+            </select>
+        </div>
+
+        <div class="two-col">
+            <!-- Left section - Per-security daily data -->
+            <div>
+                <div class="card">
+                    <div class="card-header">פירוט יומי לפי נייר</div>
+                    <div class="table-wrapper">
+                        <table class="sortable filterable">
+                            <thead>
+                                <tr>
+                                    <th>תאריך</th>
+                                    <th>סוג</th>
+                                    <th>שם</th>
+                                    <th>מספר</th>
+                                    <th>סימבול</th>
+                                    <th>שינוי (₪)</th>
+                                    <th>שינוי (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in details %}
+                                <tr data-type="{{ d.security_type }}" data-pnl="{{ d.change_ils or 0 }}">
+                                    <td>{{ d.date }}</td>
+                                    <td>
+                                        {% if d.security_type == 'stock' %}מניות
+                                        {% elif d.security_type == 'mutual_fund' %}קרן
+                                        {% elif d.security_type == 'etf' %}תעודת סל
+                                        {% elif d.security_type == 'bond' %}אג"ח
+                                        {% else %}{{ d.security_type }}{% endif %}
+                                    </td>
+                                    <td>{{ d.name }}</td>
+                                    <td>{{ d.tase_id }}</td>
+                                    <td>{{ d.symbol }}</td>
+                                    <td class="num pnl">{{ '{:,.2f}'.format(d.change_ils or 0) }}</td>
+                                    <td class="num pnl">
+                                        {% if d.change_pct is not none %}
+                                            {{ '{:.2f}'.format(d.change_pct or 0) }}%
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right section - Pivot tables -->
+            <div>
+                <!-- Pivot by security type -->
+                <div class="card">
+                    <div class="card-header">סיכום לפי נייר</div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>שם</th>
+                                    <th>סך שינוי (₪)</th>
+                                    <th>מקס׳ (₪)</th>
+                                    <th>מינ׳ (₪)</th>
+                                    <th>סך שינוי (%)</th>
+                                    <th>מקס׳ (%)</th>
+                                    <th>מינ׳ (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in pivot_security.groups %}
+                                <tr class="group-header">
+                                    <td colspan="7">{{ group.label }}</td>
+                                </tr>
+                                {% for sec in group.securities %}
+                                <tr>
+                                    <td>{{ sec.name }}</td>
+                                    <td class="num pnl">{{ '{:,.2f}'.format(sec.total_change_ils) }}</td>
+                                    <td class="num positive">{{ '{:,.2f}'.format(sec.max_change_ils or 0) }}</td>
+                                    <td class="num negative">{{ '{:,.2f}'.format(sec.min_change_ils or 0) }}</td>
+                                    <td class="num pnl">{{ '{:.2f}'.format(sec.total_change_pct) }}%</td>
+                                    <td class="num positive">{{ '{:.2f}'.format(sec.max_change_pct or 0) }}%</td>
+                                    <td class="num negative">{{ '{:.2f}'.format(sec.min_change_pct or 0) }}%</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="subtotal">
+                                    <td>סה"כ {{ group.label }}</td>
+                                    <td class="num pnl">{{ '{:,.2f}'.format(group.subtotal_change_ils) }}</td>
+                                    <td colspan="2"></td>
+                                    <td class="num pnl">{{ '{:.2f}'.format(group.subtotal_change_pct) }}%</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="grand-total">
+                                    <td>סך הכל</td>
+                                    <td class="num pnl">{{ '{:,.2f}'.format(pivot_security.grand_total.total_change_ils) }}</td>
+                                    <td colspan="2"></td>
+                                    <td class="num pnl">{{ '{:.2f}'.format(pivot_security.grand_total.total_change_pct) }}%</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pivot by date -->
+                <div class="card">
+                    <div class="card-header">סיכום לפי תאריך</div>
+                    <div class="table-wrapper">
+                        <table class="sortable">
+                            <thead>
+                                <tr>
+                                    <th>תאריך</th>
+                                    <th>סך שינוי (₪)</th>
+                                    <th>סך שינוי (%)</th>
+                                    <th>ניירות</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in pivot_date %}
+                                <tr data-pnl="{{ day.total_change_ils }}">
+                                    <td>{{ day.date }}</td>
+                                    <td class="num pnl">{{ '{:,.2f}'.format(day.total_change_ils) }}</td>
+                                    <td class="num pnl">{{ '{:.2f}'.format(day.total_change_pct) }}%</td>
+                                    <td class="num">{{ day.count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if not details %}
+        <div class="card">
+            <p>אין נתונים יומיים. ייבא קבצים יומיים כדי ליצור היסטוריה.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

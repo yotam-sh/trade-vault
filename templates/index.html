@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תיק השקעות</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <span class="brand">תיק השקעות</span>
+        <a href="/" class="active">ראשי</a>
+        <a href="/transactions">כללי</a>
+        <a href="/trades">עסקאות</a>
+        <a href="/daily-summary">סיכום יומי</a>
+        <a href="/daily-details">יומי מלא</a>
+    </nav>
+
+    <div class="container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <h1>סקירת תיק</h1>
+
+        <!-- Upload daily file -->
+        <div class="card upload-card">
+            <div class="card-header">ייבוא קובץ יומי</div>
+            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+                <div class="upload-row">
+                    <label>קובץ:</label>
+                    <input type="file" name="file" accept=".xlsx,.xls" required>
+                    <label>תאריך:</label>
+                    <input type="date" name="date" required dir="ltr">
+                    <button type="submit">ייבא</button>
+                </div>
+            </form>
+        </div>
+
+        {% if portfolio %}
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div class="stat-label">שווי תיק</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.total_value) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">עלות</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.total_cost) }}</div>
+            </div>
+            <div class="stat-card {{ 'green' if portfolio.unrealized_pnl >= 0 else 'red' }}">
+                <div class="stat-label">שינוי מעלות</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.unrealized_pnl) }} ({{ '{:.2f}'.format(portfolio.unrealized_pnl_pct) }}%)</div>
+            </div>
+            <div class="stat-card {{ 'green' if portfolio.daily_pnl >= 0 else 'red' }}">
+                <div class="stat-label">רווח/הפסד יומי</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.daily_pnl) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">מספר אחזקות</div>
+                <div class="stat-value">{{ portfolio.num_positions }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">תאריך נתונים</div>
+                <div class="stat-value">{{ portfolio.date }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">אחזקות</div>
+            <div class="table-wrapper">
+                <table class="sortable">
+                    <thead>
+                        <tr>
+                            <th>שם</th>
+                            <th>סימבול</th>
+                            <th>שווי (₪)</th>
+                            <th>עלות (₪)</th>
+                            <th>רווח/הפסד (₪)</th>
+                            <th>רווח/הפסד (%)</th>
+                            <th>משקל</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pos in portfolio.positions|sort(attribute='market_value', reverse=True) %}
+                        {% if pos.quantity and pos.quantity > 0 %}
+                        <tr data-pnl="{{ pos.market_value - pos.cost_basis }}">
+                            <td>{{ pos.name_he }}</td>
+                            <td>{{ pos.symbol }}</td>
+                            <td class="num">{{ '{:,.2f}'.format(pos.market_value) }}</td>
+                            <td class="num">{{ '{:,.2f}'.format(pos.cost_basis) }}</td>
+                            <td class="num pnl">{{ '{:,.2f}'.format(pos.market_value - pos.cost_basis) }}</td>
+                            <td class="num pnl">{{ '{:.2f}%'.format((pos.market_value - pos.cost_basis) / pos.cost_basis * 100) if pos.cost_basis else '—' }}</td>
+                            <td class="num">{{ '{:.1f}'.format(pos.weight) }}%</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <p>אין נתונים. ייבא קובץ יומי כדי להתחיל:</p>
+            <pre style="direction:ltr; text-align:left; padding:12px; border-radius:4px; margin-top:8px;">python main.py import daily data/daily_data/feb_2026/data.xlsx --date 2026-02-02</pre>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

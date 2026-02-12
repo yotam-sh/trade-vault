@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment & secrets
+env.yaml
+.env
+*.env
+
+# Database (user data, regenerated from imports)
+db/db.json
+
+# Data files (personal brokerage exports)
+data/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+nul
+
+# Claude Code
+.claude/
