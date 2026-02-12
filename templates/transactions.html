@@ -143,6 +143,12 @@
                             {{ '{:.3f}%'.format(summary.cost_change_pct * 100) }}
                         </span>
                     </div>
+                    <div class="summary-row">
+                        <span class="summary-label">מס נטו לתשלום (25%)</span>
+                        <span class="summary-value {{ 'negative' if summary.net_tax > 0 else '' }}">
+                            ₪{{ '{:,.2f}'.format(summary.net_tax) }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

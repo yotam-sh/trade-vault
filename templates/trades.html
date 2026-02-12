@@ -50,6 +50,36 @@
             </div>
         </div>
 
+        <!-- Sales Tax Dashboard -->
+        {% if sales_summary %}
+        <div class="dashboard-grid">
+            <div class="stat-card green">
+                <div class="stat-label">רווח ממכירות</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.total_gains) }}</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-label">הפסד ממכירות</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.total_losses) }}</div>
+            </div>
+            <div class="stat-card {{ 'green' if sales_summary.net_pnl >= 0 else 'red' }}">
+                <div class="stat-label">יתרה נטו</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.net_pnl) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">מס על רווחים (25%)</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.tax_on_gains) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">קיזוז מס מהפסדים</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.tax_offset_from_losses) }}</div>
+            </div>
+            <div class="stat-card {{ 'green' if sales_summary.net_tax == 0 else 'red' }}">
+                <div class="stat-label">מס נטו לתשלום</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.net_tax) }}</div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Trade Log -->
         <div class="card">
             <div class="card-header">יומן עסקאות</div>

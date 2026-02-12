@@ -106,6 +106,14 @@ def transactions_view():
     # Only show deposits and monthly summaries, not buy/sell trades
     log = [e for e in log if e['action'] in ('deposit', 'month_summary')]
     summary = get_transaction_summary()
+
+    # Net tax from realized sell trades
+    trades = get_trade_history()
+    total_gains = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) > 0)
+    total_losses = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) < 0)
+    net_pnl = total_gains + total_losses
+    summary['net_tax'] = max(0, net_pnl * 0.25)
+
     return render_template('transactions.html', log=log, summary=summary)
 
 
@@ -195,8 +203,23 @@ def trades_view():
     end = request.args.get('end')
     trades = get_trade_history(start_date=start, end_date=end)
     closed = get_closed_positions()
+
+    # Sales tax summary (25% capital gains tax)
+    total_gains = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) > 0)
+    total_losses = sum(t['realized_pnl'] for t in trades if t.get('type') == 'sell' and (t.get('realized_pnl') or 0) < 0)
+    net_pnl = total_gains + total_losses
+    tax_rate = 0.25
+    sales_summary = {
+        'total_gains': total_gains,
+        'total_losses': total_losses,
+        'net_pnl': net_pnl,
+        'tax_on_gains': total_gains * tax_rate,
+        'tax_offset_from_losses': abs(total_losses) * tax_rate,
+        'net_tax': max(0, net_pnl * tax_rate),
+    }
+
     return render_template('trades.html', trades=trades, closed=closed,
-                           start=start, end=end)
+                           sales_summary=sales_summary, start=start, end=end)
 
 
 if __name__ == '__main__':

@@ -34,9 +34,34 @@
             <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
                 <div class="upload-row">
                     <label>קובץ:</label>
-                    <input type="file" name="file" accept=".xlsx,.xls" required>
+                    <input type="file" name="file" id="file-input" accept=".xlsx,.xls" required hidden>
+                    <button type="button" class="file-picker-btn" onclick="document.getElementById('file-input').click()">בחר קובץ</button>
+                    <span class="file-name">לא נבחר קובץ</span>
                     <label>תאריך:</label>
-                    <input type="date" name="date" required dir="ltr">
+                    <input type="hidden" name="date" id="upload-date" required>
+                    <div class="calendar-picker" data-input="upload-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">בחר תאריך</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">א</div>
+                                <div class="day-header">ב</div>
+                                <div class="day-header">ג</div>
+                                <div class="day-header">ד</div>
+                                <div class="day-header">ה</div>
+                                <div class="day-header">ו</div>
+                                <div class="day-header">ש</div>
+                            </div>
+                            <div class="selected-dates">לא נבחר תאריך</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">נקה</button>
+                            </div>
+                        </div>
+                    </div>
                     <button type="submit">ייבא</button>
                 </div>
             </form>
@@ -112,5 +137,12 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script>
+    document.getElementById('file-input').addEventListener('change', function() {
+        var label = document.querySelector('.file-name');
+        label.textContent = this.files.length ? this.files[0].name : 'לא נבחר קובץ';
+        label.classList.toggle('has-file', this.files.length > 0);
+    });
+    </script>
 </body>
 </html>
