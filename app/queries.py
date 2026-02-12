@@ -89,20 +89,20 @@ def get_transaction_log():
             # Use values stored directly from Excel
             entry['cost_change_pct'] = txn.get('cost_change_pct')
             entry['cost_change_ils'] = txn.get('cost_change_ils')
-            entry['action_he'] = 'הפקדה'
+            entry['action_key'] = 'action_deposit'
             if txn.get('notes') and '250' in str(txn.get('notes', '')):
-                entry['action_he'] = 'העברה ראשונית'
+                entry['action_key'] = 'action_initial_transfer'
         elif txn['type'] == 'month_summary':
             entry['balance'] = txn.get('balance') or txn['total_amount']
             # Use actual values from Excel import
             entry['cost_change_pct'] = txn.get('cost_change_pct')
             entry['cost_change_ils'] = txn.get('cost_change_ils')
-            entry['action_he'] = 'סיכום חודש'
+            entry['action_key'] = 'action_month_summary'
         else:
             entry['balance'] = None
             entry['cost_change_pct'] = txn.get('cost_change_pct')
             entry['cost_change_ils'] = txn.get('cost_change_ils')
-            entry['action_he'] = txn['type']
+            entry['action_key'] = txn['type']
 
         log.append(entry)
 

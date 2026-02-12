@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="{{ lang }}" dir="{{ dir }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>כללי - תיק השקעות</title>
+    <title>{{ t.nav_transactions }} - {{ t.brand }}</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <nav>
-        <span class="brand">תיק השקעות</span>
-        <a href="/">ראשי</a>
-        <a href="/transactions" class="active">כללי</a>
-        <a href="/trades">עסקאות</a>
-        <a href="/daily-summary">סיכום יומי</a>
-        <a href="/daily-details">יומי מלא</a>
+        <span class="brand">{{ t.brand }}</span>
+        <a href="/">{{ t.nav_home }}</a>
+        <a href="/transactions" class="active">{{ t.nav_transactions }}</a>
+        <a href="/trades">{{ t.nav_trades }}</a>
+        <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+        <a href="/daily-details">{{ t.nav_daily_details }}</a>
+        <a href="/set-lang/{{ 'he' if lang == 'en' else 'en' }}" class="lang-toggle">{{ 'עב' if lang == 'en' else 'EN' }}</a>
     </nav>
 
     <div class="container">
@@ -26,19 +27,19 @@
         {% endif %}
         {% endwith %}
 
-        <h1>כללי - יומן פעולות</h1>
+        <h1>{{ t.page_transactions }}</h1>
 
         <!-- Add deposit form -->
         <div class="card upload-card">
-            <div class="card-header">הוספת הפקדה</div>
+            <div class="card-header">{{ t.add_deposit_title }}</div>
             <form action="/add-deposit" method="post" class="upload-form">
                 <div class="upload-row">
-                    <label>סכום:</label>
+                    <label>{{ t.label_amount }}</label>
                     <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
-                    <label>תאריך:</label>
+                    <label>{{ t.label_date }}</label>
                     <input type="hidden" name="date" id="deposit-date" required>
                     <div class="calendar-picker" data-input="deposit-date" data-mode="single" data-default="today">
-                        <button type="button" class="date-picker-btn">בחר תאריך</button>
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
                         <div class="date-picker-dropdown">
                             <div class="calendar-header">
                                 <button type="button" class="next-month">&#9654;</button>
@@ -46,33 +47,33 @@
                                 <button type="button" class="prev-month">&#9664;</button>
                             </div>
                             <div class="calendar-grid">
-                                <div class="day-header">א</div>
-                                <div class="day-header">ב</div>
-                                <div class="day-header">ג</div>
-                                <div class="day-header">ד</div>
-                                <div class="day-header">ה</div>
-                                <div class="day-header">ו</div>
-                                <div class="day-header">ש</div>
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
                             </div>
-                            <div class="selected-dates">לא נבחר תאריך</div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
                             <div class="date-picker-actions">
-                                <button type="button" class="clear-btn">נקה</button>
+                                <button type="button" class="clear-btn">{{ t.clear }}</button>
                             </div>
                         </div>
                     </div>
-                    <button type="submit">הוסף הפקדה</button>
+                    <button type="submit">{{ t.btn_add_deposit }}</button>
                 </div>
             </form>
         </div>
 
         <div class="filters">
-            <label>תאריך:</label>
+            <label>{{ t.label_date }}</label>
             <div class="calendar-picker">
-                <button type="button" class="date-picker-btn">בחר תאריך</button>
+                <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
                 <div class="date-picker-dropdown">
                     <div class="mode-tabs">
-                        <div class="mode-tab" data-mode="single">יום בודד</div>
-                        <div class="mode-tab active" data-mode="range">טווח</div>
+                        <div class="mode-tab" data-mode="single">{{ t.mode_single }}</div>
+                        <div class="mode-tab active" data-mode="range">{{ t.mode_range }}</div>
                     </div>
                     <div class="calendar-header">
                         <button type="button" class="next-month">&#9654;</button>
@@ -80,50 +81,50 @@
                         <button type="button" class="prev-month">&#9664;</button>
                     </div>
                     <div class="calendar-grid">
-                        <div class="day-header">א</div>
-                        <div class="day-header">ב</div>
-                        <div class="day-header">ג</div>
-                        <div class="day-header">ד</div>
-                        <div class="day-header">ה</div>
-                        <div class="day-header">ו</div>
-                        <div class="day-header">ש</div>
+                        <div class="day-header">{{ t.day_sun }}</div>
+                        <div class="day-header">{{ t.day_mon }}</div>
+                        <div class="day-header">{{ t.day_tue }}</div>
+                        <div class="day-header">{{ t.day_wed }}</div>
+                        <div class="day-header">{{ t.day_thu }}</div>
+                        <div class="day-header">{{ t.day_fri }}</div>
+                        <div class="day-header">{{ t.day_sat }}</div>
                     </div>
-                    <div class="selected-dates">לא נבחר תאריך</div>
+                    <div class="selected-dates">{{ t.no_date_selected }}</div>
                     <div class="date-picker-actions">
-                        <button type="button" class="clear-btn">נקה</button>
+                        <button type="button" class="clear-btn">{{ t.clear }}</button>
                     </div>
                 </div>
             </div>
-            <button type="button" class="clear-filters-btn" id="clear-dates">נקה תאריך</button>
+            <button type="button" class="clear-filters-btn" id="clear-dates">{{ t.clear_date }}</button>
             <div class="date-presets">
-                <button type="button" class="date-preset" data-range="week">השבוע</button>
-                <button type="button" class="date-preset" data-range="month">החודש</button>
-                <button type="button" class="date-preset" data-range="30">30 יום</button>
+                <button type="button" class="date-preset" data-range="week">{{ t.preset_week }}</button>
+                <button type="button" class="date-preset" data-range="month">{{ t.preset_month }}</button>
+                <button type="button" class="date-preset" data-range="30">{{ t.preset_30 }}</button>
             </div>
         </div>
 
         <div class="two-col">
             <!-- Left panel - Transaction table -->
             <div class="card">
-                <div class="card-header">פעולות</div>
+                <div class="card-header">{{ t.transactions_title }}</div>
                 <div class="table-wrapper">
                     <table class="sortable">
                         <thead>
                             <tr>
-                                <th>תאריך</th>
-                                <th>פעולה</th>
-                                <th>סכום</th>
-                                <th>יתרה</th>
-                                <th>שינוי מעלות (%)</th>
-                                <th>שינוי מעלות (₪)</th>
-                                <th>הערות</th>
+                                <th>{{ t.th_date }}</th>
+                                <th>{{ t.th_action }}</th>
+                                <th>{{ t.th_amount }}</th>
+                                <th>{{ t.th_balance }}</th>
+                                <th>{{ t.th_cost_change_pct }}</th>
+                                <th>{{ t.th_cost_change_ils }}</th>
+                                <th>{{ t.th_notes }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for entry in log %}
                             <tr>
                                 <td>{{ entry.date }}</td>
-                                <td>{{ entry.action_he }}</td>
+                                <td>{{ t[entry.action_key] if entry.action_key in t else entry.action_key }}</td>
                                 <td class="num">
                                     {% if entry.amount and entry.amount != 0 %}
                                         {{ '{:,.0f}'.format(entry.amount) }}
@@ -159,29 +160,29 @@
             <!-- Right panel - Summary metrics -->
             <div>
                 <div class="summary-panel">
-                    <div class="card-header">סיכום</div>
+                    <div class="card-header">{{ t.summary_title }}</div>
                     <div class="summary-row">
-                        <span class="summary-label">סך הפקדות</span>
+                        <span class="summary-label">{{ t.summary_total_deposits }}</span>
                         <span class="summary-value">₪{{ '{:,.2f}'.format(summary.total_deposits) }}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">סך הפקדות לחישוב שינוי מעלות</span>
+                        <span class="summary-label">{{ t.summary_deposits_for_calc }}</span>
                         <span class="summary-value">₪{{ '{:,.2f}'.format(summary.deposits_for_change_calc) }}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">שינוי מעלות (₪)</span>
+                        <span class="summary-label">{{ t.summary_cost_change_ils }}</span>
                         <span class="summary-value {{ 'positive' if summary.cost_change_ils >= 0 else 'negative' }}">
                             ₪{{ '{:,.2f}'.format(summary.cost_change_ils) }}
                         </span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">שינוי מעלות (%)</span>
+                        <span class="summary-label">{{ t.summary_cost_change_pct }}</span>
                         <span class="summary-value {{ 'positive' if summary.cost_change_pct >= 0 else 'negative' }}">
                             {{ '{:.3f}%'.format(summary.cost_change_pct * 100) }}
                         </span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">מס נטו לתשלום (25%)</span>
+                        <span class="summary-label">{{ t.summary_net_tax }}</span>
                         <span class="summary-value {{ 'negative' if summary.net_tax > 0 else '' }}">
                             ₪{{ '{:,.2f}'.format(summary.net_tax) }}
                         </span>
@@ -191,6 +192,7 @@
         </div>
     </div>
 
+    <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
 </body>
 </html>
