@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
-from app.excel_importer import import_daily_portfolio, import_transactions, import_trades, import_trades_folder
+from app.excel_importer import import_daily_portfolio, import_transactions, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl
 from app.holdings import list_holdings, get_holding_by_ticker, set_ticker
 from app.transactions import add_buy, add_sell, add_deposit
 from app.tax_lots import create_lot, sell_fifo
@@ -51,6 +51,15 @@ def cmd_import(args):
                 print("Skipped: file already imported.")
             else:
                 print(f"Import complete: {result['status']}")
+    elif args.type == 'morning-balance':
+        path = args.file
+        if not os.path.isdir(path):
+            print(f"Error: {path} is not a directory. Provide a folder path.")
+            close_db()
+            return
+        result = import_morning_balance_folder(path)
+        if result['status'] != 'empty':
+            print(f"Import complete: {result['status']}")
     else:
         print(f"Unknown import type: {args.type}")
 
@@ -232,6 +241,19 @@ def cmd_show(args):
     close_db()
 
 
+def cmd_repair(args):
+    """Handle repair subcommand."""
+    get_db()
+    init_default_settings()
+
+    if args.target == 'morning-balance':
+        repair_morning_balance_pnl()
+    else:
+        print(f"Unknown repair target: {args.target}")
+
+    close_db()
+
+
 def cmd_set_ticker(args):
     """Set Yahoo Finance ticker for a holding."""
     get_db()
@@ -282,7 +304,7 @@ def main():
 
     # import command
     p_import = subparsers.add_parser('import', help='Import Excel data')
-    p_import.add_argument('type', choices=['daily', 'transactions', 'trades'],
+    p_import.add_argument('type', choices=['daily', 'transactions', 'trades', 'morning-balance'],
                           help='Type of import')
     p_import.add_argument('file', help='Path to Excel file')
     p_import.add_argument('--date', help='Data date (YYYY-MM-DD), default: today')
@@ -317,6 +339,12 @@ def main():
     p_show.add_argument('--all', action='store_true',
                         help='Include inactive holdings')
     p_show.set_defaults(func=cmd_show)
+
+    # repair command
+    p_repair = subparsers.add_parser('repair', help='Repair data issues')
+    p_repair.add_argument('target', choices=['morning-balance'],
+                          help='What to repair')
+    p_repair.set_defaults(func=cmd_repair)
 
     # set-ticker command
     p_ticker = subparsers.add_parser('set-ticker', help='Set Yahoo Finance ticker for a holding')

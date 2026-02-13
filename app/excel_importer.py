@@ -11,6 +11,7 @@ import re
 from app.column_map import (
     DAILY_COLUMNS, TRANSACTION_COLUMNS, SUMMARY_LABELS, TRADE_COLUMNS,
     TRADE_STATUS_MAP, TRADE_ACTION_MAP,
+    MORNING_BALANCE_COLUMNS, MORNING_BALANCE_SKIP_NAMES,
     clean_currency, clean_percent, get_security_type, get_action_type,
 )
 from app.holdings import add_holding, get_holding_by_tase_id, update_holding, deactivate_holding
@@ -736,3 +737,455 @@ def import_trades_folder(folder_path):
         'new_holdings': total_new,
         'errors': total_errors,
     }
+
+
+def _find_holding_by_name(name_he):
+    """Find an existing holding by Hebrew name, with fuzzy fallback.
+
+    Matching strategy:
+    1. Exact match on name_he
+    2. Fuzzy: DB name contains file name or vice versa (handles
+       reversed component order like "ת"א-ביטוח.IBI" vs "IBI.ת"א-ביטוח")
+    3. Not found: return None
+
+    Returns:
+        holding document or None
+    """
+    from app.holdings import list_holdings
+    all_holdings = list_holdings(active_only=False)
+
+    # Exact match
+    for h in all_holdings:
+        if h.get('name_he') == name_he:
+            return h
+
+    # Fuzzy: bidirectional substring
+    name_clean = name_he.strip()
+    for h in all_holdings:
+        db_name = h.get('name_he', '')
+        if name_clean in db_name or db_name in name_clean:
+            return h
+
+    # Fuzzy: split on dots and hyphens, check component overlap
+    name_parts = set(re.split(r'[.\-\s]+', name_clean))
+    for h in all_holdings:
+        db_name = h.get('name_he', '')
+        db_parts = set(re.split(r'[.\-\s]+', db_name))
+        if name_parts and db_parts and name_parts == db_parts:
+            return h
+
+    return None
+
+
+def _parse_morning_balance_date(filename):
+    """Parse date from morning balance filename DDMMYYYY.xlsx -> ISO date string."""
+    base = os.path.splitext(os.path.basename(filename))[0]
+    m = re.match(r'^(\d{2})(\d{2})(\d{4})$', base)
+    if not m:
+        raise ValueError(f"Cannot parse date from filename: {filename}")
+    day, month, year = m.groups()
+    return f"{year}-{month}-{day}"
+
+
+def import_morning_balance_folder(folder_path):
+    """Import all morning balance Excel files from a folder recursively.
+
+    Reads DDMMYYYY.xlsx files from folder_path (and subfolders), imports them
+    chronologically as daily data. Computes daily P&L from consecutive days.
+
+    Args:
+        folder_path: Root folder containing morning balance .xlsx files
+
+    Returns:
+        dict with aggregated results
+    """
+    from app.daily_prices import get_prices_by_date
+
+    folder_path = os.path.abspath(folder_path)
+
+    # Find all .xlsx files recursively
+    files = glob_mod.glob(os.path.join(folder_path, '**', '*.xlsx'), recursive=True)
+    if not files:
+        print(f"No .xlsx files found in {folder_path}")
+        return {'status': 'empty', 'files': 0}
+
+    # Parse dates and sort chronologically
+    dated_files = []
+    for f in files:
+        try:
+            date_str = _parse_morning_balance_date(f)
+            dated_files.append((date_str, f))
+        except ValueError:
+            print(f"Skipping {os.path.basename(f)}: cannot parse date from filename")
+
+    dated_files.sort(key=lambda x: x[0])
+
+    print(f"Found {len(dated_files)} morning balance files in {folder_path}")
+
+    ticker_map = get_setting('ticker_map', {})
+    total_rows = 0
+    files_imported = 0
+    files_skipped = 0
+    total_errors = []
+    prev_prices_map = None  # holding_id -> {'market_value': mv, 'quantity': qty}
+
+    for data_date, filepath in dated_files:
+        # Duplicate check
+        fhash = file_hash(filepath)
+        existing = find_by_hash(fhash)
+        if existing:
+            files_skipped += 1
+            continue
+
+        # Read Excel
+        try:
+            df = pd.read_excel(filepath)
+        except Exception as e:
+            total_errors.append(f"{os.path.basename(filepath)}: {str(e)}")
+            continue
+
+        df.rename(columns=MORNING_BALANCE_COLUMNS, inplace=True)
+
+        rows_imported = 0
+        rows_skipped = 0
+        errors = []
+        daily_prices_list = []
+
+        for idx, row in df.iterrows():
+            try:
+                name_raw = str(row.get('name', '')).strip()
+
+                # Skip special rows
+                skip = False
+                for skip_name in MORNING_BALANCE_SKIP_NAMES:
+                    if skip_name in name_raw:
+                        skip = True
+                        break
+                if skip:
+                    rows_skipped += 1
+                    continue
+
+                quantity = float(row.get('quantity', 0)) if pd.notna(row.get('quantity')) else 0
+                market_value = float(row.get('market_value', 0)) if pd.notna(row.get('market_value')) else 0
+
+                # Skip inactive positions (qty=0 and value=0)
+                if quantity <= 0 and market_value <= 0:
+                    rows_skipped += 1
+                    continue
+
+                # Match holding by name
+                holding = _find_holding_by_name(name_raw)
+                if holding is None:
+                    errors.append(f"Row {idx}: holding not found for '{name_raw}'")
+                    rows_skipped += 1
+                    continue
+                holding_id = holding.doc_id
+
+                # Parse fields (weight/pct columns may contain '%' strings)
+                price = float(row.get('price', 0)) if pd.notna(row.get('price')) else 0
+                cost_basis = float(row.get('cost_basis', 0)) if pd.notna(row.get('cost_basis')) else 0
+                holding_weight = clean_percent(row.get('holding_weight_pct'))
+                fifo_cost = float(row.get('fifo_cost', 0)) if pd.notna(row.get('fifo_cost')) else None
+                fifo_change_pct = clean_percent(row.get('fifo_change_pct'))
+                fifo_change_ils = float(row.get('fifo_change_ils', 0)) if pd.notna(row.get('fifo_change_ils')) else None
+                unrealized_pnl_pct = clean_percent(row.get('unrealized_pnl_pct'))
+
+                # Compute unrealized P&L
+                unrealized_pnl = market_value - cost_basis if cost_basis else None
+
+                # Compute daily P&L from previous day
+                daily_pnl = 0
+                price_change_pct_val = None
+                if prev_prices_map and holding_id in prev_prices_map:
+                    prev = prev_prices_map[holding_id]
+                    prev_mv = prev['market_value']
+                    prev_qty = prev['quantity']
+
+                    if prev_qty > 0 and quantity > 0:
+                        prev_price_per = prev_mv / prev_qty
+                        today_price_per = market_value / quantity
+
+                        if abs(quantity - prev_qty) < 0.001:
+                            # Same quantity: simple market value difference
+                            daily_pnl = market_value - prev_mv
+                        else:
+                            # Quantity changed (buy/sell): P&L only from price
+                            # movement on shares held across both days
+                            common_qty = min(prev_qty, quantity)
+                            daily_pnl = common_qty * (today_price_per - prev_price_per)
+
+                        if prev_price_per > 0:
+                            price_change_pct_val = (today_price_per - prev_price_per) / prev_price_per * 100
+
+                ticker_for_record = (holding and holding.get('ticker')) or ticker_map.get(name_raw) or name_raw
+
+                dp_data = {
+                    'holding_id': holding_id,
+                    'ticker': ticker_for_record,
+                    'date': data_date,
+                    'price': price,
+                    'quantity': quantity,
+                    'market_value': market_value,
+                    'cost_basis': cost_basis,
+                    'currency': 'ILS',
+                    'price_change_pct': price_change_pct_val,
+                    'daily_pnl': daily_pnl,
+                    'unrealized_pnl': unrealized_pnl,
+                    'unrealized_pnl_pct': unrealized_pnl_pct,
+                    'holding_weight_pct': holding_weight,
+                    'fifo_cost': fifo_cost,
+                    'fifo_change_pct': fifo_change_pct,
+                    'fifo_change_ils': fifo_change_ils,
+                }
+                daily_prices_list.append(dp_data)
+                rows_imported += 1
+
+            except Exception as e:
+                errors.append(f"Row {idx}: {str(e)}")
+                rows_skipped += 1
+
+        # Skip non-trading days: all P&L zero, TASE weekend, and not the first day
+        if prev_prices_map is not None and daily_prices_list and _is_tase_weekend(data_date):
+            all_zero = all(abs(dp.get('daily_pnl', 0)) < 0.01 for dp in daily_prices_list)
+            if all_zero:
+                # Still record the import for dedup, but don't create price/snapshot records
+                create_import(
+                    filename=os.path.basename(filepath),
+                    filepath=filepath,
+                    file_hash=fhash,
+                    data_date=data_date,
+                    import_type='morning_balance',
+                    rows_imported=0,
+                    rows_skipped=rows_imported,
+                    errors=[],
+                    status='skipped_no_trading',
+                )
+                files_skipped += 1
+                print(f"  {data_date}: skipped (non-trading day)")
+                continue
+
+        # Create import record
+        import_id = create_import(
+            filename=os.path.basename(filepath),
+            filepath=filepath,
+            file_hash=fhash,
+            data_date=data_date,
+            import_type='morning_balance',
+            rows_imported=rows_imported,
+            rows_skipped=rows_skipped,
+            errors=errors,
+        )
+
+        # Insert daily prices
+        inserted_prices = []
+        for dp_data in daily_prices_list:
+            dp_id = add_daily_price(import_id=import_id, **dp_data)
+            dp_data['import_id'] = import_id
+            inserted_prices.append(dp_data)
+
+        # Generate portfolio snapshot
+        generate_snapshot_from_prices(data_date, inserted_prices, import_id=import_id)
+
+        # Interpolate position changes (detect buys/sells)
+        _interpolate_position_changes(data_date, daily_prices_list)
+
+        # Build prev_prices_map for next day's daily P&L computation
+        prev_prices_map = {}
+        for dp in daily_prices_list:
+            prev_prices_map[dp['holding_id']] = {
+                'market_value': dp['market_value'],
+                'quantity': dp['quantity'],
+            }
+
+        total_rows += rows_imported
+        files_imported += 1
+        total_errors.extend(errors)
+
+        print(f"  {data_date}: {rows_imported} securities ({rows_skipped} skipped)")
+
+    print(f"\nTotal: {files_imported} files imported, {total_rows} rows, "
+          f"{files_skipped} duplicates skipped")
+    if total_errors:
+        for e in total_errors:
+            print(f"  Error: {e}")
+
+    return {
+        'status': 'success' if not total_errors else 'partial',
+        'files': files_imported,
+        'duplicates': files_skipped,
+        'rows_imported': total_rows,
+        'errors': total_errors,
+    }
+
+
+def repair_morning_balance_pnl():
+    """Recompute daily P&L for all morning balance imports.
+
+    Fixes the issue where quantity changes (buys/sells between days) were
+    incorrectly counted as P&L. Now only price movement on shares held
+    across both days is counted.
+    """
+    from app.connection import get_table, DAILY_PRICES, IMPORTS
+    from app.snapshots import generate_snapshot_from_prices
+    from tinydb import Query
+
+    imports_table = get_table(IMPORTS)
+    Q = Query()
+    mb_imports = imports_table.search(Q.import_type == 'morning_balance')
+    mb_import_ids = {imp.doc_id for imp in mb_imports}
+
+    if not mb_import_ids:
+        print("No morning balance imports found.")
+        return
+
+    prices_table = get_table(DAILY_PRICES)
+    all_prices = prices_table.all()
+    mb_prices = [p for p in all_prices if p.get('import_id') in mb_import_ids]
+
+    if not mb_prices:
+        print("No morning balance daily prices found.")
+        return
+
+    # Group by date
+    by_date = {}
+    for p in mb_prices:
+        by_date.setdefault(p['date'], []).append(p)
+
+    dates = sorted(by_date.keys())
+    print(f"Repairing P&L for {len(dates)} dates, {len(mb_prices)} records...")
+
+    prev_map = None  # holding_id -> {'market_value': mv, 'quantity': qty}
+    fixed_count = 0
+
+    for date in dates:
+        records = by_date[date]
+        date_prices = []
+
+        for rec in records:
+            hid = rec.get('holding_id')
+            mv = rec.get('market_value', 0)
+            qty = rec.get('quantity', 0)
+
+            old_pnl = rec.get('daily_pnl', 0)
+            new_pnl = 0
+            price_change_pct = None
+
+            if prev_map and hid in prev_map:
+                prev = prev_map[hid]
+                prev_mv = prev['market_value']
+                prev_qty = prev['quantity']
+
+                if prev_qty > 0 and qty > 0:
+                    prev_price_per = prev_mv / prev_qty
+                    today_price_per = mv / qty
+
+                    if abs(qty - prev_qty) < 0.001:
+                        new_pnl = mv - prev_mv
+                    else:
+                        common_qty = min(prev_qty, qty)
+                        new_pnl = common_qty * (today_price_per - prev_price_per)
+
+                    if prev_price_per > 0:
+                        price_change_pct = (today_price_per - prev_price_per) / prev_price_per * 100
+
+            # Update record if P&L changed or price_change_pct is missing
+            pnl_changed = abs(new_pnl - old_pnl) > 0.01
+            old_pct = rec.get('price_change_pct')
+            pct_missing = price_change_pct is not None and old_pct is None
+
+            if pnl_changed or pct_missing:
+                update_data = {'daily_pnl': round(new_pnl, 2)}
+                if price_change_pct is not None:
+                    update_data['price_change_pct'] = round(price_change_pct, 4)
+                prices_table.update(update_data, doc_ids=[rec.doc_id])
+                fixed_count += 1
+                if pnl_changed:
+                    print(f"  {date} {rec.get('ticker',''):15s} "
+                          f"pnl: {old_pnl:>10.2f} -> {new_pnl:>10.2f}  "
+                          f"(qty: {qty}, prev_qty: {prev_map[hid]['quantity'] if prev_map and hid in prev_map else 'N/A'})")
+
+            updated_rec = dict(rec)
+            updated_rec['daily_pnl'] = round(new_pnl, 2)
+            if price_change_pct is not None:
+                updated_rec['price_change_pct'] = round(price_change_pct, 4)
+            date_prices.append(updated_rec)
+
+        # Regenerate snapshot for this date
+        generate_snapshot_from_prices(date, date_prices)
+
+        # Build prev_map for next date
+        prev_map = {}
+        for rec in records:
+            hid = rec.get('holding_id')
+            if hid:
+                prev_map[hid] = {
+                    'market_value': rec.get('market_value', 0),
+                    'quantity': rec.get('quantity', 0),
+                }
+
+    print(f"\nFixed {fixed_count} records across {len(dates)} dates.")
+
+    # Phase 2: Remove zero-change days (non-trading days)
+    _remove_zero_change_days(prices_table, by_date, dates)
+
+
+def _is_tase_weekend(date_str):
+    """Check if a date falls on a TASE weekend (non-trading day of week).
+
+    TASE switched from Sun-Thu to Mon-Fri on 2026-01-05.
+    Before: Fri + Sat are off.  After: Sat + Sun are off.
+    """
+    dt = datetime.strptime(date_str, '%Y-%m-%d')
+    wd = dt.weekday()  # Mon=0 ... Sun=6
+    if date_str < '2026-01-05':
+        return wd in (4, 5)   # Fri, Sat
+    else:
+        return wd in (5, 6)   # Sat, Sun
+
+
+def _remove_zero_change_days(prices_table, by_date, dates):
+    """Remove daily_prices and snapshots for non-trading days.
+
+    Only removes days that have all-zero P&L AND fall on a TASE weekend.
+    The first date in the dataset is always kept (baseline).
+    """
+    from app.connection import get_table, PORTFOLIO_SNAPSHOTS
+    from tinydb import Query
+
+    snapshots_table = get_table(PORTFOLIO_SNAPSHOTS)
+    S = Query()
+
+    first_date = dates[0] if dates else None
+    removed_days = 0
+    removed_records = 0
+
+    for date in dates:
+        if date == first_date:
+            continue  # Keep baseline day
+
+        if not _is_tase_weekend(date):
+            continue  # Trading day — keep even if zero change
+
+        records = by_date[date]
+        all_zero = all(
+            abs(r.get('daily_pnl', 0) or 0) < 0.01
+            for r in records
+        )
+        if not all_zero:
+            continue
+
+        # Remove daily_prices for this date
+        doc_ids = [r.doc_id for r in records]
+        prices_table.remove(doc_ids=doc_ids)
+
+        # Remove snapshot for this date
+        snapshots_table.remove(S.date == date)
+
+        removed_records += len(doc_ids)
+        removed_days += 1
+        print(f"  Removed {date} ({len(doc_ids)} records) - non-trading day")
+
+    if removed_days:
+        print(f"\nRemoved {removed_days} non-trading days ({removed_records} records).")
+    else:
+        print("\nNo non-trading days to remove.")

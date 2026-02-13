@@ -265,7 +265,7 @@ def get_daily_summary(start_date=None, end_date=None):
 
         # Use the file-reported daily P&L (price moves on active positions).
         # On days with sells, also include the day's price impact on sold positions:
-        # prev_close vs (current + sells - buys - deposits) captures everything.
+        # prev_close vs (current + sells - buys) captures everything.
         daily_pnl = snap['total_daily_pnl']
         if prev_close is not None:
             # Check if positions changed (morning mismatch)
@@ -276,7 +276,7 @@ def get_daily_summary(start_date=None, end_date=None):
                 sell_txns = list_transactions(type_='sell', start_date=snap['date'], end_date=snap['date'])
                 buy_total = sum(t['total_amount'] for t in buy_txns)
                 sell_total = sum(t['total_amount'] for t in sell_txns)
-                daily_pnl = snap['total_market_value'] - prev_close - deposits_today + sell_total - buy_total
+                daily_pnl = snap['total_market_value'] - prev_close + sell_total - buy_total
 
         change_pct = (daily_pnl / morning_value * 100) if morning_value else 0
 

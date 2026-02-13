@@ -14,7 +14,7 @@ TRANSLATIONS = {
     # ── Common controls ──
     'pick_date':          {'he': 'בחר תאריך',        'en': 'Select Date'},
     'no_date_selected':   {'he': 'לא נבחר תאריך',    'en': 'No Date Selected'},
-    'clear':              {'he': 'נקה',               'en': 'Clear'},
+    'btn_clear':          {'he': 'נקה',               'en': 'Clear'},
     'clear_date':         {'he': 'נקה תאריך',         'en': 'Clear Date'},
     'mode_single':        {'he': 'יום בודד',          'en': 'Single Day'},
     'mode_range':         {'he': 'טווח',              'en': 'Range'},
@@ -181,6 +181,10 @@ TRANSLATIONS = {
     'flash_deposit_success': {'he': 'הפקדה בסך {amount} ₪ נוספה בהצלחה לתאריך {date}',
                               'en': 'Deposit of ₪{amount} was successfully added for date {date}'},
     'flash_deposit_error':  {'he': 'שגיאה בהוספת הפקדה',  'en': 'Error adding deposit'},
+    'flash_morning_balance_success': {'he': 'יובאו {count} קבצי יתרת בוקר ({total_rows} שורות)',
+                                      'en': 'Imported {count} morning balance files ({total_rows} rows)'},
+    'flash_morning_balance_skip': {'he': 'דילוג על {count} קבצים (כבר יובאו)',
+                                   'en': 'Skipped {count} files (already imported)'},
 }
 
 

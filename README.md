@@ -12,7 +12,9 @@ Created with Claude Code.
 - **Transaction ledger** — Deposits, buys, sells with auto-computed monthly summaries derived from daily data
 - **Auto-computed monthly summaries** — Month-end balance and cost-change metrics generated on-the-fly from portfolio snapshots, with partial-month warnings when trading days are missing
 - **FIFO tax lots** — Automatic cost basis tracking using First-In-First-Out for capital gains
+- **Morning balance import** — Bulk import historic morning balance files (DDMMYYYY.xlsx), computing daily P&L from consecutive-day comparisons with quantity-aware logic
 - **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions
+- **Data repair** — CLI repair command fixes P&L miscalculations, backfills missing percentages, and removes non-trading days with TASE schedule awareness
 - **Bilingual UI** — Full Hebrew/English language switching via a nav bar toggle, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Web dashboard** — Five views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history
 - **Calendar date picker** — Filter any view by single date or date range
@@ -75,7 +77,7 @@ my-stocks/
 │   ├── imports.py          # Import audit trail & dedup
 │   ├── queries.py          # Analytics & frontend view queries
 │   ├── i18n.py             # Hebrew/English translation strings
-│   ├── excel_importer.py   # Excel file parsing (daily, transactions, trades)
+│   ├── excel_importer.py   # Excel file parsing (daily, transactions, trades, morning balance)
 │   └── column_map.py       # Hebrew-English column mappings
 ├── templates/
 │   ├── index.html          # Dashboard
@@ -90,6 +92,7 @@ my-stocks/
 │   └── db.json             # TinyDB database (auto-created)
 └── data/                   # Your Excel data files (not tracked in git)
     ├── daily_data/         # Daily portfolio exports, organized by month
+    ├── morning_balance/    # Historic morning balance files (DDMMYYYY.xlsx)
     ├── trades/             # Individual trade files (DDMMYYYY.xlsx)
     └── IBI.xlsx            # Transaction history export
 ```
@@ -119,6 +122,19 @@ python main.py import trades <filepath>
 python main.py import trades <folderpath>
 ```
 Parses individual trade order files (format: `DDMMYYYY.xlsx`). Creates buy/sell transactions with execution details.
+
+**Import morning balance files:**
+```bash
+python main.py import morning-balance <folderpath>
+```
+Bulk imports historic morning balance Excel files (`DDMMYYYY.xlsx`) from a folder recursively. Processes files chronologically, computing daily P&L from consecutive-day comparisons. Quantity changes between days (buys/sells) are handled correctly — only price movement on shares held across both days counts as P&L. Non-trading days (detected by zero P&L on TASE weekend days) are automatically skipped.
+
+### Repairing data
+
+```bash
+python main.py repair morning-balance
+```
+Recomputes daily P&L and price change percentages for all morning balance imports, regenerates snapshots, and removes non-trading days. Safe to run multiple times (idempotent). Handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05).
 
 ### Adding transactions manually
 
@@ -213,7 +229,7 @@ On the General page (`/transactions`), use the deposit form at the top:
 
 ### Monthly summaries
 
-Monthly summaries on the General page are computed automatically from your imported daily data. Each summary shows the month-end portfolio balance and cost-change metrics (ILS and %). If a month has fewer than 80% of expected TASE trading days (Sun-Thu), it is flagged with a "Partial" badge.
+Monthly summaries on the General page are computed automatically from your imported daily data. Each summary shows the month-end portfolio balance and cost-change metrics (ILS and %). If a month has fewer than 80% of expected TASE trading days, it is flagged with a "Partial" badge.
 
 ### Date filtering
 
@@ -251,6 +267,10 @@ IBI Excel exports
 │                  │───▶ settings         (ibi_summary metrics)
 │                  │
 │  trade files ────┼───▶ transactions     (buy/sell with details)
+│                  │
+│  morning bal. ───┼───▶ daily_prices     (historic per-security)
+│                  │───▶ snapshots        (historic portfolio totals)
+│                  │───▶ transactions     (interpolated buys/sells)
 └─────────────────┘
        │
        ▼
@@ -311,6 +331,10 @@ Security types "תפ"ס" and "פח"ק" (tax-advantaged savings products) are aut
 
 The IBI account statement export. Left side contains transaction rows (date, action, amount, balance). Right side contains summary metrics (total deposits, cost change).
 
+### Morning balance files (`DDMMYYYY.xlsx`)
+
+Historic morning balance exports from IBI. Filename encodes the date. Contains 11 columns: security name, quantity, price, market value, holding weight, average cost, cost basis, unrealized P&L %, FIFO cost, FIFO change %, FIFO change ILS. Holdings are matched to the database by Hebrew name (exact match, then substring, then component overlap). Rows named "מס לשלם", "מס עתידי", or "מגן מס" are skipped.
+
 ### Trade files (`DDMMYYYY.xlsx`)
 
 Individual trade order files from IBI. Filename encodes the trade date. Contains order details: security name, action (buy/sell), quantity, price, execution status.
@@ -319,7 +343,9 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring).
-- **Auto-computed monthly summaries**: `queries.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative deposits, and flags incomplete months using a TASE trading-day heuristic (Sun-Thu count).
+- **TASE schedule awareness**: The codebase handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05). Non-trading day detection, morning balance import skipping, and the repair command all use `_is_tase_weekend()` which checks the date against the correct schedule.
+- **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
+- **Auto-computed monthly summaries**: `queries.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative deposits, and flags incomplete months using a TASE trading-day heuristic.
 - **Hebrew encoding**: The CLI uses `io.TextIOWrapper` to force UTF-8 output on Windows consoles
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot

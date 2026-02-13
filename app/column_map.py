@@ -71,6 +71,24 @@ TRADE_ACTION_MAP = {
     'מכירה': 'sell',
 }
 
+# Morning balance (historic) columns
+MORNING_BALANCE_COLUMNS = {
+    'שם נייר': 'name',
+    'כמות בוקר': 'quantity',
+    'שער בוקר': 'price',
+    'שווי בוקר': 'market_value',
+    '% אחזקה': 'holding_weight_pct',
+    'עלות ממוצעת לע"נ': 'avg_cost_per_share',
+    'עלות משוקללת': 'cost_basis',
+    '% ש.מעלות': 'unrealized_pnl_pct',
+    'עלות FIFO': 'fifo_cost',
+    '% ש.מעלות FIFO': 'fifo_change_pct',
+    'ש.מעלות FIFO בשקלים': 'fifo_change_ils',
+}
+
+# Rows in morning balance that are not securities
+MORNING_BALANCE_SKIP_NAMES = {'מס לשלם', 'מס עתידי', 'מגן מס'}
+
 # Security type mapping
 SECURITY_TYPE_MAP = {
     'מניות בש"ח': 'stock',
