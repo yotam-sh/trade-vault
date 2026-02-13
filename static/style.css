@@ -694,3 +694,36 @@ pre {
     margin-right: 0;
     margin-left: auto;
 }
+
+/* Export buttons */
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    background: #21262d;
+    color: #8b949e;
+    font-size: 11px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.export-btn:hover {
+    background: #30363d;
+    color: #e6edf3;
+    border-color: #58a6ff;
+}
+
+.export-btn-accent {
+    border-color: #58a6ff;
+    color: #58a6ff;
+}
+
+.export-btn-accent:hover {
+    background: rgba(88, 166, 255, 0.15);
+    color: #79c0ff;
+}

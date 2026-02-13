@@ -504,57 +504,71 @@ def get_trade_history(start_date=None, end_date=None):
 def get_closed_positions():
     """Get summary of fully closed positions with realized P&L.
 
+    Derived from trade transactions (buy/sell) to stay consistent with the
+    trade history view.  Uses sell_lot_details for P&L when available,
+    otherwise computes from buy/sell amounts.
+
     Returns list of closed position summaries.
     """
-    from app.tax_lots import get_all_lots
+    trades = get_trade_history()
 
-    all_lots = get_all_lots()
-
-    # Group lots by holding_id
+    # Group trades by holding_id
     by_holding = {}
-    for lot in all_lots:
-        hid = lot['holding_id']
-        if hid not in by_holding:
-            by_holding[hid] = []
-        by_holding[hid].append(lot)
+    for t in trades:
+        hid = t.get('holding_id')
+        if hid:
+            by_holding.setdefault(hid, []).append(t)
 
     closed = []
-    for hid, lots in by_holding.items():
-        # Check if all lots are closed
-        all_closed = all(l['is_closed'] for l in lots)
-        if not all_closed:
+    for hid, htrades in by_holding.items():
+        # Compute final share balance
+        balance = 0
+        for t in htrades:
+            if t['type'] == 'buy':
+                balance += t['shares']
+            else:
+                balance -= t['shares']
+
+        # Only include fully closed positions
+        if balance > 0.0001:
             continue
 
-        holding = get_holding(hid)
-        if not holding:
+        sells = [t for t in htrades if t['type'] == 'sell']
+        buys = [t for t in htrades if t['type'] == 'buy']
+        if not sells:
             continue
 
-        total_shares = sum(l['original_shares'] for l in lots)
-        total_cost = sum(l['original_shares'] * l['cost_per_share'] for l in lots)
-        total_pnl = sum(l.get('realized_pnl', 0) or 0 for l in lots)
-        avg_buy = total_cost / total_shares if total_shares else 0
+        total_buy_shares = sum(t['shares'] for t in buys)
+        total_buy_amount = sum(t['total_amount'] for t in buys)
+        total_sell_shares = sum(t['shares'] for t in sells)
+        total_sell_amount = sum(t['total_amount'] for t in sells)
 
-        # Get sell info from transactions
-        sell_txns = list_transactions(type_='sell')
-        sell_txns_for_holding = [t for t in sell_txns if t.get('holding_id') == hid]
-        total_sell_amount = sum(t.get('total_amount', 0) for t in sell_txns_for_holding)
-        total_sell_shares = sum(t.get('shares', 0) for t in sell_txns_for_holding)
+        avg_buy = total_buy_amount / total_buy_shares if total_buy_shares else 0
         avg_sell = total_sell_amount / total_sell_shares if total_sell_shares else 0
 
-        buy_dates = sorted(set(l['buy_date'] for l in lots))
-        sell_dates = sorted(set(l.get('closed_date', '') for l in lots if l.get('closed_date')))
+        # Use realized P&L from sell_lot_details when available
+        total_pnl = sum(s.get('realized_pnl', 0) or 0 for s in sells)
+        if total_pnl == 0:
+            total_pnl = total_sell_amount - total_buy_amount
 
-        pnl_pct = (total_pnl / total_cost * 100) if total_cost else 0
+        holding = get_holding(hid)
+        name_he = holding['name_he'] if holding else htrades[0].get('name_he', '')
+        symbol = holding.get('tase_symbol', '') if holding else htrades[0].get('symbol', '')
+        security_type = holding.get('security_type', '') if holding else ''
+
+        buy_dates = sorted(set(t['date'] for t in buys))
+        sell_dates = sorted(set(t['date'] for t in sells))
+        pnl_pct = (total_pnl / total_buy_amount * 100) if total_buy_amount else 0
 
         closed.append({
             'holding_id': hid,
-            'name_he': holding['name_he'],
-            'symbol': holding.get('tase_symbol', ''),
-            'security_type': holding.get('security_type', ''),
-            'total_shares': total_shares,
+            'name_he': name_he,
+            'symbol': symbol,
+            'security_type': security_type,
+            'total_shares': total_buy_shares,
             'avg_buy_price': round(avg_buy, 2),
             'avg_sell_price': round(avg_sell, 2),
-            'total_cost': round(total_cost, 2),
+            'total_cost': round(total_buy_amount, 2),
             'total_pnl': round(total_pnl, 2),
             'pnl_pct': round(pnl_pct, 2),
             'buy_dates': buy_dates,

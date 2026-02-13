@@ -281,6 +281,62 @@ def trades_view():
                            start=start, end=end)
 
 
+# ── Export routes ──
+from app.export import build_dataframe, make_excel_response, make_csv_response, build_tax_report
+
+
+@app.route('/export/tax-report')
+def export_tax_report():
+    """Export multi-sheet yearly tax report as Excel."""
+    lang = _get_lang()
+    return build_tax_report(lang)
+
+
+@app.route('/export/<view>')
+def export_view(view):
+    """Export any page's data as Excel or CSV."""
+    lang = _get_lang()
+    fmt = request.args.get('format', 'xlsx')
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    if view == 'portfolio':
+        portfolio = get_portfolio_value()
+        data = portfolio['positions'] if portfolio else []
+        date_label = portfolio['date'] if portfolio else 'empty'
+        filename = f"portfolio_{date_label}"
+    elif view == 'transactions':
+        data = get_transaction_log()
+        data = [e for e in data if e['action'] in ('deposit', 'month_summary')]
+        if start:
+            data = [e for e in data if e.get('date', '') >= start]
+        if end:
+            data = [e for e in data if e.get('date', '') <= end]
+        filename = 'transactions'
+    elif view == 'trades':
+        data = get_trade_history(start_date=start, end_date=end)
+        filename = 'trades'
+    elif view == 'daily-summary':
+        data = get_daily_summary(start_date=start, end_date=end)
+        filename = 'daily_summary'
+    elif view == 'daily-details':
+        data = get_daily_details(start_date=start, end_date=end)
+        filename = 'daily_details'
+    else:
+        return 'Unknown view', 404
+
+    df = build_dataframe(view, data, lang)
+
+    if start and end:
+        filename += f"_{start}_to_{end}"
+    elif start:
+        filename += f"_from_{start}"
+
+    if fmt == 'csv':
+        return make_csv_response(df, f"{filename}.csv")
+    return make_excel_response(df, f"{filename}.xlsx")
+
+
 if __name__ == '__main__':
     print("Starting TradeVault server on http://localhost:5000")
     app.run(debug=True, port=5000)

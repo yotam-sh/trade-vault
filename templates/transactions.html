@@ -102,6 +102,7 @@
                 <button type="button" class="date-preset" data-range="month">{{ t.preset_month }}</button>
                 <button type="button" class="date-preset" data-range="30">{{ t.preset_30 }}</button>
             </div>
+            <a href="/export/transactions?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
 
         <div class="two-col">

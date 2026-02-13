@@ -185,6 +185,18 @@ TRANSLATIONS = {
                                       'en': 'Imported {count} morning balance files ({total_rows} rows)'},
     'flash_morning_balance_skip': {'he': 'דילוג על {count} קבצים (כבר יובאו)',
                                    'en': 'Skipped {count} files (already imported)'},
+
+    # ── Export buttons & labels ──
+    'btn_export':             {'he': 'ייצוא',                   'en': 'Export'},
+    'btn_export_tax':         {'he': 'דו"ח מס שנתי',             'en': 'Tax Report'},
+    'export_best_pnl_ils':    {'he': 'רווח/הפסד חזקה (₪)',       'en': 'Best P&L (₪)'},
+    'export_best_pnl_pct':    {'he': 'רווח/הפסד חזקה (%)',       'en': 'Best P&L (%)'},
+    'export_worst_pnl_ils':   {'he': 'רווח/הפסד חלשה (₪)',       'en': 'Worst P&L (₪)'},
+    'export_worst_pnl_pct':   {'he': 'רווח/הפסד חלשה (%)',       'en': 'Worst P&L (%)'},
+    'export_sheet_summary':   {'he': 'סיכום שנתי',               'en': 'Yearly Summary'},
+    'export_sheet_sells':     {'he': 'עסקאות מכירה',             'en': 'Sell Trades'},
+    'export_sheet_closed':    {'he': 'פוזיציות סגורות',          'en': 'Closed Positions'},
+    'export_taxable':         {'he': 'חייב במס',                 'en': 'Taxable'},
 }
 
 
