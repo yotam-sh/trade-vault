@@ -1,0 +1,29 @@
+<svg width="100" height="120" xmlns="http://www.w3.org/2000/svg" fill="none">
+ <!-- Icon -->
+
+ <!-- App Name (Edit This Text) -->
+ <g>
+  <title>Layer 1</title>
+  <g id="svg_1">
+   <!-- Database cylinder -->
+   <ellipse id="svg_2" fill="#1E1E24" ry="12" rx="35" cy="35" cx="50"/>
+   <rect id="svg_3" fill="#1E1E24" height="50" width="70" y="35" x="15"/>
+   <ellipse id="svg_4" fill="#1E1E24" ry="12" rx="35" cy="85" cx="50"/>
+   <!-- Rising chart line -->
+   <polyline id="svg_5" stroke-linejoin="round" stroke-linecap="round" fill="none" stroke-width="4" stroke="#00E0A4" points="25,70 40,60 55,65 70,45 "/>
+   <!-- Chart dots -->
+   <circle id="svg_6" fill="#00E0A4" r="3" cy="70" cx="25"/>
+   <circle id="svg_7" fill="#00E0A4" r="3" cy="60" cx="40"/>
+   <circle id="svg_8" fill="#00E0A4" r="3" cy="65" cx="55"/>
+   <circle id="svg_9" fill="#00E0A4" r="3" cy="45" cx="70"/>
+   <!-- Lock Body -->
+   <rect id="svg_10" fill="#2A2A33" rx="4" height="18" width="22" y="68" x="62"/>
+   <!-- Lock Shackle -->
+   <path id="svg_11" stroke-linecap="round" fill="none" stroke-width="3" stroke="#00E0A4" d="m73,68l0,-8a7,7 0 0 1 14,0l0,8"/>
+   <!-- Keyhole -->
+   <circle id="svg_12" fill="#00E0A4" r="2.5" cy="77" cx="73"/>
+   <rect id="svg_13" fill="#00E0A4" rx="1" height="5" width="2.4" y="79" x="71.8"/>
+  </g>
+  <text id="svg_14" fill="#E6E6E6" font-weight="600" font-size="32" font-family="Segoe UI, Arial, sans-serif" y="65" x="120">TradeVault</text>
+ </g>
+</svg>

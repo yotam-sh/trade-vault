@@ -1,4 +1,4 @@
-"""CLI entry point for my-stocks portfolio tracker."""
+"""CLI entry point for TradeVault portfolio tracker."""
 
 import argparse
 import sys
@@ -297,7 +297,7 @@ def cmd_set_ticker(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='my-stocks: Personal portfolio tracker',
+        description='TradeVault: Personal portfolio tracker',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest='command', help='Available commands')

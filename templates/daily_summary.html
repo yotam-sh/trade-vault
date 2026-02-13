@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t.nav_daily_summary }} - {{ t.brand }}</title>
+    <title>{{ t.nav_daily_summary }} - TradeVault</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <nav>
-        <span class="brand">{{ t.brand }}</span>
+        <a href="/" class="brand"><img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo"></a>
         <a href="/">{{ t.nav_home }}</a>
         <a href="/transactions">{{ t.nav_transactions }}</a>
         <a href="/trades">{{ t.nav_trades }}</a>

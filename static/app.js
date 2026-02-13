@@ -1,4 +1,4 @@
-/* my-stocks - Table sorting, filtering, and calendar date picker */
+/* TradeVault - Table sorting, filtering, and calendar date picker */
 
 // T is a global translation object injected by the server via <script>var T = ...;</script>
 

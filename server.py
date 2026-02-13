@@ -26,7 +26,7 @@ from app.queries import (
 )
 
 app = Flask(__name__)
-app.secret_key = 'my-stocks-dev-key'
+app.secret_key = 'tradevault-dev-key'
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'daily_data')
 
@@ -282,5 +282,5 @@ def trades_view():
 
 
 if __name__ == '__main__':
-    print("Starting my-stocks server on http://localhost:5000")
+    print("Starting TradeVault server on http://localhost:5000")
     app.run(debug=True, port=5000)

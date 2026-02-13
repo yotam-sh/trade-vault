@@ -4,7 +4,7 @@ import json
 
 TRANSLATIONS = {
     # ── Navigation & Brand ──
-    'brand':              {'he': 'תיק השקעות',   'en': 'Investment Portfolio'},
+    'brand':              {'he': 'TradeVault',   'en': 'TradeVault'},
     'nav_home':           {'he': 'ראשי',         'en': 'Home'},
     'nav_transactions':   {'he': 'כללי',         'en': 'General'},
     'nav_trades':         {'he': 'עסקאות',       'en': 'Trades'},

@@ -1,4 +1,4 @@
-# my-stocks
+# TradeVault
 
 Personal stock portfolio tracker for IBI brokerage (Tel Aviv Stock Exchange). Features a CLI for data management and a web dashboard for portfolio analytics.
 
@@ -32,7 +32,7 @@ Created with Claude Code.
 
 ```bash
 git clone <repo-url>
-cd my-stocks
+cd TradeVault
 pip install flask tinydb pandas openpyxl
 ```
 
@@ -61,7 +61,7 @@ python server.py
 ## Project Structure
 
 ```
-my-stocks/
+TradeVault/
 ├── main.py                 # CLI entry point
 ├── server.py               # Flask web server (port 5000)
 ├── app/

@@ -1,4 +1,4 @@
-/* my-stocks - Dark Mode Bilingual Portfolio Tracker */
+/* TradeVault - Dark Mode Bilingual Portfolio Tracker */
 
 * {
     margin: 0;
@@ -25,13 +25,21 @@ nav {
     align-items: center;
     gap: 24px;
     border-bottom: 1px solid #30363d;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
 nav .brand {
-    font-size: 18px;
-    font-weight: bold;
     margin-left: 24px;
-    color: #58a6ff;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+nav .brand-logo {
+    height: 72px;
+    width: auto;
 }
 
 nav a {
