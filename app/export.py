@@ -183,7 +183,7 @@ def make_csv_response(df, filename):
 
 def build_tax_report(lang='he'):
     """Build a multi-sheet Excel tax report workbook."""
-    from app.queries import compute_yearly_tax, get_trade_history, get_closed_positions
+    from app.analytics import compute_yearly_tax, get_trade_history, get_closed_positions
 
     t = get_translations(lang)
     by_year, years = compute_yearly_tax()

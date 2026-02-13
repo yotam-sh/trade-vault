@@ -9,10 +9,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
-from app.excel_importer import import_daily_portfolio
+from app.importers import import_daily_portfolio
 from app.transactions import add_deposit
 from app.i18n import get_translations, get_translations_json, t as _t
-from app.queries import (
+from app.analytics import (
     get_portfolio_value,
     get_transaction_log,
     get_transaction_summary,

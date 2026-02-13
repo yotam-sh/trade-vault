@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
-from app.excel_importer import import_daily_portfolio, import_transactions, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl
+from app.importers import import_daily_portfolio, import_transactions, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl
 from app.holdings import list_holdings, get_holding_by_ticker, set_ticker
 from app.transactions import add_buy, add_sell, add_deposit
 from app.tax_lots import create_lot, sell_fifo
