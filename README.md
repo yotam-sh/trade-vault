@@ -351,6 +351,12 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
 - **Interpolation**: When a daily import detects a new holding or a disappeared one compared to the previous day, it automatically creates buy/sell transactions (unless a nearby trade already exists)
 
+## Credits
+
+- Vibe coding, idea, fighting with Claude by [yotam-sh]
+- Code by [Anthropic's Claude](https://claude.ai) (Claude Code)
+- Logo by [OpenAI's ChatGPT](https://chatgpt.com)
+
 ## License
 
-Private project - not for distribution.
+[MIT](LICENSE)
