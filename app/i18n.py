@@ -166,6 +166,7 @@ TRANSLATIONS = {
     'action_deposit':          {'he': 'הפקדה',          'en': 'Deposit'},
     'action_initial_transfer': {'he': 'העברה ראשונית',   'en': 'Initial Transfer'},
     'action_month_summary':    {'he': 'סיכום חודש',      'en': 'Monthly Summary'},
+    'badge_partial':           {'he': 'חלקי',            'en': 'Partial'},
 
     # ── Flash messages (server.py) ──
     'flash_no_file':        {'he': 'לא נבחר קובץ',       'en': 'No file selected'},

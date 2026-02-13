@@ -124,7 +124,12 @@
                             {% for entry in log %}
                             <tr>
                                 <td>{{ entry.date }}</td>
-                                <td>{{ t[entry.action_key] if entry.action_key in t else entry.action_key }}</td>
+                                <td>
+                                    {{ t[entry.action_key] if entry.action_key in t else entry.action_key }}
+                                    {% if entry.is_partial %}
+                                        <span class="badge badge-partial" title="{{ entry.trading_days }}/{{ entry.expected_days }}">{{ t.badge_partial }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="num">
                                     {% if entry.amount and entry.amount != 0 %}
                                         {{ '{:,.0f}'.format(entry.amount) }}

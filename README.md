@@ -9,9 +9,11 @@ Created with Claude Code.
 ## Features
 
 - **Daily portfolio snapshots** — Import daily holdings from IBI Excel exports, track value changes over time
-- **Transaction ledger** — Deposits, buys, sells, and monthly summaries imported from broker history
+- **Transaction ledger** — Deposits, buys, sells with auto-computed monthly summaries derived from daily data
+- **Auto-computed monthly summaries** — Month-end balance and cost-change metrics generated on-the-fly from portfolio snapshots, with partial-month warnings when trading days are missing
 - **FIFO tax lots** — Automatic cost basis tracking using First-In-First-Out for capital gains
 - **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions
+- **Bilingual UI** — Full Hebrew/English language switching via a nav bar toggle, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Web dashboard** — Five views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
@@ -72,6 +74,7 @@ my-stocks/
 │   ├── snapshots.py        # Portfolio snapshot generation
 │   ├── imports.py          # Import audit trail & dedup
 │   ├── queries.py          # Analytics & frontend view queries
+│   ├── i18n.py             # Hebrew/English translation strings
 │   ├── excel_importer.py   # Excel file parsing (daily, transactions, trades)
 │   └── column_map.py       # Hebrew-English column mappings
 ├── templates/
@@ -81,7 +84,7 @@ my-stocks/
 │   ├── daily_details.html  # Detailed daily breakdown
 │   └── trades.html         # Trade history
 ├── static/
-│   ├── style.css           # Dark mode RTL styling
+│   ├── style.css           # Dark mode styling with RTL/LTR support
 │   └── app.js              # Sorting, filtering, calendar picker
 ├── db/
 │   └── db.json             # TinyDB database (auto-created)
@@ -178,22 +181,26 @@ python server.py
 ```
 Open `http://localhost:5000` in your browser.
 
+### Language switching
+
+Click the language toggle button in the nav bar (rightmost in Hebrew mode, leftmost in English mode) to switch between Hebrew and English. The setting is saved in a cookie and persists across pages and sessions.
+
 ### Pages
 
 | Page | URL | Description |
 |------|-----|-------------|
 | **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, daily file upload |
-| **General (כללי)** | `/transactions` | Deposit/summary ledger, add deposit form, aggregate metrics |
-| **Trades (עסקאות)** | `/trades` | Buy/sell history with position labels, closed position P&L |
-| **Daily Summary (סיכום יומי)** | `/daily-summary` | Per-day totals with best/worst performers |
-| **Daily Details (יומי מלא)** | `/daily-details` | Per-security daily breakdown, pivots by security and date |
+| **General** | `/transactions` | Deposit ledger with auto-computed monthly summaries, add deposit form, aggregate metrics |
+| **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax |
+| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers |
+| **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date |
 
 ### Uploading daily files via the web
 
 On the Dashboard (`/`), use the upload form at the top:
 1. Select the date for the data
 2. Choose the `.xlsx` file
-3. Click "ייבא"
+3. Click Import
 
 The file is saved to `data/daily_data/<month>_<year>/` and imported automatically.
 
@@ -202,14 +209,19 @@ The file is saved to `data/daily_data/<month>_<year>/` and imported automaticall
 On the General page (`/transactions`), use the deposit form at the top:
 1. Enter the amount
 2. Pick a date using the calendar button (defaults to today)
-3. Click "הוסף הפקדה"
+3. Click Add Deposit
+
+### Monthly summaries
+
+Monthly summaries on the General page are computed automatically from your imported daily data. Each summary shows the month-end portfolio balance and cost-change metrics (ILS and %). If a month has fewer than 80% of expected TASE trading days (Sun-Thu), it is flagged with a "Partial" badge.
 
 ### Date filtering
 
-The Daily Summary, Daily Details, and Trades pages have a calendar date picker. Click the "בחר תאריך" button to open it:
+The Daily Summary, Daily Details, and Trades pages have a calendar date picker:
 - **Single day mode** — Click a date to filter to that day
 - **Range mode** — Click a start date, then an end date
-- **Clear** — Click "נקה" to remove the filter and show all data
+- **Presets** — Quick buttons for this week, this month, or last 30 days
+- **Clear** — Remove the filter and show all data
 
 The Daily Details page defaults to the most recent day when no filter is applied.
 
@@ -217,7 +229,8 @@ The Daily Details page defaults to the most recent day when no filter is applied
 
 - Click any column header to sort ascending/descending
 - P&L values are color-coded: green for gains, red for losses
-- On Daily Details, use the "סוג" dropdown to filter by security type (stocks, ETFs, bonds, mutual funds)
+- On Daily Details, use the type dropdown to filter by security type (stocks, ETFs, bonds, mutual funds)
+- Search box on Dashboard and Daily Details pages for filtering by security name
 
 ## Data Flow
 
@@ -245,12 +258,18 @@ IBI Excel exports
 │    queries.py    │  (analytics layer)
 │                  │
 │  get_portfolio_value()
+│  get_transaction_log()     (+ computed monthly summaries)
 │  get_daily_summary()
 │  get_daily_details()
 │  get_pivot_by_security()
 │  get_pivot_by_date()
 │  get_trade_history()
 │  get_closed_positions()
+└─────────────────┘
+       │
+       ▼
+┌─────────────────┐
+│     i18n.py      │  (Hebrew/English translations)
 └─────────────────┘
        │
        ▼
@@ -298,8 +317,10 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 
 ## Technical Notes
 
+- **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
+- **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring).
+- **Auto-computed monthly summaries**: `queries.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative deposits, and flags incomplete months using a TASE trading-day heuristic (Sun-Thu count).
 - **Hebrew encoding**: The CLI uses `io.TextIOWrapper` to force UTF-8 output on Windows consoles
-- **RTL layout**: The web UI uses `dir="rtl"` and right-aligned text throughout
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
 - **Interpolation**: When a daily import detects a new holding or a disappeared one compared to the previous day, it automatically creates buy/sell transactions (unless a nearby trade already exists)
