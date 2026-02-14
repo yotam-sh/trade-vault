@@ -15,7 +15,8 @@ Created with Claude Code.
 - **Morning balance import** — Bulk import historic morning balance files (DDMMYYYY.xlsx), computing daily P&L from consecutive-day comparisons with quantity-aware logic
 - **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions
 - **Data repair** — CLI repair command fixes P&L miscalculations, backfills missing percentages, and removes non-trading days with TASE schedule awareness
-- **Bilingual UI** — Full Hebrew/English language switching via a nav bar toggle, persisted in a cookie. All UI chrome switches; stock data stays in its original language
+- **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
+- **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
 - **Web dashboard** — Five views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
@@ -76,6 +77,7 @@ TradeVault/
 │   ├── snapshots.py        # Portfolio snapshot generation
 │   ├── imports.py          # Import audit trail & dedup
 │   ├── queries.py          # Analytics & frontend view queries
+│   ├── export.py           # Excel export functionality for all views
 │   ├── i18n.py             # Hebrew/English translation strings
 │   ├── excel_importer.py   # Excel file parsing (daily, transactions, trades, morning balance)
 │   └── column_map.py       # Hebrew-English column mappings
@@ -86,8 +88,10 @@ TradeVault/
 │   ├── daily_details.html  # Detailed daily breakdown
 │   └── trades.html         # Trade history
 ├── static/
-│   ├── style.css           # Dark mode styling with RTL/LTR support
-│   └── app.js              # Sorting, filtering, calendar picker
+│   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
+│   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
+│   ├── logo.svg            # Favicon
+│   └── logo_with_name.svg  # Navigation header logo
 ├── db/
 │   └── db.json             # TinyDB database (auto-created)
 └── data/                   # Your Excel data files (not tracked in git)
@@ -197,9 +201,25 @@ python server.py
 ```
 Open `http://localhost:5000` in your browser.
 
-### Language switching
+### Settings & Theming
 
-Click the language toggle button in the nav bar (rightmost in Hebrew mode, leftmost in English mode) to switch between Hebrew and English. The setting is saved in a cookie and persists across pages and sessions.
+Click the gear icon (⚙) button in the top-left corner of the navigation bar to open the settings dropdown. The dropdown contains:
+
+**Language selector:**
+- Switch between Hebrew (עברית) and English
+- The page reloads to apply translations
+- The setting is saved in a cookie and persists across pages and sessions
+- The dropdown automatically reopens after language switch for convenience
+
+**Theme selector:**
+- Choose from 4 color palettes:
+  - **Default** — GitHub Dark theme (dark blue/gray with blue accents)
+  - **Crimson** — Deep burgundy with coral accents
+  - **Teal** — Ocean blues with bright teal accents
+  - **Slate** — Warm grays with orange/amber accents
+- Each theme shows a visual color preview
+- Switching is instant (no page reload)
+- The theme preference is saved in a cookie and persists across pages and sessions
 
 ### Pages
 
@@ -342,7 +362,8 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 ## Technical Notes
 
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
-- **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring).
+- **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
+- **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie.
 - **TASE schedule awareness**: The codebase handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05). Non-trading day detection, morning balance import skipping, and the repair command all use `_is_tase_weekend()` which checks the date against the correct schedule.
 - **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
 - **Auto-computed monthly summaries**: `queries.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative deposits, and flags incomplete months using a TASE trading-day heuristic.

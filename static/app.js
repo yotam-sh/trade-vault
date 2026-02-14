@@ -481,3 +481,100 @@ function sameDay(a, b) {
            a.getMonth() === b.getMonth() &&
            a.getDate() === b.getDate();
 }
+
+// ── Settings Dropdown ──
+(function() {
+    var settingsBtn = document.getElementById('settings-toggle');
+    var settingsDropdown = document.getElementById('settings-dropdown');
+
+    if (!settingsBtn || !settingsDropdown) return;
+
+    var isOpen = false;
+
+    // Check if dropdown should be reopened after reload
+    if (sessionStorage.getItem('settingsOpen') === 'true') {
+        isOpen = true;
+        settingsDropdown.classList.add('open');
+        sessionStorage.removeItem('settingsOpen');
+    }
+
+    // Toggle dropdown
+    settingsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOpen = !isOpen;
+        settingsDropdown.classList.toggle('open', isOpen);
+    });
+
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
+            isOpen = false;
+            settingsDropdown.classList.remove('open');
+        }
+    });
+
+    // Close on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isOpen) {
+            isOpen = false;
+            settingsDropdown.classList.remove('open');
+        }
+    });
+
+    // Stop dropdown clicks from closing
+    settingsDropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    // Language switching (reload page with new cookie)
+    document.querySelectorAll('.lang-option').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var lang = btn.dataset.lang;
+
+            // Update cookie
+            document.cookie = 'lang=' + lang + '; path=/; max-age=' + (365 * 24 * 3600);
+
+            // Remember dropdown was open
+            sessionStorage.setItem('settingsOpen', 'true');
+
+            // Reload page to apply translations
+            window.location.reload();
+        });
+    });
+
+    // Theme switching (CSS variables, no reload)
+    function getCookie(name) {
+        var value = '; ' + document.cookie;
+        var parts = value.split('; ' + name + '=');
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    var currentTheme = getCookie('theme') || 'default';
+
+    // Apply saved theme on load
+    if (currentTheme !== 'default') {
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    }
+
+    // Set initial radio state
+    var savedRadio = document.querySelector('input[name="theme"][value="' + currentTheme + '"]');
+    if (savedRadio) savedRadio.checked = true;
+
+    // Theme change handler
+    document.querySelectorAll('input[name="theme"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var theme = radio.value;
+
+            // Update data-theme attribute
+            if (theme === 'default') {
+                document.documentElement.removeAttribute('data-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+
+            // Save to cookie
+            document.cookie = 'theme=' + theme + '; path=/; max-age=' + (365 * 24 * 3600);
+        });
+    });
+})();

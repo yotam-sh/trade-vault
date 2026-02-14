@@ -111,6 +111,9 @@ TRANSLATIONS = {
     'detail_title':          {'he': 'פירוט יומי לפי נייר',      'en': 'Daily Breakdown by Security'},
     'pivot_security_title':  {'he': 'סיכום לפי נייר',           'en': 'Summary by Security'},
     'pivot_date_title':      {'he': 'סיכום לפי תאריך',          'en': 'Summary by Date'},
+    'stat_profiting':        {'he': 'ימים רווחיים',             'en': 'Profiting Days'},
+    'stat_losing':           {'he': 'ימים הפסדיים',             'en': 'Losing Days'},
+    'stat_neutral':          {'he': 'ימים ניטרליים',            'en': 'Neutral Days'},
     'th_tase_id':            {'he': 'מספר',                     'en': 'Number'},
     'th_change_ils':         {'he': 'שינוי (₪)',                'en': 'Change (₪)'},
     'th_change_pct_col':     {'he': 'שינוי (%)',                'en': 'Change (%)'},
@@ -125,6 +128,15 @@ TRANSLATIONS = {
     'subtotal_prefix':       {'he': 'סה"כ',                     'en': 'Subtotal'},
     'empty_daily_details':   {'he': 'אין נתונים יומיים. ייבא קבצים יומיים כדי ליצור היסטוריה.',
                               'en': 'No daily data. Import daily files to build history.'},
+
+    # ── Settings dropdown ──
+    'settings':              {'he': 'הגדרות',          'en': 'Settings'},
+    'settings_language':     {'he': 'שפה',             'en': 'Language'},
+    'settings_theme':        {'he': 'ערכת צבעים',      'en': 'Color Palette'},
+    'theme_default':         {'he': 'ברירת מחדל',      'en': 'Default'},
+    'theme_crimson':         {'he': 'ארגמן',           'en': 'Crimson'},
+    'theme_teal':            {'he': 'כחול-ירוק',       'en': 'Teal'},
+    'theme_slate':           {'he': 'אפור',            'en': 'Slate'},
 
     # ── Security type labels ──
     'type_stock':            {'he': 'מניות',        'en': 'Stocks'},

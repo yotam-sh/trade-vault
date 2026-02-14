@@ -154,7 +154,9 @@ def get_closed_positions():
 def get_pivot_by_date(start_date=None, end_date=None):
     """View 3 right: Daily totals across all securities.
 
-    Returns list of per-date aggregate records.
+    Returns dict with:
+    - days: list of per-date aggregate records
+    - stats: dict with profiting/losing/neutral day counts
     """
     details = get_daily_details(start_date, end_date)
 
@@ -174,7 +176,20 @@ def get_pivot_by_date(start_date=None, end_date=None):
         morning = r['total_market_value'] - r['total_change_ils']
         r['total_change_pct'] = round(r['total_change_ils'] / morning * 100, 2) if morning else 0
 
-    return result
+    # Compute profiting/losing days statistics
+    profiting = sum(1 for r in result if r['total_change_ils'] > 0)
+    losing = sum(1 for r in result if r['total_change_ils'] < 0)
+    neutral = sum(1 for r in result if r['total_change_ils'] == 0)
+
+    return {
+        'days': result,
+        'stats': {
+            'profiting': profiting,
+            'losing': losing,
+            'neutral': neutral,
+            'total': len(result),
+        }
+    }
 
 
 # ─── Yearly Tax Computation ───

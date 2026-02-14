@@ -134,6 +134,9 @@ def get_daily_details(start_date=None, end_date=None):
     # Filter out sold positions (qty=0)
     records = [rec for rec in records if rec.get('quantity', 0) > 0]
 
+    # Filter out 2026-01-04 (first Sunday in TASE Mon-Fri schedule change - market closed)
+    records = [rec for rec in records if rec.get('date') != '2026-01-04']
+
     # Use centralized enrichment for holding data
     enriched = enrich_positions_batch(records, holding_id_key='holding_id')
 

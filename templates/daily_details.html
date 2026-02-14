@@ -9,13 +9,84 @@
 </head>
 <body>
     <nav>
-        <a href="/" class="brand"><img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo"></a>
-        <a href="/">{{ t.nav_home }}</a>
-        <a href="/transactions">{{ t.nav_transactions }}</a>
-        <a href="/trades">{{ t.nav_trades }}</a>
-        <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
-        <a href="/daily-details" class="active">{{ t.nav_daily_details }}</a>
-        <a href="/set-lang/{{ 'he' if lang == 'en' else 'en' }}" class="lang-toggle">{{ 'עב' if lang == 'en' else 'EN' }}</a>
+        <div class="nav-left">
+            <button class="settings-btn" id="settings-toggle">
+                {{ t.settings }}
+            </button>
+            <div class="settings-dropdown" id="settings-dropdown">
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_language }}</div>
+                    <div class="lang-options">
+                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
+                            עברית
+                        </button>
+                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
+                            English
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #0d1117"></span>
+                                <span class="color-sample" style="background: #161b22"></span>
+                                <span class="color-sample" style="background: #58a6ff"></span>
+                                <span class="color-sample" style="background: #3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #280905"></span>
+                                <span class="color-sample" style="background: #740A03"></span>
+                                <span class="color-sample" style="background: #C3110C"></span>
+                                <span class="color-sample" style="background: #E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #432323"></span>
+                                <span class="color-sample" style="background: #2F5755"></span>
+                                <span class="color-sample" style="background: #5A9690"></span>
+                                <span class="color-sample" style="background: #E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #37353E"></span>
+                                <span class="color-sample" style="background: #44444E"></span>
+                                <span class="color-sample" style="background: #715A5A"></span>
+                                <span class="color-sample" style="background: #D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <a href="/">{{ t.nav_home }}</a>
+            <a href="/transactions">{{ t.nav_transactions }}</a>
+            <a href="/trades">{{ t.nav_trades }}</a>
+            <a href="/daily-details" class="active">{{ t.nav_daily_details }}</a>
+            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+        </div>
+
+        <div class="nav-right">
+            <a href="/" class="brand">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
+            </a>
+        </div>
     </nav>
 
     <div class="container">
@@ -166,7 +237,13 @@
 
         <!-- Pivot by date -->
         <div class="card">
-                    <div class="card-header">{{ t.pivot_date_title }}</div>
+                    <div class="card-header">
+                        {{ t.pivot_date_title }}
+                        <span class="day-stats">
+                            <span class="stat positive">{{ t.stat_profiting }}: {{ pivot_date.stats.profiting }}</span>
+                            <span class="stat negative">{{ t.stat_losing }}: {{ pivot_date.stats.losing }}</span>
+                        </span>
+                    </div>
                     <div class="table-wrapper">
                         <table class="sortable">
                             <thead>
@@ -178,7 +255,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for day in pivot_date %}
+                                {% for day in pivot_date.days %}
                                 <tr data-pnl="{{ day.total_change_ils }}">
                                     <td>{{ day.date }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(day.total_change_ils) }}</td>
