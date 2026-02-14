@@ -22,6 +22,8 @@ Created with Claude Code.
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
 - **Best/worst performers** — Daily summary highlights top and bottom movers
 - **Closed position tracking** — P&L summary for fully sold positions
+- **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
+- **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
 
 ## Prerequisites
@@ -34,7 +36,7 @@ Created with Claude Code.
 ```bash
 git clone <repo-url>
 cd TradeVault
-pip install flask tinydb pandas openpyxl
+pip install flask tinydb pandas openpyxl yfinance
 ```
 
 No additional configuration needed. The database file (`db/db.json`) is created automatically on first run.
@@ -76,11 +78,31 @@ TradeVault/
 │   ├── dividends.py        # Dividend tracking
 │   ├── snapshots.py        # Portfolio snapshot generation
 │   ├── imports.py          # Import audit trail & dedup
-│   ├── queries.py          # Analytics & frontend view queries
+│   ├── queries.py          # Analytics facade (imports from analytics/ modules)
+│   ├── excel_importer.py   # Import facade (imports from importers/ modules)
 │   ├── export.py           # Excel export functionality for all views
 │   ├── i18n.py             # Hebrew/English translation strings
-│   ├── excel_importer.py   # Excel file parsing (daily, transactions, trades, morning balance)
-│   └── column_map.py       # Hebrew-English column mappings
+│   ├── column_map.py       # Hebrew-English column mappings
+│   ├── analytics/          # Modular analytics layer
+│   │   ├── daily_analytics.py      # Daily summary and detail views
+│   │   ├── monthly_summary.py      # Auto-computed monthly summaries
+│   │   ├── portfolio_analytics.py  # Portfolio value and P&L
+│   │   ├── tax_calculator.py       # Capital gains tax calculations
+│   │   └── trade_analytics.py      # Trade history and closed positions
+│   ├── importers/          # Modular import layer
+│   │   ├── base_importer.py            # Base importer with deduplication
+│   │   ├── daily_importer.py           # Daily portfolio file imports
+│   │   ├── morning_balance_importer.py # Morning balance bulk imports
+│   │   ├── position_tracker.py         # Position change detection
+│   │   ├── repair_tools.py             # Data repair and validation
+│   │   ├── trade_importer.py           # Trade file imports
+│   │   └── transaction_importer.py     # Transaction history imports
+│   └── utils/              # Shared utilities
+│       ├── data_enrichment.py      # Centralized name/ticker enrichment
+│       ├── date_utils.py           # TASE calendar and date helpers
+│       ├── file_utils.py           # File path and hash utilities
+│       ├── holding_resolver.py     # Name-based holding matching
+│       └── translation_service.py  # Yahoo Finance API integration
 ├── templates/
 │   ├── index.html          # Dashboard
 │   ├── transactions.html   # General ledger
@@ -193,6 +215,25 @@ python main.py set-ticker <search> <ticker>
 ```
 Assigns a ticker symbol to a holding. `<search>` can be a TASE ID (number) or a Hebrew name fragment.
 
+### Yahoo Finance integration
+
+**Map TASE security to Yahoo Finance symbol:**
+```bash
+python main.py set-yfinance <tase_id> <yfinance_symbol>
+```
+Maps a TASE paper number to a Yahoo Finance symbol (e.g., `GNRS.TA`, `TEVA.TA`) and automatically fetches the English stock name and ticker from the Yahoo Finance API. The mapping is stored in settings for future reference.
+
+Example:
+```bash
+python main.py set-yfinance 1156926 GNRS.TA
+```
+
+**Refresh stock info from existing mappings:**
+```bash
+python main.py refresh-yfinance
+```
+Re-fetches English names and tickers for all securities that have been mapped to Yahoo Finance symbols. Useful for updating stock information after yfinance data changes.
+
 ## Web Dashboard
 
 Start the server:
@@ -268,6 +309,18 @@ The Daily Details page defaults to the most recent day when no filter is applied
 - On Daily Details, use the type dropdown to filter by security type (stocks, ETFs, bonds, mutual funds)
 - Search box on Dashboard and Daily Details pages for filtering by security name
 
+### Exporting data
+
+Each page has an Export button (📥) that downloads the current view as an Excel file:
+- **Dashboard** — Exports current portfolio positions with values and P&L
+- **General** — Exports deposit history and monthly summaries
+- **Trades** — Exports all buy/sell transactions plus closed positions summary
+  - **Tax Report** — Special multi-sheet Excel export with per-year capital gains calculations, loss carryover tracking, and comprehensive tax summary
+- **Daily Summary** — Exports daily totals with best/worst performers
+- **Daily Details** — Exports per-security daily breakdown (respects active date filter)
+
+The export respects your current filters and language settings. Date ranges, security type filters, and search filters are all preserved in the exported data.
+
 ## Data Flow
 
 ```
@@ -316,6 +369,8 @@ IBI Excel exports
    Flask views / CLI output
 ```
 
+**Note:** This diagram shows the logical data flow. The actual implementation uses a modular architecture with `app/importers/` (daily, transactions, trades, morning balance) and `app/analytics/` (portfolio, monthly, daily, trades, tax) modules. The `excel_importer.py` and `queries.py` files act as facades that delegate to these specialized modules.
+
 ## Database
 
 Uses TinyDB (a lightweight JSON document database). The database file is created at `db/db.json` on first run.
@@ -361,6 +416,8 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 
 ## Technical Notes
 
+- **Modular architecture**: The codebase uses a three-layer architecture with facades for backward compatibility. `app/importers/` contains specialized import modules (daily, transactions, trades, morning balance, repair tools). `app/analytics/` contains query modules (portfolio, daily, monthly, trades, tax). `app/utils/` provides shared utilities (data enrichment, holding resolution, Yahoo Finance integration). The top-level `excel_importer.py` and `queries.py` are facades that import from these modules.
+- **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding English names and tickers to query results. When language is set to English, all analytics functions automatically enrich their output with `name_en` and `ticker` fields from the holdings table, falling back to Hebrew names when English data is unavailable.
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
 - **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie.
