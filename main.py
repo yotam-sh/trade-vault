@@ -190,7 +190,9 @@ def cmd_show(args):
         for h in holdings:
             status = "ACTIVE" if h['is_active'] else "INACTIVE"
             ticker = h.get('ticker') or 'N/A'
-            print(f"  [{h.doc_id}] {h['name_he']} ({h['tase_symbol']}) "
+            name_en = h.get('name_en')
+            name_display = f"{h['name_he']}" + (f" / {name_en}" if name_en else "")
+            print(f"  [{h.doc_id}] Paper #{h['tase_id']}: {name_display} ({h['tase_symbol']}) "
                   f"- {ticker} [{h['security_type']}] {status}")
 
     elif args.view == 'pnl':
@@ -295,6 +297,137 @@ def cmd_set_ticker(args):
     close_db()
 
 
+def cmd_sync_holdings(args):
+    """Sync is_active flag with current portfolio positions."""
+    get_db()
+    init_default_settings()
+
+    from app.snapshots import get_latest_snapshot
+    from app.holdings import list_holdings, update_holding, get_holding
+
+    # Get latest portfolio snapshot
+    snapshot = get_latest_snapshot()
+    if not snapshot:
+        print("No portfolio snapshot found. Import daily data first.")
+        close_db()
+        return
+
+    # Get holding IDs of current positions (quantity > 0)
+    current_holding_ids = set()
+    for pos in snapshot.get('positions', []):
+        if pos.get('quantity', 0) > 0:
+            holding_id = pos.get('holding_id')
+            if holding_id:
+                current_holding_ids.add(holding_id)
+
+    print(f"Current portfolio has {len(current_holding_ids)} positions")
+    print()
+
+    # Get all holdings
+    all_holdings = list_holdings(active_only=False)
+
+    # Sync is_active flag
+    activated = 0
+    deactivated = 0
+
+    for holding in all_holdings:
+        should_be_active = holding.doc_id in current_holding_ids
+        is_currently_active = holding.get('is_active', False)
+
+        if should_be_active and not is_currently_active:
+            # Activate holding
+            update_holding(holding.doc_id, is_active=True)
+            activated += 1
+            print(f"✓ Activated: {holding['name_he']} (Paper #{holding['tase_id']})")
+        elif not should_be_active and is_currently_active:
+            # Deactivate holding
+            update_holding(holding.doc_id, is_active=False)
+            deactivated += 1
+            print(f"✗ Deactivated: {holding['name_he']} (Paper #{holding['tase_id']})")
+
+    print(f"\nSync complete:")
+    print(f"  Activated:   {activated}")
+    print(f"  Deactivated: {deactivated}")
+    print(f"  Unchanged:   {len(all_holdings) - activated - deactivated}")
+
+    close_db()
+
+
+def cmd_refresh_yfinance(args):
+    """Refresh stock info from existing yfinance mappings."""
+    get_db()
+    init_default_settings()
+
+    from app.utils.translation_service import refresh_info_from_mappings, get_yfinance_mapping
+
+    # Get all mappings
+    mappings = get_yfinance_mapping()
+
+    if not mappings:
+        print("No yfinance mappings found. Use 'set-yfinance' to create mappings first.")
+        close_db()
+        return
+
+    print(f"Found {len(mappings)} yfinance mappings")
+    print("Refreshing stock info from Yahoo Finance...")
+    print()
+
+    # Refresh all mappings
+    results = refresh_info_from_mappings()
+
+    print(f"\nRefresh complete:")
+    print(f"  Success: {results['success']}")
+    print(f"  Failed:  {results['failed']}")
+
+    if results['errors']:
+        print(f"\nErrors:")
+        for err in results['errors']:
+            print(f"  - {err}")
+
+    close_db()
+
+
+def cmd_set_yfinance(args):
+    """Map TASE paper number to Yahoo Finance symbol and fetch stock info."""
+    get_db()
+    init_default_settings()
+
+    from app.utils.translation_service import set_yfinance_mapping
+    from app.holdings import get_holding_by_tase_id
+
+    # Get the holding to show current info
+    holding = get_holding_by_tase_id(args.tase_id)
+    if not holding:
+        print(f"Error: No holding found with TASE ID {args.tase_id}")
+        close_db()
+        return
+
+    print(f"Holding: {holding['name_he']}")
+    print(f"TASE ID: {args.tase_id}")
+    print(f"Yahoo Finance Symbol: {args.yfinance_symbol}")
+    print()
+    print("Fetching stock info from yfinance...")
+
+    # Set the mapping and fetch the info
+    result = set_yfinance_mapping(args.tase_id, args.yfinance_symbol)
+
+    if result['success']:
+        if result['name_en'] and result['ticker']:
+            print(f"✓ Success!")
+            print(f"  English Name: {result['name_en']}")
+            print(f"  Ticker: {result['ticker']}")
+        elif result['name_en']:
+            print(f"✓ Success: {result['name_en']}")
+            print(f"  (No ticker available)")
+        else:
+            print(f"✓ Mapping saved, but could not fetch info from yfinance")
+            print(f"  Error: {result['error']}")
+    else:
+        print(f"✗ Failed: {result['error']}")
+
+    close_db()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='TradeVault: Personal portfolio tracker',
@@ -337,7 +470,7 @@ def main():
     p_show.add_argument('view', choices=['portfolio', 'holdings', 'pnl', 'trades'],
                         help='What to display')
     p_show.add_argument('--all', action='store_true',
-                        help='Include inactive holdings')
+                        help='[holdings only] Show all holdings (including inactive/closed positions)')
     p_show.set_defaults(func=cmd_show)
 
     # repair command
@@ -351,6 +484,23 @@ def main():
     p_ticker.add_argument('search', help='Holding name or tase_id to search for')
     p_ticker.add_argument('ticker', help='Yahoo Finance ticker to assign')
     p_ticker.set_defaults(func=cmd_set_ticker)
+
+    # sync-holdings command
+    p_sync = subparsers.add_parser('sync-holdings',
+                                   help='Sync is_active flag with current portfolio')
+    p_sync.set_defaults(func=cmd_sync_holdings)
+
+    # set-yfinance command
+    p_yfinance = subparsers.add_parser('set-yfinance',
+                                       help='Map TASE paper number to Yahoo Finance symbol')
+    p_yfinance.add_argument('tase_id', type=int, help='TASE paper number (e.g., 1156926)')
+    p_yfinance.add_argument('yfinance_symbol', help='Yahoo Finance symbol (e.g., GNRS.TA)')
+    p_yfinance.set_defaults(func=cmd_set_yfinance)
+
+    # refresh-yfinance command
+    p_refresh = subparsers.add_parser('refresh-yfinance',
+                                      help='Refresh stock info from existing yfinance mappings')
+    p_refresh.set_defaults(func=cmd_refresh_yfinance)
 
     args = parser.parse_args()
 

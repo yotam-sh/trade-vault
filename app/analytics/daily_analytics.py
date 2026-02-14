@@ -16,6 +16,8 @@ def get_daily_summary(start_date=None, end_date=None):
 
     Returns list of daily summary records with top/bottom performers.
     """
+    from app.utils.data_enrichment import enrich_positions_batch
+
     # Load all snapshots (not just filtered range) so we can use prev_value
     all_snapshots = list_snapshots()
     filtered = list_snapshots(start_date, end_date)
@@ -33,15 +35,23 @@ def get_daily_summary(start_date=None, end_date=None):
         # Find best and worst performers from positions
         positions = snap.get('positions', [])
 
+        # Enrich positions with holding data for proper name/ticker display
+        enriched_positions = enrich_positions_batch(positions, holding_id_key='holding_id')
+
         best = None
         worst = None
-        for pos in positions:
+        for i, pos in enumerate(positions):
             pnl = pos.get('daily_pnl', 0)
             if pnl is None:
                 continue
 
+            enriched = enriched_positions[i]
             pos_info = {
-                'ticker': pos.get('ticker', ''),
+                'ticker': enriched.get('symbol', ''),  # TASE symbol (Hebrew)
+                'name_he': enriched.get('name_he', ''),
+                'name_en': enriched.get('name_en'),
+                'symbol': enriched.get('symbol', ''),  # TASE symbol
+                'ticker_en': enriched.get('ticker'),  # Yahoo Finance ticker (English)
                 'daily_pnl': pnl,
                 'daily_pnl_pct': round(pnl / pos.get('market_value', 1) * 100, 2) if pos.get('market_value') else 0,
             }
@@ -101,6 +111,7 @@ def get_daily_details(start_date=None, end_date=None):
     """
     from app.daily_prices import list_dates
     from app.connection import get_table, DAILY_PRICES
+    from app.utils.data_enrichment import enrich_positions_batch
     from tinydb import Query
 
     table = get_table(DAILY_PRICES)
@@ -120,33 +131,37 @@ def get_daily_details(start_date=None, end_date=None):
     else:
         records = table.all()
 
-    # Enrich with holding info
+    # Filter out sold positions (qty=0)
+    records = [rec for rec in records if rec.get('quantity', 0) > 0]
+
+    # Use centralized enrichment for holding data
+    enriched = enrich_positions_batch(records, holding_id_key='holding_id')
+
+    # Build result with additional fields
     result = []
     holdings_cache = {}
-    for rec in records:
-        # Skip sold positions (qty=0) - they pollute counts and aggregations
-        qty = rec.get('quantity', 0)
-        if qty <= 0:
-            continue
-
+    for i, rec in enumerate(records):
+        enriched_data = enriched[i]
         hid = rec.get('holding_id')
+
+        # Get security_type and tase_id from holding (not in enrichment)
         if hid and hid not in holdings_cache:
             h = get_holding(hid)
             holdings_cache[hid] = h
-
         holding = holdings_cache.get(hid, {}) or {}
 
         result.append({
             'date': rec['date'],
             'security_type': holding.get('security_type', ''),
-            'name': holding.get('name_he', rec.get('ticker', '')),
+            'name': enriched_data.get('name_he', ''),
+            'name_en': enriched_data.get('name_en'),
             'tase_id': holding.get('tase_id', ''),
-            'symbol': holding.get('tase_symbol', ''),
+            'symbol': enriched_data.get('symbol', ''),
+            'ticker': enriched_data.get('ticker'),
             'change_ils': rec.get('daily_pnl', 0),
             'change_pct': rec.get('price_change_pct', 0),
             'market_value': rec.get('market_value', 0),
-            'quantity': qty,
-            'ticker': rec.get('ticker', ''),
+            'quantity': rec.get('quantity', 0),
             'holding_id': hid,
         })
 
@@ -173,7 +188,9 @@ def get_pivot_by_security(start_date=None, end_date=None):
             change = d.get('change_ils', 0) or 0
             by_security[holding_id] = {
                 'name': d['name'],
-                'ticker': d['ticker'],  # Will use most recent ticker
+                'name_en': d.get('name_en'),
+                'ticker': d.get('ticker'),  # Will use most recent ticker
+                'symbol': d.get('symbol', ''),
                 'security_type': d['security_type'],
                 'total_change_ils': 0,
                 'max_change_ils': None,
@@ -185,8 +202,10 @@ def get_pivot_by_security(start_date=None, end_date=None):
             }
         entry = by_security[holding_id]
 
-        # Update to most recent ticker (in case it changed)
-        entry['ticker'] = d['ticker']
+        # Update to most recent enriched data (in case it changed)
+        entry['name_en'] = d.get('name_en')
+        entry['ticker'] = d.get('ticker')
+        entry['symbol'] = d.get('symbol', '')
 
         change_ils = d.get('change_ils', 0) or 0
         change_pct = d.get('change_pct', 0) or 0

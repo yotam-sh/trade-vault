@@ -132,9 +132,9 @@
                                     <span class="badge badge-sell">{{ t.badge_sell }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ tr.position_type }}</td>
-                            <td>{{ tr.name_he }}</td>
-                            <td>{{ tr.symbol }}</td>
+                            <td>{{ t[tr.position_type] if tr.position_type in t else tr.position_type }}</td>
+                            <td>{{ (tr.name_en if lang == 'en' and tr.name_en else tr.name_he) }}</td>
+                            <td>{{ (tr.ticker if lang == 'en' and tr.ticker else tr.symbol) }}</td>
                             <td class="num">{{ '{:,.0f}'.format(tr.shares or 0) }}</td>
                             <td class="num">₪{{ '{:,.2f}'.format(tr.price_per_share or 0) }}</td>
                             <td class="num">₪{{ '{:,.2f}'.format(tr.total_amount or 0) }}</td>
@@ -178,7 +178,7 @@
                     <tbody>
                         {% for c in closed %}
                         <tr data-pnl="{{ c.total_pnl }}">
-                            <td>{{ c.name_he }}</td>
+                            <td>{{ (c.name_en if lang == 'en' and c.name_en else c.name_he) }}</td>
                             <td>
                                 {% if c.security_type == 'stock' %}{{ t.type_stock }}
                                 {% elif c.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}

@@ -18,7 +18,9 @@ def enrich_position_with_holding(position, holding_id=None):
 
     enriched = dict(position)
     enriched['name_he'] = holding['name_he'] if holding else position.get('ticker', '')
+    enriched['name_en'] = holding.get('name_en') if holding else None
     enriched['symbol'] = holding['tase_symbol'] if holding else position.get('ticker', '')
+    enriched['ticker'] = holding.get('ticker') if holding else None  # Yahoo Finance ticker
 
     return enriched
 
@@ -52,7 +54,9 @@ def enrich_positions_batch(positions, holding_id_key='holding_id'):
 
         enriched = dict(pos)
         enriched['name_he'] = holding.get('name_he', pos.get('ticker', ''))
+        enriched['name_en'] = holding.get('name_en')
         enriched['symbol'] = holding.get('tase_symbol', pos.get('ticker', ''))
+        enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
 
         result.append(enriched)
 
@@ -79,12 +83,16 @@ def enrich_trade_with_holding(trade, holding_id=None):
 
     if holding:
         enriched['name_he'] = holding['name_he']
+        enriched['name_en'] = holding.get('name_en')
         enriched['symbol'] = holding.get('tase_symbol', '')
+        enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
         enriched['security_type'] = holding.get('security_type', '')
     else:
         # Fallback to existing values
         enriched['name_he'] = trade.get('name_he', trade.get('ticker', ''))
+        enriched['name_en'] = None
         enriched['symbol'] = trade.get('symbol', trade.get('ticker', ''))
+        enriched['ticker'] = None
         enriched['security_type'] = trade.get('security_type', '')
 
     return enriched

@@ -68,13 +68,11 @@
             <a href="/export/daily-details?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
 
-        <div class="two-col">
-            <!-- Left section - Per-security daily data -->
-            <div>
-                <div class="card">
-                    <div class="card-header">{{ t.detail_title }}</div>
-                    <div class="table-wrapper">
-                        <table id="details-table" class="sortable filterable">
+        <!-- Per-security daily data (full width, scrollable) -->
+        <div class="card">
+            <div class="card-header">{{ t.detail_title }}</div>
+            <div class="table-wrapper" style="max-height: 500px; overflow-y: auto; resize: vertical;">
+                <table id="details-table" class="sortable filterable">
                             <thead>
                                 <tr>
                                     <th>{{ t.th_date }}</th>
@@ -97,9 +95,9 @@
                                         {% elif d.security_type == 'bond' %}{{ t.type_bond }}
                                         {% else %}{{ d.security_type }}{% endif %}
                                     </td>
-                                    <td>{{ d.name }}</td>
+                                    <td>{{ (d.name_en if lang == 'en' and d.name_en else d.name) }}</td>
                                     <td>{{ d.tase_id }}</td>
-                                    <td>{{ d.symbol }}</td>
+                                    <td>{{ (d.ticker if lang == 'en' and d.ticker else d.symbol) }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(d.change_ils or 0) }}</td>
                                     <td class="num pnl">
                                         {% if d.change_pct is not none %}
@@ -111,13 +109,11 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
+        </div>
 
-            <!-- Right section - Pivot tables -->
-            <div>
-                <!-- Pivot by security type -->
-                <div class="card">
+        <!-- Pivot tables (stacked below main table) -->
+        <!-- Pivot by security type -->
+        <div class="card">
                     <div class="card-header">{{ t.pivot_security_title }}</div>
                     <div class="table-wrapper">
                         <table>
@@ -139,7 +135,7 @@
                                 </tr>
                                 {% for sec in group.securities %}
                                 <tr>
-                                    <td>{{ sec.name }}</td>
+                                    <td>{{ (sec.name_en if lang == 'en' and sec.name_en else sec.name) }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(sec.total_change_ils) }}</td>
                                     <td class="num positive">{{ '{:,.2f}'.format(sec.max_change_ils or 0) }}</td>
                                     <td class="num negative">{{ '{:,.2f}'.format(sec.min_change_ils or 0) }}</td>
@@ -166,10 +162,10 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+        </div>
 
-                <!-- Pivot by date -->
-                <div class="card">
+        <!-- Pivot by date -->
+        <div class="card">
                     <div class="card-header">{{ t.pivot_date_title }}</div>
                     <div class="table-wrapper">
                         <table class="sortable">
@@ -193,8 +189,6 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
         </div>
 
         {% if not details %}

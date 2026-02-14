@@ -3,6 +3,7 @@
 from app.holdings import get_holding
 from app.transactions import list_transactions
 from app.analytics.daily_analytics import get_daily_details
+from app.utils.data_enrichment import enrich_trade_with_holding
 
 
 def get_trade_history(start_date=None, end_date=None):
@@ -22,7 +23,6 @@ def get_trade_history(start_date=None, end_date=None):
     trades = []
     for txn in buy_sell_txns:
         hid = txn.get('holding_id')
-        holding = get_holding(hid) if hid else None
         shares = txn.get('shares', 0) or 0
 
         realized_pnl = 0
@@ -34,26 +34,30 @@ def get_trade_history(start_date=None, end_date=None):
 
         if txn['type'] == 'buy':
             if current_shares <= 0:
-                position_type = 'פתיחה'
+                position_type = 'position_type_opening'
             else:
-                position_type = 'הגדלה'
+                position_type = 'position_type_increase'
             positions[hid] = current_shares + shares
         else:  # sell
             remaining = current_shares - shares
             positions[hid] = remaining
             if remaining <= 0.0001:
-                position_type = 'סגירה'
+                position_type = 'position_type_closing'
                 positions[hid] = 0
             else:
-                position_type = 'צמצום'
+                position_type = 'position_type_reduction'
+
+        # Use centralized enrichment for holding data
+        enriched = enrich_trade_with_holding(txn)
 
         trades.append({
             'id': txn.doc_id,
             'date': txn['date'],
             'type': txn['type'],
-            'ticker': txn.get('ticker', ''),
-            'name_he': holding['name_he'] if holding else txn.get('ticker', ''),
-            'symbol': holding['tase_symbol'] if holding else '',
+            'ticker': enriched.get('ticker'),
+            'name_he': enriched.get('name_he', ''),
+            'name_en': enriched.get('name_en'),
+            'symbol': enriched.get('symbol', ''),
             'shares': shares,
             'price_per_share': txn.get('price_per_share', 0),
             'total_amount': txn.get('total_amount', 0),
@@ -116,9 +120,10 @@ def get_closed_positions():
         if total_pnl == 0:
             total_pnl = total_sell_amount - total_buy_amount
 
+        # Use enriched data from trades (already has name_en, ticker, etc.)
+        # Take most recent trade for current enriched values
+        most_recent = htrades[-1]
         holding = get_holding(hid)
-        name_he = holding['name_he'] if holding else htrades[0].get('name_he', '')
-        symbol = holding.get('tase_symbol', '') if holding else htrades[0].get('symbol', '')
         security_type = holding.get('security_type', '') if holding else ''
 
         buy_dates = sorted(set(t['date'] for t in buys))
@@ -127,8 +132,10 @@ def get_closed_positions():
 
         closed.append({
             'holding_id': hid,
-            'name_he': name_he,
-            'symbol': symbol,
+            'name_he': most_recent.get('name_he', ''),
+            'name_en': most_recent.get('name_en'),
+            'symbol': most_recent.get('symbol', ''),
+            'ticker': most_recent.get('ticker'),
             'security_type': security_type,
             'total_shares': total_buy_shares,
             'avg_buy_price': round(avg_buy, 2),

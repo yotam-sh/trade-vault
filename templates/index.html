@@ -117,8 +117,8 @@
                         {% for pos in portfolio.positions|sort(attribute='market_value', reverse=True) %}
                         {% if pos.quantity and pos.quantity > 0 %}
                         <tr data-pnl="{{ pos.market_value - pos.cost_basis }}">
-                            <td>{{ pos.name_he }}</td>
-                            <td>{{ pos.symbol }}</td>
+                            <td>{{ (pos.name_en if lang == 'en' and pos.name_en else pos.name_he) }}</td>
+                            <td>{{ (pos.ticker if lang == 'en' and pos.ticker else pos.symbol) }}</td>
                             <td class="num">{{ '{:,.2f}'.format(pos.market_value) }}</td>
                             <td class="num">{{ '{:,.2f}'.format(pos.cost_basis) }}</td>
                             <td class="num pnl">{{ '{:,.2f}'.format(pos.market_value - pos.cost_basis) }}</td>

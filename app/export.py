@@ -11,7 +11,9 @@ from app.i18n import get_translations
 
 PORTFOLIO_COLUMNS = [
     ('name_he', 'th_name'),
+    ('name_en', 'export_name_en'),
     ('symbol', 'th_symbol'),
+    ('ticker', 'export_ticker_en'),
     ('quantity', 'th_quantity'),
     ('market_value', 'th_value_ils'),
     ('cost_basis', 'th_cost_ils'),
@@ -35,7 +37,9 @@ TRADES_COLUMNS = [
     ('type', 'th_trade_action'),
     ('position_type', 'th_trade_type'),
     ('name_he', 'th_name'),
+    ('name_en', 'export_name_en'),
     ('symbol', 'th_symbol'),
+    ('ticker', 'export_ticker_en'),
     ('shares', 'th_quantity'),
     ('price_per_share', 'th_price_ils'),
     ('total_amount', 'th_amount_ils'),
@@ -44,6 +48,9 @@ TRADES_COLUMNS = [
 
 CLOSED_COLUMNS = [
     ('name_he', 'th_name'),
+    ('name_en', 'export_name_en'),
+    ('symbol', 'th_symbol'),
+    ('ticker', 'export_ticker_en'),
     ('security_type', 'th_trade_type'),
     ('total_shares', 'th_quantity'),
     ('avg_buy_price', 'th_avg_buy'),
@@ -72,8 +79,10 @@ DAILY_DETAILS_COLUMNS = [
     ('date', 'th_date'),
     ('security_type', 'label_type'),
     ('name', 'th_name'),
+    ('name_en', 'export_name_en'),
     ('tase_id', 'th_tase_id'),
     ('symbol', 'th_symbol'),
+    ('ticker', 'export_ticker_en'),
     ('change_ils', 'th_change_ils'),
     ('change_pct', 'th_change_pct_col'),
 ]
@@ -88,17 +97,29 @@ COLUMN_MAP = {
 }
 
 
-def _flatten_daily_summary(data):
-    """Flatten nested best/worst dicts in daily summary rows."""
+def _flatten_daily_summary(data, lang='he'):
+    """Flatten nested best/worst dicts in daily summary rows.
+
+    Args:
+        data: Daily summary data with best/worst nested dicts
+        lang: Language code ('en' or 'he') for ticker selection
+    """
     flat = []
     for row in data:
         r = dict(row)
         best = r.pop('best', None) or {}
         worst = r.pop('worst', None) or {}
-        r['best_ticker'] = best.get('ticker', '')
+
+        # Language-aware ticker selection
+        if lang == 'en':
+            r['best_ticker'] = best.get('ticker_en') or best.get('symbol', '')
+            r['worst_ticker'] = worst.get('ticker_en') or worst.get('symbol', '')
+        else:
+            r['best_ticker'] = best.get('symbol', '')
+            r['worst_ticker'] = worst.get('symbol', '')
+
         r['best_pnl_ils'] = best.get('daily_pnl', '')
         r['best_pnl_pct'] = best.get('daily_pnl_pct', '')
-        r['worst_ticker'] = worst.get('ticker', '')
         r['worst_pnl_ils'] = worst.get('daily_pnl', '')
         r['worst_pnl_pct'] = worst.get('daily_pnl_pct', '')
         flat.append(r)
@@ -138,7 +159,7 @@ def build_dataframe(view, data, lang='he'):
         return pd.DataFrame()
 
     if view == 'daily-summary':
-        data = _flatten_daily_summary(data)
+        data = _flatten_daily_summary(data, lang)
     elif view == 'portfolio':
         data = _enrich_portfolio(data)
     elif view == 'transactions':
