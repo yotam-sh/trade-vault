@@ -76,7 +76,7 @@
                             <thead>
                                 <tr>
                                     <th>{{ t.th_date }}</th>
-                                    <th>{{ t.label_type }}</th>
+                                    <th>{{ t.th_trade_type }}</th>
                                     <th>{{ t.th_name }}</th>
                                     <th>{{ t.th_tase_id }}</th>
                                     <th>{{ t.th_symbol }}</th>
@@ -116,7 +116,7 @@
         <div class="card">
                     <div class="card-header">{{ t.pivot_security_title }}</div>
                     <div class="table-wrapper">
-                        <table>
+                        <table class="sortable group-sortable">
                             <thead>
                                 <tr>
                                     <th>{{ t.th_name }}</th>
@@ -131,7 +131,7 @@
                             <tbody>
                                 {% for group in pivot_security.groups %}
                                 <tr class="group-header">
-                                    <td colspan="7">{{ group.label }}</td>
+                                    <td colspan="7">{{ t['type_' + group.type_key] if group.type_key else group.label }}</td>
                                 </tr>
                                 {% for sec in group.securities %}
                                 <tr>
@@ -145,7 +145,7 @@
                                 </tr>
                                 {% endfor %}
                                 <tr class="subtotal">
-                                    <td>{{ t.subtotal_prefix }} {{ group.label }}</td>
+                                    <td>{{ t.subtotal_prefix }} {{ t['type_' + group.type_key] if group.type_key else group.label }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(group.subtotal_change_ils) }}</td>
                                     <td colspan="2"></td>
                                     <td class="num pnl">{{ '{:.2f}'.format(group.subtotal_change_pct) }}%</td>

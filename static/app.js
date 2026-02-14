@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var table = th.closest('table');
             var tbody = table.querySelector('tbody');
             var colIdx = Array.from(th.parentNode.children).indexOf(th);
-            var rows = Array.from(tbody.querySelectorAll('tr:not(.subtotal):not(.grand-total):not(.group-header)'));
+            var isGroupSortable = table.classList.contains('group-sortable');
 
             var isAsc = th.classList.contains('sorted-asc');
             table.querySelectorAll('th').forEach(function (h) {
@@ -19,15 +19,64 @@ document.addEventListener('DOMContentLoaded', function () {
             th.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
             var direction = isAsc ? -1 : 1;
 
-            rows.sort(function (a, b) {
-                var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
-                var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
-                var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
-                var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
-                if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
-                return aVal.localeCompare(bVal, 'he') * direction;
-            });
-            rows.forEach(function (row) { tbody.appendChild(row); });
+            if (isGroupSortable) {
+                // Group-aware sorting: sort within each group
+                var allRows = Array.from(tbody.querySelectorAll('tr'));
+                var groups = [];
+                var currentGroup = null;
+
+                allRows.forEach(function (row) {
+                    if (row.classList.contains('group-header')) {
+                        if (currentGroup) groups.push(currentGroup);
+                        currentGroup = { header: row, rows: [], subtotal: null, grandTotal: null };
+                    } else if (row.classList.contains('subtotal')) {
+                        if (currentGroup) currentGroup.subtotal = row;
+                    } else if (row.classList.contains('grand-total')) {
+                        if (currentGroup) {
+                            groups.push(currentGroup);
+                            currentGroup = null;
+                        }
+                        // Store grand total separately
+                        groups.grandTotal = row;
+                    } else if (currentGroup) {
+                        currentGroup.rows.push(row);
+                    }
+                });
+                if (currentGroup) groups.push(currentGroup);
+
+                // Sort rows within each group
+                groups.forEach(function (group) {
+                    group.rows.sort(function (a, b) {
+                        var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
+                        var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
+                        var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
+                        var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
+                        if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
+                        return aVal.localeCompare(bVal, 'he') * direction;
+                    });
+                });
+
+                // Rebuild table with sorted groups
+                tbody.innerHTML = '';
+                groups.forEach(function (group) {
+                    tbody.appendChild(group.header);
+                    group.rows.forEach(function (row) { tbody.appendChild(row); });
+                    if (group.subtotal) tbody.appendChild(group.subtotal);
+                });
+                if (groups.grandTotal) tbody.appendChild(groups.grandTotal);
+            } else {
+                // Standard sorting: sort all rows together
+                var rows = Array.from(tbody.querySelectorAll('tr:not(.subtotal):not(.grand-total):not(.group-header)'));
+                rows.sort(function (a, b) {
+                    var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
+                    var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
+                    var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
+                    var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
+                    if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
+                    return aVal.localeCompare(bVal, 'he') * direction;
+                });
+                rows.forEach(function (row) { tbody.appendChild(row); });
+            }
         });
     });
 

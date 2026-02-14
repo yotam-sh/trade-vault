@@ -239,6 +239,7 @@ def get_pivot_by_security(start_date=None, end_date=None):
         if type_label not in result:
             result[type_label] = {
                 'label': type_label,
+                'type_key': sec_type,  # Add key for template translation
                 'securities': [],
                 'subtotal_change_ils': 0,
                 'subtotal_cost_basis': 0,
