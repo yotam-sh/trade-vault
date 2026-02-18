@@ -42,6 +42,12 @@ def get_table(name):
     return get_db().table(name)
 
 
+def flush_db():
+    """Flush the CachingMiddleware write cache to disk without closing."""
+    if _db_instance is not None:
+        _db_instance.storage.flush()
+
+
 def close_db():
     """Close the database and flush caching middleware."""
     global _db_instance

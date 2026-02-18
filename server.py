@@ -7,7 +7,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(__file__))
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response
-from app.connection import get_db, close_db
+from app.connection import get_db, close_db, flush_db
 from app.settings import init_default_settings
 from app.importers import import_daily_portfolio
 from app.transactions import add_deposit
@@ -128,6 +128,7 @@ def upload_daily():
     except Exception as e:
         flash(f"{_t('flash_import_error', lang)}: {str(e)}", 'error')
 
+    flush_db()
     return redirect(url_for('index'))
 
 
@@ -187,6 +188,7 @@ def add_deposit_route():
     except Exception as e:
         flash(f"{_t('flash_deposit_error', lang)}: {str(e)}", 'error')
 
+    flush_db()
     return redirect(url_for('transactions_view'))
 
 
@@ -339,4 +341,4 @@ def export_view(view):
 
 if __name__ == '__main__':
     print("Starting TradeVault server on http://localhost:5000")
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)
