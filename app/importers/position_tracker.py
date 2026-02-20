@@ -69,8 +69,9 @@ def interpolate_position_changes(data_date, today_prices):
     prev_ids = set(prev_map.keys())
     today_ids = set(today_map.keys())
 
-    new_ids = today_ids - prev_ids  # Potential buys
-    gone_ids = prev_ids - today_ids  # Potential sells
+    new_ids = today_ids - prev_ids  # Potential buys (new positions)
+    gone_ids = prev_ids - today_ids  # Potential sells (closed positions)
+    common_ids = prev_ids & today_ids  # Existing positions (may have changed qty)
 
     interp_buys = 0
     interp_sells = 0
@@ -139,5 +140,75 @@ def interpolate_position_changes(data_date, today_prices):
         if not remaining:
             deactivate_holding(hid, last_sold=data_date)
         interp_sells += 1
+
+    # Handle quantity changes in existing holdings (deepened or reduced positions)
+    for hid in common_ids:
+        prev_qty = prev_map[hid].get('quantity', 0)
+        today_qty = today_map[hid].get('quantity', 0)
+        delta = today_qty - prev_qty
+        if abs(delta) < 0.001:
+            continue  # No meaningful change
+
+        if delta > 0:
+            # Deepened position — additional buy
+            if has_nearby_trade(hid, data_date, 'buy'):
+                continue
+            p = today_map[hid]
+            holding = get_holding(hid)
+            if not holding:
+                continue
+            ticker = holding.get('ticker') or p.get('ticker', '')
+            price = p.get('price', 0)
+            if price <= 0:
+                continue
+            txn_id = add_buy(
+                ticker=ticker,
+                holding_id=hid,
+                date=data_date,
+                shares=delta,
+                price_per_share=price,
+                currency=p.get('currency', 'ILS'),
+                source='interpolated',
+            )
+            create_lot(
+                holding_id=hid,
+                ticker=ticker,
+                buy_transaction_id=txn_id,
+                buy_date=data_date,
+                buy_price=price,
+                shares=delta,
+                currency=p.get('currency', 'ILS'),
+            )
+            interp_buys += 1
+
+        else:
+            # Reduced position — partial sell
+            if has_nearby_trade(hid, data_date, 'sell'):
+                continue
+            holding = get_holding(hid)
+            if not holding:
+                continue
+            p = today_map[hid]
+            ticker = holding.get('ticker') or p.get('ticker', '')
+            shares_sold = abs(delta)
+            price = p.get('price', 0)
+            if price <= 0:
+                continue
+            try:
+                sell_details = sell_fifo(ticker, shares_sold, price, data_date)
+            except ValueError:
+                continue
+            add_sell(
+                ticker=ticker,
+                holding_id=hid,
+                date=data_date,
+                shares=shares_sold,
+                price_per_share=price,
+                sell_lot_details=sell_details,
+                currency=p.get('currency', 'ILS'),
+                source='interpolated',
+            )
+            # No deactivate_holding — holding still exists with reduced quantity
+            interp_sells += 1
 
     return interp_buys, interp_sells

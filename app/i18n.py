@@ -76,8 +76,10 @@ TRANSLATIONS = {
     # ── Transactions page ──
     'page_transactions':       {'he': 'כללי - יומן פעולות',    'en': 'General - Activity Log'},
     'add_deposit_title':       {'he': 'הוספת הפקדה',           'en': 'Add Deposit'},
+    'add_withdrawal_title':    {'he': 'הוספת משיכה',           'en': 'Add Withdrawal'},
     'label_amount':            {'he': 'סכום:',                 'en': 'Amount:'},
     'btn_add_deposit':         {'he': 'הוסף הפקדה',            'en': 'Add Deposit'},
+    'btn_add_withdrawal':      {'he': 'הוסף משיכה',            'en': 'Add Withdrawal'},
     'transactions_title':      {'he': 'פעולות',                'en': 'Transactions'},
     'th_date':                 {'he': 'תאריך',                 'en': 'Date'},
     'th_action':               {'he': 'פעולה',                 'en': 'Action'},
@@ -88,8 +90,7 @@ TRANSLATIONS = {
     'th_notes':                {'he': 'הערות',                 'en': 'Notes'},
     'summary_title':           {'he': 'סיכום',                 'en': 'Summary'},
     'summary_total_deposits':  {'he': 'סך הפקדות',             'en': 'Total Deposits'},
-    'summary_deposits_for_calc': {'he': 'סך הפקדות לחישוב שינוי מעלות',
-                                  'en': 'Total Deposits for Cost Change Calculation'},
+    'summary_net_invested':    {'he': 'השקעה נטו (הפקדות − משיכות)', 'en': 'Net Invested (Deposits − Withdrawals)'},
     'summary_cost_change_ils': {'he': 'שינוי מעלות (₪)',       'en': 'Cost Change (₪)'},
     'summary_cost_change_pct': {'he': 'שינוי מעלות (%)',       'en': 'Cost Change (%)'},
     'summary_net_tax':         {'he': 'מס נטו לתשלום (25%)',   'en': 'Net Tax Payable (25%)'},
@@ -180,6 +181,7 @@ TRANSLATIONS = {
 
     # ── Transaction action labels (queries.py) ──
     'action_deposit':          {'he': 'הפקדה',          'en': 'Deposit'},
+    'action_withdrawal':       {'he': 'משיכה',           'en': 'Withdrawal'},
     'action_initial_transfer': {'he': 'העברה ראשונית',   'en': 'Initial Transfer'},
     'action_month_summary':    {'he': 'סיכום חודש',      'en': 'Monthly Summary'},
     'badge_partial':           {'he': 'חלקי',            'en': 'Partial'},
@@ -197,6 +199,9 @@ TRANSLATIONS = {
     'flash_deposit_success': {'he': 'הפקדה בסך {amount} ₪ נוספה בהצלחה לתאריך {date}',
                               'en': 'Deposit of ₪{amount} was successfully added for date {date}'},
     'flash_deposit_error':  {'he': 'שגיאה בהוספת הפקדה',  'en': 'Error adding deposit'},
+    'flash_withdrawal_success': {'he': 'משיכה בסך {amount} ₪ נוספה בהצלחה לתאריך {date}',
+                                  'en': 'Withdrawal of ₪{amount} was successfully added for date {date}'},
+    'flash_withdrawal_error': {'he': 'שגיאה בהוספת משיכה', 'en': 'Error adding withdrawal'},
     'flash_morning_balance_success': {'he': 'יובאו {count} קבצי יתרת בוקר ({total_rows} שורות)',
                                       'en': 'Imported {count} morning balance files ({total_rows} rows)'},
     'flash_morning_balance_skip': {'he': 'דילוג על {count} קבצים (כבר יובאו)',

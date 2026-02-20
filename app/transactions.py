@@ -76,6 +76,14 @@ def add_deposit(date, amount, currency='ILS', source='manual', **kwargs):
     )
 
 
+def add_withdrawal(date, amount, currency='ILS', source='manual', **kwargs):
+    """Add a withdrawal transaction."""
+    return add_transaction(
+        type_='withdrawal', date=date, total_amount=amount, currency=currency,
+        source=source, **kwargs
+    )
+
+
 def list_transactions(type_=None, ticker=None, start_date=None, end_date=None):
     """List transactions with optional filters."""
     table = get_table(TRANSACTIONS)

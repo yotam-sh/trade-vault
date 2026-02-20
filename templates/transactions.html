@@ -101,41 +101,79 @@
 
         <h1>{{ t.page_transactions }}</h1>
 
-        <!-- Add deposit form -->
-        <div class="card upload-card">
-            <div class="card-header">{{ t.add_deposit_title }}</div>
-            <form action="/add-deposit" method="post" class="upload-form">
-                <div class="upload-row">
-                    <label>{{ t.label_amount }}</label>
-                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
-                    <label>{{ t.label_date }}</label>
-                    <input type="hidden" name="date" id="deposit-date" required>
-                    <div class="calendar-picker" data-input="deposit-date" data-mode="single" data-default="today">
-                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
-                        <div class="date-picker-dropdown">
-                            <div class="calendar-header">
-                                <button type="button" class="next-month">&#9654;</button>
-                                <span class="month-label"></span>
-                                <button type="button" class="prev-month">&#9664;</button>
-                            </div>
-                            <div class="calendar-grid">
-                                <div class="day-header">{{ t.day_sun }}</div>
-                                <div class="day-header">{{ t.day_mon }}</div>
-                                <div class="day-header">{{ t.day_tue }}</div>
-                                <div class="day-header">{{ t.day_wed }}</div>
-                                <div class="day-header">{{ t.day_thu }}</div>
-                                <div class="day-header">{{ t.day_fri }}</div>
-                                <div class="day-header">{{ t.day_sat }}</div>
-                            </div>
-                            <div class="selected-dates">{{ t.no_date_selected }}</div>
-                            <div class="date-picker-actions">
-                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+        <!-- Add deposit / withdrawal forms -->
+        <div class="two-col">
+            <div class="card upload-card">
+                <div class="card-header">{{ t.add_deposit_title }}</div>
+                <form action="/add-deposit" method="post" class="upload-form">
+                    <div class="upload-row">
+                        <label>{{ t.label_amount }}</label>
+                        <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                        <label>{{ t.label_date }}</label>
+                        <input type="hidden" name="date" id="deposit-date" required>
+                        <div class="calendar-picker" data-input="deposit-date" data-mode="single" data-default="today">
+                            <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                            <div class="date-picker-dropdown">
+                                <div class="calendar-header">
+                                    <button type="button" class="next-month">&#9654;</button>
+                                    <span class="month-label"></span>
+                                    <button type="button" class="prev-month">&#9664;</button>
+                                </div>
+                                <div class="calendar-grid">
+                                    <div class="day-header">{{ t.day_sun }}</div>
+                                    <div class="day-header">{{ t.day_mon }}</div>
+                                    <div class="day-header">{{ t.day_tue }}</div>
+                                    <div class="day-header">{{ t.day_wed }}</div>
+                                    <div class="day-header">{{ t.day_thu }}</div>
+                                    <div class="day-header">{{ t.day_fri }}</div>
+                                    <div class="day-header">{{ t.day_sat }}</div>
+                                </div>
+                                <div class="selected-dates">{{ t.no_date_selected }}</div>
+                                <div class="date-picker-actions">
+                                    <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                                </div>
                             </div>
                         </div>
+                        <button type="submit">{{ t.btn_add_deposit }}</button>
                     </div>
-                    <button type="submit">{{ t.btn_add_deposit }}</button>
-                </div>
-            </form>
+                </form>
+            </div>
+
+            <div class="card upload-card">
+                <div class="card-header">{{ t.add_withdrawal_title }}</div>
+                <form action="/add-withdrawal" method="post" class="upload-form">
+                    <div class="upload-row">
+                        <label>{{ t.label_amount }}</label>
+                        <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                        <label>{{ t.label_date }}</label>
+                        <input type="hidden" name="date" id="withdrawal-date" required>
+                        <div class="calendar-picker" data-input="withdrawal-date" data-mode="single" data-default="today">
+                            <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                            <div class="date-picker-dropdown">
+                                <div class="calendar-header">
+                                    <button type="button" class="next-month">&#9654;</button>
+                                    <span class="month-label"></span>
+                                    <button type="button" class="prev-month">&#9664;</button>
+                                </div>
+                                <div class="calendar-grid">
+                                    <div class="day-header">{{ t.day_sun }}</div>
+                                    <div class="day-header">{{ t.day_mon }}</div>
+                                    <div class="day-header">{{ t.day_tue }}</div>
+                                    <div class="day-header">{{ t.day_wed }}</div>
+                                    <div class="day-header">{{ t.day_thu }}</div>
+                                    <div class="day-header">{{ t.day_fri }}</div>
+                                    <div class="day-header">{{ t.day_sat }}</div>
+                                </div>
+                                <div class="selected-dates">{{ t.no_date_selected }}</div>
+                                <div class="date-picker-actions">
+                                    <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit">{{ t.btn_add_withdrawal }}</button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <div class="filters">
@@ -244,8 +282,8 @@
                         <span class="summary-value">₪{{ '{:,.2f}'.format(summary.total_deposits) }}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_deposits_for_calc }}</span>
-                        <span class="summary-value">₪{{ '{:,.2f}'.format(summary.deposits_for_change_calc) }}</span>
+                        <span class="summary-label">{{ t.summary_net_invested }}</span>
+                        <span class="summary-value">₪{{ '{:,.2f}'.format(summary.net_invested) }}</span>
                     </div>
                     <div class="summary-row">
                         <span class="summary-label">{{ t.summary_cost_change_ils }}</span>

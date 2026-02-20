@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
-from app.importers import import_daily_portfolio, import_transactions, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl
+from app.importers import import_daily_portfolio, import_transactions, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl, repair_interpolated_trades
 from app.holdings import list_holdings, get_holding_by_ticker, set_ticker
 from app.transactions import add_buy, add_sell, add_deposit
 from app.tax_lots import create_lot, sell_fifo
@@ -250,6 +250,9 @@ def cmd_repair(args):
 
     if args.target == 'morning-balance':
         repair_morning_balance_pnl()
+    elif args.target == 'interpolated':
+        from_date = args.from_date or '2026-02-02'
+        repair_interpolated_trades(from_date)
     else:
         print(f"Unknown repair target: {args.target}")
 
@@ -475,8 +478,10 @@ def main():
 
     # repair command
     p_repair = subparsers.add_parser('repair', help='Repair data issues')
-    p_repair.add_argument('target', choices=['morning-balance'],
+    p_repair.add_argument('target', choices=['morning-balance', 'interpolated'],
                           help='What to repair')
+    p_repair.add_argument('--from-date', dest='from_date',
+                          help='[interpolated] Start date (YYYY-MM-DD), default: 2026-02-02')
     p_repair.set_defaults(func=cmd_repair)
 
     # set-ticker command

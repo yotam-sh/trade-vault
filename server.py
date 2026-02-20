@@ -10,7 +10,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from app.connection import get_db, close_db, flush_db
 from app.settings import init_default_settings
 from app.importers import import_daily_portfolio
-from app.transactions import add_deposit
+from app.transactions import add_deposit, add_withdrawal
 from app.i18n import get_translations, get_translations_json, t as _t
 from app.analytics import (
     get_portfolio_value,
@@ -137,8 +137,8 @@ def transactions_view():
     start = request.args.get('start')
     end = request.args.get('end')
     log = get_transaction_log()
-    # Only show deposits and monthly summaries, not buy/sell trades
-    log = [e for e in log if e['action'] in ('deposit', 'month_summary')]
+    # Show deposits, withdrawals, and monthly summaries (not buy/sell trades)
+    log = [e for e in log if e['action'] in ('deposit', 'withdrawal', 'month_summary')]
     if start:
         log = [e for e in log if e.get('date', '') >= start]
     if end:
@@ -187,6 +187,43 @@ def add_deposit_route():
         flash(_t('flash_deposit_success', lang, amount=f'{amount:,.0f}', date=date_str), 'success')
     except Exception as e:
         flash(f"{_t('flash_deposit_error', lang)}: {str(e)}", 'error')
+
+    flush_db()
+    return redirect(url_for('transactions_view'))
+
+
+@app.route('/add-withdrawal', methods=['POST'])
+def add_withdrawal_route():
+    """Add a withdrawal via the web form."""
+    lang = _get_lang()
+    amount_str = request.form.get('amount', '').strip()
+    date_str = request.form.get('date', '').strip()
+
+    if not amount_str:
+        flash(_t('flash_no_amount', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    if not date_str:
+        flash(_t('flash_no_date', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    try:
+        amount = float(amount_str)
+    except ValueError:
+        flash(_t('flash_invalid_amount', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        flash(_t('flash_invalid_date', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    try:
+        add_withdrawal(date=date_str, amount=amount)
+        flash(_t('flash_withdrawal_success', lang, amount=f'{amount:,.0f}', date=date_str), 'success')
+    except Exception as e:
+        flash(f"{_t('flash_withdrawal_error', lang)}: {str(e)}", 'error')
 
     flush_db()
     return redirect(url_for('transactions_view'))
@@ -309,7 +346,7 @@ def export_view(view):
         filename = f"portfolio_{date_label}"
     elif view == 'transactions':
         data = get_transaction_log()
-        data = [e for e in data if e['action'] in ('deposit', 'month_summary')]
+        data = [e for e in data if e['action'] in ('deposit', 'withdrawal', 'month_summary')]
         if start:
             data = [e for e in data if e.get('date', '') >= start]
         if end:

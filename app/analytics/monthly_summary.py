@@ -1,9 +1,8 @@
 """Monthly summary computation and transaction log views."""
 
 import calendar
-from app.snapshots import list_snapshots
-from app.transactions import list_transactions, get_total_deposits
-from app.settings import get_setting
+from app.snapshots import list_snapshots, get_latest_snapshot
+from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
 
 
 def _count_sun_thu_days(year, month):
@@ -30,6 +29,8 @@ def _compute_monthly_summaries():
 
     deposits = list_transactions(type_='deposit')
     deposits.sort(key=lambda d: d['date'])
+    withdrawals = list_transactions(type_='withdrawal')
+    withdrawals.sort(key=lambda d: d['date'])
 
     # Group snapshots by YYYY-MM
     by_month = {}
@@ -42,14 +43,18 @@ def _compute_monthly_summaries():
         month_snaps = sorted(by_month[month_key], key=lambda s: s['date'])
         last_snap = month_snaps[-1]
 
-        # Cumulative deposits up to end of this month
+        # Cumulative net invested up to end of this month
         cum_deposits = sum(
             d['total_amount'] for d in deposits if d['date'] <= last_snap['date']
         )
+        cum_withdrawals = sum(
+            w['total_amount'] for w in withdrawals if w['date'] <= last_snap['date']
+        )
+        net_invested = cum_deposits - cum_withdrawals
 
         balance = last_snap['total_market_value']
-        cost_change_ils = balance - cum_deposits if cum_deposits else 0
-        cost_change_pct = cost_change_ils / cum_deposits if cum_deposits else 0
+        cost_change_ils = balance - net_invested if net_invested else 0
+        cost_change_pct = cost_change_ils / net_invested if net_invested else 0
 
         # Trading day completeness
         year, month = int(month_key[:4]), int(month_key[5:7])
@@ -90,17 +95,17 @@ def get_transaction_log():
             'notes': txn.get('notes', ''),
         }
 
+        entry['balance'] = None
+        entry['cost_change_pct'] = txn.get('cost_change_pct')
+        entry['cost_change_ils'] = txn.get('cost_change_ils')
+
         if txn['type'] == 'deposit':
-            entry['balance'] = None
-            entry['cost_change_pct'] = txn.get('cost_change_pct')
-            entry['cost_change_ils'] = txn.get('cost_change_ils')
             entry['action_key'] = 'action_deposit'
             if txn.get('notes') and '250' in str(txn.get('notes', '')):
                 entry['action_key'] = 'action_initial_transfer'
+        elif txn['type'] == 'withdrawal':
+            entry['action_key'] = 'action_withdrawal'
         else:
-            entry['balance'] = None
-            entry['cost_change_pct'] = txn.get('cost_change_pct')
-            entry['cost_change_ils'] = txn.get('cost_change_ils')
             entry['action_key'] = txn['type']
 
         log.append(entry)
@@ -126,29 +131,23 @@ def get_transaction_log():
 
 
 def get_transaction_summary():
-    """Right-panel aggregate metrics for transactions view."""
-    # Get IBI summary data from settings (imported from IBI.xlsx)
-    ibi_summary = get_setting('ibi_summary', {})
+    """Right-panel aggregate metrics for transactions view.
 
-    # Use IBI summary if available, otherwise compute from transactions
-    if ibi_summary:
-        result = {
-            'total_deposits': ibi_summary.get('total_deposits', 0),
-            'deposits_for_change_calc': ibi_summary.get('deposits_for_change_calc', 0),
-            'cost_change_ils': ibi_summary.get('cost_change_ils', 0),
-            'cost_change_pct': ibi_summary.get('cost_change_pct', 0),
-        }
-    else:
-        # Fallback to computed values if no IBI summary available
-        deposits = get_total_deposits()
-        ms_recent = _compute_monthly_summaries()
-        latest_summary = ms_recent[-1] if ms_recent else None
+    Computed entirely from live DB data — no dependency on IBI.xlsx imports.
+    """
+    total_deposits = get_total_deposits()
+    total_withdrawals = get_total_withdrawals()
+    net_invested = round(total_deposits - total_withdrawals, 2)
 
-        result = {
-            'total_deposits': deposits,
-            'deposits_for_change_calc': deposits,
-            'cost_change_ils': latest_summary['cost_change_ils'] if latest_summary else 0,
-            'cost_change_pct': latest_summary['cost_change_pct'] if latest_summary else 0,
-        }
+    snap = get_latest_snapshot()
+    current_value = snap['total_market_value'] if snap else 0
 
-    return result
+    cost_change_ils = round(current_value - net_invested, 2)
+    cost_change_pct = (cost_change_ils / net_invested) if net_invested else 0
+
+    return {
+        'total_deposits': total_deposits,
+        'net_invested': net_invested,
+        'cost_change_ils': cost_change_ils,
+        'cost_change_pct': cost_change_pct,
+    }

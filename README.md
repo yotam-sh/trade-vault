@@ -9,12 +9,13 @@ Created with Claude Code.
 ## Features
 
 - **Daily portfolio snapshots** — Import daily holdings from IBI Excel exports, track value changes over time
-- **Transaction ledger** — Deposits, buys, sells with auto-computed monthly summaries derived from daily data
-- **Auto-computed monthly summaries** — Month-end balance and cost-change metrics generated on-the-fly from portfolio snapshots, with partial-month warnings when trading days are missing
+- **Transaction ledger** — Deposits and withdrawals with auto-computed monthly summaries derived from daily data; both can be entered via the web UI
+- **Auto-computed monthly summaries** — Month-end balance and cost-change metrics generated on-the-fly from portfolio snapshots (net of withdrawals), with partial-month warnings when trading days are missing
+- **Self-contained analytics** — All summary metrics (net invested, all-time cost change) computed from live DB data; no brokerage-specific Excel file required after initial import
 - **FIFO tax lots** — Automatic cost basis tracking using First-In-First-Out for capital gains
 - **Morning balance import** — Bulk import historic morning balance files (DDMMYYYY.xlsx), computing daily P&L from consecutive-day comparisons with quantity-aware logic
-- **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions
-- **Data repair** — CLI repair command fixes P&L miscalculations, backfills missing percentages, and removes non-trading days with TASE schedule awareness
+- **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions; handles new positions, closed positions, and quantity changes on existing positions (partial buys/sells)
+- **Data repair** — CLI repair commands fix P&L miscalculations, backfill missing percentages, remove non-trading days, and re-run trade interpolation from a given date
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
 - **Web dashboard** — Five views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history
@@ -47,16 +48,16 @@ No additional configuration needed. The database file (`db/db.json`) is created 
 # 1. Import your first daily portfolio file
 python main.py import daily "data/daily_data/feb_2026/data.xlsx" --date 2026-02-02
 
-# 2. Import transaction history from IBI
+# 2. (Optional) Import transaction history from IBI for historical deposits
 python main.py import transactions data/IBI.xlsx
 
-# 3. Import trade files
+# 3. (Optional) Import trade files
 python main.py import trades data/trades/
 
 # 4. View your portfolio
 python main.py show portfolio
 
-# 5. Launch the web dashboard
+# 5. Launch the web dashboard — add deposits/withdrawals manually via the General page
 python server.py
 # Open http://localhost:5000
 ```
@@ -161,6 +162,11 @@ Bulk imports historic morning balance Excel files (`DDMMYYYY.xlsx`) from a folde
 python main.py repair morning-balance
 ```
 Recomputes daily P&L and price change percentages for all morning balance imports, regenerates snapshots, and removes non-trading days. Safe to run multiple times (idempotent). Handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05).
+
+```bash
+python main.py repair interpolated [--from-date YYYY-MM-DD]
+```
+Clears all interpolated buy/sell transactions from the given date onwards, reverses their tax lot effects, then re-runs position-change inference with the latest logic. Use this after upgrading to a newer version of the interpolation engine. Default start date: `2026-02-02`. Safe to re-run.
 
 ### Adding transactions manually
 
@@ -267,7 +273,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | Page | URL | Description |
 |------|-----|-------------|
 | **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, daily file upload |
-| **General** | `/transactions` | Deposit ledger with auto-computed monthly summaries, add deposit form, aggregate metrics |
+| **General** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
 | **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax |
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date |
@@ -283,14 +289,31 @@ The file is saved to `data/daily_data/<month>_<year>/` and imported automaticall
 
 ### Adding deposits via the web
 
-On the General page (`/transactions`), use the deposit form at the top:
+On the General page (`/transactions`), use the deposit form at the top-left:
 1. Enter the amount
 2. Pick a date using the calendar button (defaults to today)
 3. Click Add Deposit
 
+### Adding withdrawals via the web
+
+On the General page (`/transactions`), use the withdrawal form at the top-right:
+1. Enter the amount
+2. Pick a date using the calendar button (defaults to today)
+3. Click Add Withdrawal
+
+### Summary panel
+
+The right-side Summary panel on the General page shows metrics computed entirely from live DB data:
+- **Total Deposits** — sum of all deposit transactions
+- **Net Invested** — deposits minus withdrawals
+- **Cost Change (₪ / %)** — current portfolio value minus net invested (all-time gain/loss)
+- **Net Tax Payable** — estimated capital gains tax for the current year
+
+No brokerage-specific import is required for these figures to be accurate.
+
 ### Monthly summaries
 
-Monthly summaries on the General page are computed automatically from your imported daily data. Each summary shows the month-end portfolio balance and cost-change metrics (ILS and %). If a month has fewer than 80% of expected TASE trading days, it is flagged with a "Partial" badge.
+Monthly summaries on the General page are computed automatically from your imported daily data. Each summary shows the month-end portfolio balance and cost-change metrics relative to net invested (deposits minus withdrawals) up to that date. If a month has fewer than 80% of expected TASE trading days, it is flagged with a "Partial" badge.
 
 ### Date filtering
 
@@ -336,9 +359,8 @@ IBI Excel exports
 │                  │───▶ tax_lots         (FIFO cost basis)
 │                  │───▶ transactions     (interpolated buys/sells)
 │                  │
-│  IBI.xlsx ───────┼───▶ transactions     (deposits, summaries)
-│                  │───▶ settings         (ibi_summary metrics)
-│                  │
+│  IBI.xlsx ───────┼───▶ transactions     (deposits, historical summaries — optional)
+│  (optional)      │
 │  trade files ────┼───▶ transactions     (buy/sell with details)
 │                  │
 │  morning bal. ───┼───▶ daily_prices     (historic per-security)
@@ -402,9 +424,9 @@ The standard IBI daily portfolio export. Expected Hebrew column headers include:
 
 Security types "תפ"ס" and "פח"ק" (tax-advantaged savings products) are automatically skipped.
 
-### Transaction history (`IBI.xlsx`)
+### Transaction history (`IBI.xlsx`) — optional
 
-The IBI account statement export. Left side contains transaction rows (date, action, amount, balance). Right side contains summary metrics (total deposits, cost change).
+The IBI account statement export. Left side contains transaction rows (date, action, amount, balance). Right side contains summary metrics (total deposits, cost change). Importing this file migrates historical deposit and withdrawal history; ongoing entries can be added manually via the web UI instead.
 
 ### Morning balance files (`DDMMYYYY.xlsx`)
 
@@ -423,11 +445,12 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie.
 - **TASE schedule awareness**: The codebase handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05). Non-trading day detection, morning balance import skipping, and the repair command all use `_is_tase_weekend()` which checks the date against the correct schedule.
 - **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
-- **Auto-computed monthly summaries**: `queries.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative deposits, and flags incomplete months using a TASE trading-day heuristic.
+- **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months using a TASE trading-day heuristic.
+- **No brokerage dependency**: The Summary panel (`get_transaction_summary()`) computes all metrics — total deposits, net invested, cost change — from live transaction and snapshot data. The IBI transaction import is an optional convenience for migrating historical deposit data, not a runtime requirement.
 - **Hebrew encoding**: The CLI uses `io.TextIOWrapper` to force UTF-8 output on Windows consoles
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
-- **Interpolation**: When a daily import detects a new holding or a disappeared one compared to the previous day, it automatically creates buy/sell transactions (unless a nearby trade already exists)
+- **Interpolation**: When a daily import detects position changes compared to the previous day, it automatically creates buy/sell transactions (unless a nearby real trade already exists). Three cases are handled: new holdings (full buy), disappeared holdings (full sell), and quantity changes on existing holdings (partial buy or partial sell). The `repair interpolated` command re-runs this inference from a given date with the latest logic
 
 ## Credits
 
