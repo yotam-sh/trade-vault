@@ -8,8 +8,6 @@ from app.holdings import get_holding
 from app.snapshots import list_snapshots, get_latest_snapshot
 from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
 from app.dividends import total_dividends
-from app.settings import get_setting
-
 
 def get_daily_summary(start_date=None, end_date=None):
     """View 2: Daily summary (סיכום יומי) - daily portfolio with best/worst.
@@ -61,32 +59,21 @@ def get_daily_summary(start_date=None, end_date=None):
             if worst is None or pnl < worst['daily_pnl']:
                 worst = pos_info
 
-        # Use previous day's closing value as morning value when available,
-        # so that sold positions don't create a phantom gap
         prev_close = prev_value_map.get(snap['date'])
-        if prev_close is not None:
-            morning_value = prev_close
-        else:
-            morning_value = snap['total_market_value'] - snap['total_daily_pnl']
 
         deposits_today = 0
         day_txns = list_transactions(type_='deposit', start_date=snap['date'], end_date=snap['date'])
         deposits_today = sum(t['total_amount'] for t in day_txns)
 
-        # Use the file-reported daily P&L (price moves on active positions).
-        # On days with sells, also include the day's price impact on sold positions:
-        # prev_close vs (current + sells - buys) captures everything.
+        # Daily P&L: use the file-reported value (sum of IBI's שינוי יומי).
+        # Change %: relative to the previous day's closing value when available,
+        # so that sold positions don't inflate the denominator.
         daily_pnl = snap['total_daily_pnl']
-        if prev_close is not None:
-            # Check if positions changed (morning mismatch)
-            implied_morning = snap['total_market_value'] - snap['total_daily_pnl']
-            if abs(implied_morning - prev_close) > 1:
-                # Positions changed: compute true P&L across all cash flows
-                buy_txns = list_transactions(type_='buy', start_date=snap['date'], end_date=snap['date'])
-                sell_txns = list_transactions(type_='sell', start_date=snap['date'], end_date=snap['date'])
-                buy_total = sum(t['total_amount'] for t in buy_txns)
-                sell_total = sum(t['total_amount'] for t in sell_txns)
-                daily_pnl = snap['total_market_value'] - prev_close + sell_total - buy_total
+
+        if prev_close is not None and prev_close > 0:
+            morning_value = prev_close
+        else:
+            morning_value = snap['total_market_value'] - snap['total_daily_pnl']
 
         change_pct = (daily_pnl / morning_value * 100) if morning_value else 0
 

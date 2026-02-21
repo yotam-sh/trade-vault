@@ -22,17 +22,6 @@ DAILY_COLUMNS = {
     'מ.ממוצע FIFO בוקר': 'fifo_avg_price',
 }
 
-# IBI.xlsx transaction columns
-TRANSACTION_COLUMNS = {
-    'תאריך': 'date',
-    'פעולה': 'action',
-    'סכום': 'amount',
-    'יתרה': 'balance',
-    'שינוי מעלות (%)': 'cost_change_pct',
-    'שינוי מעלות (₪)': 'cost_change_ils',
-    'הערות': 'notes',
-}
-
 # Trade history columns (DDMMYYYY.xlsx files from IBI)
 TRADE_COLUMNS = {
     'שם נייר': 'name',
@@ -111,27 +100,6 @@ CURRENCY_MAP = {
     'EUR': 'EUR',
 }
 
-# Transaction action type mapping
-ACTION_TYPE_MAP = {
-    'העברה ראשונית': 'deposit',
-    'הפקדה': 'deposit',
-    'סיכום חודש': 'month_summary',
-    'משיכה': 'withdrawal',
-    'דיבידנד': 'dividend',
-    'קניה': 'buy',
-    'מכירה': 'sell',
-    'עמלה': 'fee',
-    'מס': 'tax',
-}
-
-# IBI.xlsx summary labels (right-side panel)
-SUMMARY_LABELS = {
-    'סך הפקדות': 'total_deposits',
-    'סך הפקדות לחישוב שינוי מעלות': 'deposits_for_change_calc',
-    'שינוי מעלות (₪)': 'cost_change_ils',
-    'שינוי מעלות (%)': 'cost_change_pct',
-}
-
 
 def clean_currency(raw):
     """Convert Hebrew currency string to standard code."""
@@ -161,8 +129,3 @@ def get_security_type(raw):
     return SECURITY_TYPE_MAP.get(raw.strip(), 'other')
 
 
-def get_action_type(raw):
-    """Map Hebrew action to English transaction type."""
-    if not raw or not isinstance(raw, str):
-        return 'other'
-    return ACTION_TYPE_MAP.get(raw.strip(), 'other')

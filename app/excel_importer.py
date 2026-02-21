@@ -13,7 +13,6 @@ Example:
 
 from app.importers import (
     import_daily_portfolio,
-    import_transactions,
     import_trades,
     import_trades_folder,
     import_morning_balance_folder,
@@ -22,7 +21,6 @@ from app.importers import (
 
 __all__ = [
     'import_daily_portfolio',
-    'import_transactions',
     'import_trades',
     'import_trades_folder',
     'import_morning_balance_folder',

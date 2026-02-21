@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
-from app.importers import import_daily_portfolio, import_transactions, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl, repair_interpolated_trades
+from app.importers import import_daily_portfolio, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl, repair_interpolated_trades
 from app.holdings import list_holdings, get_holding_by_ticker, set_ticker
 from app.transactions import add_buy, add_sell, add_deposit
 from app.tax_lots import create_lot, sell_fifo
@@ -31,12 +31,6 @@ def cmd_import(args):
     if args.type == 'daily':
         data_date = args.date or today_iso()
         result = import_daily_portfolio(args.file, data_date=data_date)
-        if result['status'] == 'duplicate':
-            print("Skipped: file already imported.")
-        else:
-            print(f"Import complete: {result['status']}")
-    elif args.type == 'transactions':
-        result = import_transactions(args.file)
         if result['status'] == 'duplicate':
             print("Skipped: file already imported.")
         else:
@@ -440,7 +434,7 @@ def main():
 
     # import command
     p_import = subparsers.add_parser('import', help='Import Excel data')
-    p_import.add_argument('type', choices=['daily', 'transactions', 'trades', 'morning-balance'],
+    p_import.add_argument('type', choices=['daily', 'trades', 'morning-balance'],
                           help='Type of import')
     p_import.add_argument('file', help='Path to Excel file')
     p_import.add_argument('--date', help='Data date (YYYY-MM-DD), default: today')

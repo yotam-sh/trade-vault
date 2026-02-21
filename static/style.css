@@ -821,6 +821,26 @@ tr.group-header {
     color: var(--warning);
     border: 1px solid rgba(210, 153, 34, 0.4);
 }
+.badge-position_type_opening {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(88, 166, 255, 0.35);
+}
+.badge-position_type_increase {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--positive);
+    border: 1px solid rgba(63, 185, 80, 0.35);
+}
+.badge-position_type_closing {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--negative);
+    border: 1px solid rgba(248, 81, 73, 0.35);
+}
+.badge-position_type_reduction {
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--warning);
+    border: 1px solid rgba(210, 153, 34, 0.35);
+}
 
 pre {
     background: var(--bg-secondary);

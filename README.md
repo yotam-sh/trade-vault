@@ -26,6 +26,8 @@ Created with Claude Code.
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
 - **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
+- **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L
+- **Position type badges** — Trade Log marks each trade as opening / increase / closing / reduction with a color-coded badge (blue / green / red / amber)
 
 ## Prerequisites
 
@@ -48,10 +50,7 @@ No additional configuration needed. The database file (`db/db.json`) is created 
 # 1. Import your first daily portfolio file
 python main.py import daily "data/daily_data/feb_2026/data.xlsx" --date 2026-02-02
 
-# 2. (Optional) Import transaction history from IBI for historical deposits
-python main.py import transactions data/IBI.xlsx
-
-# 3. (Optional) Import trade files
+# 2. (Optional) Import trade files
 python main.py import trades data/trades/
 
 # 4. View your portfolio
@@ -96,8 +95,7 @@ TradeVault/
 │   │   ├── morning_balance_importer.py # Morning balance bulk imports
 │   │   ├── position_tracker.py         # Position change detection
 │   │   ├── repair_tools.py             # Data repair and validation
-│   │   ├── trade_importer.py           # Trade file imports
-│   │   └── transaction_importer.py     # Transaction history imports
+│   │   └── trade_importer.py           # Trade file imports
 │   └── utils/              # Shared utilities
 │       ├── data_enrichment.py      # Centralized name/ticker enrichment
 │       ├── date_utils.py           # TASE calendar and date helpers
@@ -121,7 +119,6 @@ TradeVault/
     ├── daily_data/         # Daily portfolio exports, organized by month
     ├── morning_balance/    # Historic morning balance files (DDMMYYYY.xlsx)
     ├── trades/             # Individual trade files (DDMMYYYY.xlsx)
-    └── IBI.xlsx            # Transaction history export
 ```
 
 ## CLI Reference
@@ -133,12 +130,6 @@ TradeVault/
 python main.py import daily <filepath> --date YYYY-MM-DD
 ```
 Parses an IBI daily portfolio Excel export. Creates/updates holdings, records daily prices for each security, and generates a portfolio snapshot for that date. Automatically detects and interpolates position changes (new buys or sells) compared to the previous day.
-
-**Import transaction history:**
-```bash
-python main.py import transactions <filepath>
-```
-Parses the IBI transaction history Excel file (`IBI.xlsx`). Imports deposits, monthly summaries, and the broker's cost-change metrics from the right-side summary panel.
 
 **Import trade files:**
 ```bash
@@ -272,7 +263,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 
 | Page | URL | Description |
 |------|-----|-------------|
-| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, daily file upload |
+| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap, daily file upload |
 | **General** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
 | **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax |
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers |
@@ -286,6 +277,15 @@ On the Dashboard (`/`), use the upload form at the top:
 3. Click Import
 
 The file is saved to `data/daily_data/<month>_<year>/` and imported automatically.
+
+### Portfolio Map
+
+The Dashboard home page shows a **Portfolio Map** — a squarified treemap below the holdings table. Each rectangle represents one open position; its area is proportional to market value.
+
+- Positions are grouped by security type (stocks, funds, other); each group has a visible header showing the group name and its aggregate daily P&L.
+- Cell colour shifts from neutral grey toward green (daily gain) or red (daily loss), capped at ±3 %.
+- Labels show the TASE symbol (or Yahoo Finance ticker in English mode) and the position's daily change percentage.
+- The chart is responsive — it re-renders automatically when the browser window is resized.
 
 ### Adding deposits via the web
 
@@ -359,8 +359,6 @@ IBI Excel exports
 │                  │───▶ tax_lots         (FIFO cost basis)
 │                  │───▶ transactions     (interpolated buys/sells)
 │                  │
-│  IBI.xlsx ───────┼───▶ transactions     (deposits, historical summaries — optional)
-│  (optional)      │
 │  trade files ────┼───▶ transactions     (buy/sell with details)
 │                  │
 │  morning bal. ───┼───▶ daily_prices     (historic per-security)
@@ -391,7 +389,7 @@ IBI Excel exports
    Flask views / CLI output
 ```
 
-**Note:** This diagram shows the logical data flow. The actual implementation uses a modular architecture with `app/importers/` (daily, transactions, trades, morning balance) and `app/analytics/` (portfolio, monthly, daily, trades, tax) modules. The `excel_importer.py` and `queries.py` files act as facades that delegate to these specialized modules.
+**Note:** This diagram shows the logical data flow. The actual implementation uses a modular architecture with `app/importers/` (daily, trades, morning balance) and `app/analytics/` (portfolio, monthly, daily, trades, tax) modules. The `excel_importer.py` and `queries.py` files act as facades that delegate to these specialized modules.
 
 ## Database
 
@@ -424,10 +422,6 @@ The standard IBI daily portfolio export. Expected Hebrew column headers include:
 
 Security types "תפ"ס" and "פח"ק" (tax-advantaged savings products) are automatically skipped.
 
-### Transaction history (`IBI.xlsx`) — optional
-
-The IBI account statement export. Left side contains transaction rows (date, action, amount, balance). Right side contains summary metrics (total deposits, cost change). Importing this file migrates historical deposit and withdrawal history; ongoing entries can be added manually via the web UI instead.
-
 ### Morning balance files (`DDMMYYYY.xlsx`)
 
 Historic morning balance exports from IBI. Filename encodes the date. Contains 11 columns: security name, quantity, price, market value, holding weight, average cost, cost basis, unrealized P&L %, FIFO cost, FIFO change %, FIFO change ILS. Holdings are matched to the database by Hebrew name (exact match, then substring, then component overlap). Rows named "מס לשלם", "מס עתידי", or "מגן מס" are skipped.
@@ -438,7 +432,7 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 
 ## Technical Notes
 
-- **Modular architecture**: The codebase uses a three-layer architecture with facades for backward compatibility. `app/importers/` contains specialized import modules (daily, transactions, trades, morning balance, repair tools). `app/analytics/` contains query modules (portfolio, daily, monthly, trades, tax). `app/utils/` provides shared utilities (data enrichment, holding resolution, Yahoo Finance integration). The top-level `excel_importer.py` and `queries.py` are facades that import from these modules.
+- **Modular architecture**: The codebase uses a three-layer architecture with facades for backward compatibility. `app/importers/` contains specialized import modules (daily, trades, morning balance, repair tools). `app/analytics/` contains query modules (portfolio, daily, monthly, trades, tax). `app/utils/` provides shared utilities (data enrichment, holding resolution, Yahoo Finance integration). The top-level `excel_importer.py` and `queries.py` are facades that import from these modules.
 - **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding English names and tickers to query results. When language is set to English, all analytics functions automatically enrich their output with `name_en` and `ticker` fields from the holdings table, falling back to Hebrew names when English data is unavailable.
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
@@ -446,7 +440,7 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **TASE schedule awareness**: The codebase handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05). Non-trading day detection, morning balance import skipping, and the repair command all use `_is_tase_weekend()` which checks the date against the correct schedule.
 - **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
 - **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months using a TASE trading-day heuristic.
-- **No brokerage dependency**: The Summary panel (`get_transaction_summary()`) computes all metrics — total deposits, net invested, cost change — from live transaction and snapshot data. The IBI transaction import is an optional convenience for migrating historical deposit data, not a runtime requirement.
+- **No brokerage dependency**: The Summary panel (`get_transaction_summary()`) computes all metrics — total deposits, net invested, cost change — from live transaction and snapshot data. Deposits and withdrawals are entered via the web UI or CLI; no brokerage-specific file import is needed.
 - **Hebrew encoding**: The CLI uses `io.TextIOWrapper` to force UTF-8 output on Windows consoles
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot

@@ -147,6 +147,7 @@ TRANSLATIONS = {
     'type_etf_long':         {'he': 'תעודות סל',    'en': 'ETFs'},
     'type_bond':             {'he': 'אג"ח',         'en': 'Bond'},
     'type_other':            {'he': 'אחר',          'en': 'Other'},
+    'treemap_title':         {'he': 'תמהיל תיק',   'en': 'Portfolio Map'},
 
     # ── Trades page ──
     'page_trades':        {'he': 'עסקאות - קניות ומכירות',   'en': 'Trades - Buys and Sells'},

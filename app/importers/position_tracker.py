@@ -86,7 +86,7 @@ def interpolate_position_changes(data_date, today_prices):
             continue
         ticker = holding.get('ticker') or p.get('ticker', '')
         qty = p.get('quantity', 0)
-        price = p.get('price', 0)
+        price = p.get('market_value', 0) / qty if qty > 0 else 0
         if qty <= 0 or price <= 0:
             continue
         txn_id = add_buy(
@@ -119,7 +119,7 @@ def interpolate_position_changes(data_date, today_prices):
             continue
         ticker = holding.get('ticker') or p.get('ticker', '')
         qty = p.get('quantity', 0)
-        price = p.get('price', 0)
+        price = p.get('market_value', 0) / qty if qty > 0 else 0
         if qty <= 0 or price <= 0:
             continue
         try:
@@ -158,7 +158,8 @@ def interpolate_position_changes(data_date, today_prices):
             if not holding:
                 continue
             ticker = holding.get('ticker') or p.get('ticker', '')
-            price = p.get('price', 0)
+            _qty = p.get('quantity', 0)
+            price = p.get('market_value', 0) / _qty if _qty > 0 else 0
             if price <= 0:
                 continue
             txn_id = add_buy(
@@ -191,7 +192,8 @@ def interpolate_position_changes(data_date, today_prices):
             p = today_map[hid]
             ticker = holding.get('ticker') or p.get('ticker', '')
             shares_sold = abs(delta)
-            price = p.get('price', 0)
+            _qty = p.get('quantity', 0)
+            price = p.get('market_value', 0) / _qty if _qty > 0 else 0
             if price <= 0:
                 continue
             try:

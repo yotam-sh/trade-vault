@@ -6,6 +6,7 @@
     <title>TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3/dist/d3-hierarchy.min.js"></script>
 </head>
 <body>
     <nav>
@@ -202,6 +203,11 @@
                 </table>
             </div>
         </div>
+        <div class="card">
+            <div class="card-header">{{ t.treemap_title }}</div>
+            <div id="treemap-chart" style="height: 420px;"></div>
+        </div>
+
         {% else %}
         <div class="card">
             <p>{{ t.empty_no_data }}</p>
@@ -219,5 +225,119 @@
         label.classList.toggle('has-file', this.files.length > 0);
     });
     </script>
+    {% if portfolio %}
+    <script>
+    (function() {
+        var positions = {{ portfolio.positions|tojson }};
+        var lang = "{{ lang }}";
+
+        function bgColor(pct) {
+            var t = Math.min(Math.abs(pct) / 3, 1);
+            if (pct >= 0) {
+                return 'rgb(' + Math.round(0x30+(0x3f-0x30)*t) + ','
+                              + Math.round(0x36+(0xb9-0x36)*t) + ','
+                              + Math.round(0x3d+(0x50-0x3d)*t) + ')';
+            }
+            return 'rgb(' + Math.round(0x30+(0xf8-0x30)*t) + ','
+                          + Math.round(0x36+(0x51-0x36)*t) + ','
+                          + Math.round(0x3d+(0x49-0x3d)*t) + ')';
+        }
+
+        function pnlFmt(pct) {
+            var abs = Math.abs(pct).toFixed(2) + '%';
+            var sign = pct >= 0 ? '+' : '-';
+            return lang === 'he' ? abs + sign : sign + abs;
+        }
+
+        // Build grouped data
+        var groupMap = {};
+        positions.forEach(function(pos) {
+            var g = pos.security_type || 'other';
+            if (!groupMap[g]) groupMap[g] = { name: T['type_' + g] || g, pnl: 0, mv: 0, leaves: [] };
+            var pct = pos.market_value > 0 ? (pos.daily_pnl || 0) / pos.market_value * 100 : 0;
+            var sym = (lang === 'en' && pos.ticker) ? pos.ticker : pos.symbol;
+            groupMap[g].leaves.push({ name: sym, value: pos.market_value, pct: pct });
+            groupMap[g].pnl += (pos.daily_pnl || 0);
+            groupMap[g].mv  += pos.market_value;
+        });
+
+        function render() {
+            var container = document.getElementById('treemap-chart');
+            var W = container.clientWidth, H = container.clientHeight;
+            if (!W || !H) return;
+            container.innerHTML = '';
+            container.style.position = 'relative';
+
+            var rootData = {
+                name: 'root',
+                children: Object.keys(groupMap).map(function(g) {
+                    var m = groupMap[g];
+                    return { name: m.name, type: g, pnl: m.pnl, mv: m.mv, children: m.leaves };
+                })
+            };
+
+            var root = d3.hierarchy(rootData)
+                .sum(function(d) { return d.value || 0; })
+                .sort(function(a, b) { return b.value - a.value; });
+
+            d3.treemap()
+                .size([W, H])
+                .paddingTop(32)
+                .paddingInner(2)
+                .paddingOuter(3)
+                (root);
+
+            // Render group nodes
+            root.children.forEach(function(group) {
+                var gw = group.x1 - group.x0, gh = group.y1 - group.y0;
+                var grpPct = group.data.mv > 0 ? group.data.pnl / group.data.mv * 100 : 0;
+                var hdrColor = grpPct >= 0 ? '#3fb950' : '#f85149';
+
+                var grpDiv = document.createElement('div');
+                grpDiv.style.cssText = 'position:absolute;box-sizing:border-box;'
+                    + 'left:' + group.x0 + 'px;top:' + group.y0 + 'px;'
+                    + 'width:' + gw + 'px;height:' + gh + 'px;'
+                    + 'background:#21262d;border-radius:3px;overflow:hidden;';
+
+                var hdr = document.createElement('div');
+                hdr.style.cssText = 'position:absolute;top:0;left:0;right:0;height:30px;'
+                    + 'display:flex;align-items:center;justify-content:center;'
+                    + 'gap:5px;padding:0 6px;';
+                hdr.innerHTML = '<span style="font-size:12px;font-weight:700;color:#e6edf3;'
+                    + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+                    + group.data.name + '</span>'
+                    + '<span style="font-size:10px;font-weight:700;color:' + hdrColor
+                    + ';white-space:nowrap;">' + pnlFmt(grpPct) + '</span>';
+                grpDiv.appendChild(hdr);
+                container.appendChild(grpDiv);
+
+                // Render leaf nodes
+                group.children.forEach(function(leaf) {
+                    var lw = leaf.x1 - leaf.x0, lh = leaf.y1 - leaf.y0;
+                    var pnlColor = leaf.data.pct >= 0 ? '#3fb950' : '#f85149';
+
+                    var cell = document.createElement('div');
+                    cell.style.cssText = 'position:absolute;box-sizing:border-box;'
+                        + 'left:' + leaf.x0 + 'px;top:' + leaf.y0 + 'px;'
+                        + 'width:' + lw + 'px;height:' + lh + 'px;'
+                        + 'background:' + bgColor(leaf.data.pct) + ';border-radius:2px;'
+                        + 'display:flex;flex-direction:column;align-items:center;'
+                        + 'justify-content:center;overflow:hidden;';
+                    cell.innerHTML = '<div style="font-size:16px;font-weight:700;color:#e6edf3;'
+                        + 'text-shadow:0 1px 3px #0d1117,0 0 6px #0d1117;line-height:1.2;">'
+                        + leaf.data.name + '</div>'
+                        + '<div style="font-size:10px;font-weight:700;color:' + pnlColor + ';'
+                        + 'text-shadow:0 1px 2px #0d1117,0 0 4px #0d1117;">'
+                        + pnlFmt(leaf.data.pct) + '</div>';
+                    container.appendChild(cell);
+                });
+            });
+        }
+
+        render();
+        window.addEventListener('resize', render);
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

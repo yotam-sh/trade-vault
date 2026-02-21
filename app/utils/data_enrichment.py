@@ -21,6 +21,7 @@ def enrich_position_with_holding(position, holding_id=None):
     enriched['name_en'] = holding.get('name_en') if holding else None
     enriched['symbol'] = holding['tase_symbol'] if holding else position.get('ticker', '')
     enriched['ticker'] = holding.get('ticker') if holding else None  # Yahoo Finance ticker
+    enriched['security_type'] = holding.get('security_type', 'other') if holding else 'other'
 
     return enriched
 
@@ -57,6 +58,7 @@ def enrich_positions_batch(positions, holding_id_key='holding_id'):
         enriched['name_en'] = holding.get('name_en')
         enriched['symbol'] = holding.get('tase_symbol', pos.get('ticker', ''))
         enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
+        enriched['security_type'] = holding.get('security_type', 'other')
 
         result.append(enriched)
 

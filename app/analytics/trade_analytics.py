@@ -17,8 +17,29 @@ def get_trade_history(start_date=None, end_date=None):
     buy_sell_txns = [t for t in all_txns if t['type'] in ('buy', 'sell')]
     buy_sell_txns.sort(key=lambda t: (t['date'], t.doc_id))
 
-    # Track running share balance per holding to determine position type
+    # Track running share balance per holding to determine position type.
+    # Seed from daily_prices for holdings that predate their first transaction
+    # (e.g. stocks imported via morning-balance with no explicit buy record).
     positions = {}  # holding_id -> running share count
+
+    from app.connection import get_table, DAILY_PRICES
+    from tinydb import Query as DPQuery
+    dp_table = get_table(DAILY_PRICES)
+    DQ = DPQuery()
+
+    first_txn_date = {}
+    for txn in buy_sell_txns:
+        hid = txn.get('holding_id')
+        if hid and (hid not in first_txn_date or txn['date'] < first_txn_date[hid]):
+            first_txn_date[hid] = txn['date']
+
+    for hid, earliest in first_txn_date.items():
+        pre_records = dp_table.search((DQ.holding_id == hid) & (DQ.date < earliest))
+        if pre_records:
+            latest_pre = sorted(pre_records, key=lambda p: p['date'])[-1]
+            qty = latest_pre.get('quantity', 0)
+            if qty > 0:
+                positions[hid] = qty
 
     trades = []
     for txn in buy_sell_txns:
