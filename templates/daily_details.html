@@ -6,6 +6,7 @@
     <title>{{ t.nav_daily_details }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <nav>
@@ -80,6 +81,7 @@
             <a href="/trades">{{ t.nav_trades }}</a>
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details" class="active">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
         </div>
 
         <div class="nav-right">
@@ -138,6 +140,13 @@
             <input type="text" class="table-search" placeholder="{{ t.search_placeholder }}" data-table="details-table">
             <a href="/export/daily-details?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
+
+        {% if type_chart %}
+        <div class="card">
+            <div class="card-header">{{ t.chart_type_by_day }}</div>
+            <canvas id="typeByDayChart" style="max-height: 260px;"></canvas>
+        </div>
+        {% endif %}
 
         <!-- Per-security daily data (full width, scrollable) -->
         <div class="card">
@@ -277,5 +286,83 @@
 
     <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
+    {% if type_chart %}
+    <script>
+    (function() {
+        var typeChart = {{ type_chart|tojson }};
+
+        function css(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        var labels = typeChart.map(function(d) { return d.date; });
+        var types  = ['stock', 'mutual_fund', 'etf', 'bond', 'other'];
+        var typeColors = ['#58a6ff', '#3fb950', '#f0883e', '#bc8cff', '#8b949e'];
+        var typeLabels = [T.type_stock, T.type_mutual_fund, T.type_etf, T.type_bond, T.type_other];
+
+        var datasets = types.map(function(t, i) {
+            return {
+                label: typeLabels[i],
+                data: typeChart.map(function(d) { return d[t] || 0; }),
+                backgroundColor: typeColors[i] + 'cc',
+                borderColor: typeColors[i],
+                borderWidth: 1,
+                borderRadius: 2,
+            };
+        }).filter(function(ds) {
+            return ds.data.some(function(v) { return v !== 0; });
+        });
+
+        var ctx = document.getElementById('typeByDayChart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: css('--text-primary'), padding: 12 }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { color: css('--text-secondary'), maxRotation: 45, maxTicksLimit: 20 },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) { return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
+                        },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        function applyTheme() {
+            chart.options.plugins.legend.labels.color = css('--text-primary');
+            chart.options.scales.x.ticks.color = css('--text-secondary');
+            chart.options.scales.x.grid.color  = css('--bg-tertiary');
+            chart.options.scales.y.ticks.color = css('--text-secondary');
+            chart.options.scales.y.grid.color  = css('--bg-tertiary');
+            chart.update();
+        }
+        new MutationObserver(applyTheme)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

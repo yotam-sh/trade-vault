@@ -18,7 +18,8 @@ Created with Claude Code.
 - **Data repair** — CLI repair commands fix P&L miscalculations, backfill missing percentages, remove non-trading days, and re-run trade interpolation from a given date
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
-- **Web dashboard** — Five views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history
+- **Web dashboard** — Six views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history, and a dedicated graphs page
+- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard, daily P&L bar on the summary page, security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, and portfolio value vs net invested + monthly return charts on the graphs page. All charts re-render instantly when you switch color themes
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
 - **Best/worst performers** — Daily summary highlights top and bottom movers
@@ -107,7 +108,8 @@ TradeVault/
 │   ├── transactions.html   # General ledger
 │   ├── daily_summary.html  # Daily summary
 │   ├── daily_details.html  # Detailed daily breakdown
-│   └── trades.html         # Trade history
+│   ├── trades.html         # Trade history
+│   └── graphs.html         # Graphs & charts
 ├── static/
 │   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
 │   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
@@ -263,11 +265,12 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 
 | Page | URL | Description |
 |------|-----|-------------|
-| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap, daily file upload |
+| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap, allocation donut, daily file upload |
 | **General** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
-| **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax |
-| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers |
-| **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date |
+| **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
+| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart |
+| **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
+| **Graphs** | `/graphs` | Portfolio value vs net invested over time (line chart) and monthly return % (bar chart) |
 
 ### Uploading daily files via the web
 
@@ -286,6 +289,22 @@ The Dashboard home page shows a **Portfolio Map** — a squarified treemap below
 - Cell colour shifts from neutral grey toward green (daily gain) or red (daily loss), capped at ±3 %.
 - Labels show the TASE symbol (or Yahoo Finance ticker in English mode) and the position's daily change percentage.
 - The chart is responsive — it re-renders automatically when the browser window is resized.
+
+### Charts
+
+Each page includes contextual charts relevant to its data. All charts use [Chart.js 4](https://www.chartjs.org/) loaded from CDN (no install required) and re-render automatically when you switch color themes.
+
+| Page | Chart | Type |
+|------|-------|------|
+| **Dashboard** | Portfolio allocation by security type | Donut |
+| **Daily Summary** | Daily P&L over the filtered period | Bar (green/red) |
+| **Daily Details** | P&L contribution by security type per day | Stacked bar |
+| **Trades** | Tax breakdown (gross gains / loss offset / net tax) | Donut |
+| **Trades** | Closed positions P&L % ranked | Horizontal bar |
+| **Graphs** | Portfolio value vs net invested over time | Line |
+| **Graphs** | Monthly return % with partial-month indicator | Bar |
+
+The **Graphs** page (`/graphs`) is the dedicated chart hub, showing long-term performance trends across all imported data.
 
 ### Adding deposits via the web
 
@@ -436,7 +455,7 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding English names and tickers to query results. When language is set to English, all analytics functions automatically enrich their output with `name_en` and `ticker` fields from the holdings table, falling back to Hebrew names when English data is unavailable.
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
-- **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie.
+- **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie. Chart.js charts use a `MutationObserver` on the `data-theme` attribute to read updated CSS variable values and re-render with the new palette immediately.
 - **TASE schedule awareness**: The codebase handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05). Non-trading day detection, morning balance import skipping, and the repair command all use `_is_tase_weekend()` which checks the date against the correct schedule.
 - **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
 - **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months using a TASE trading-day heuristic.

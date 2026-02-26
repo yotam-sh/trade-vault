@@ -6,6 +6,7 @@
     <title>{{ t.nav_daily_summary }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <nav>
@@ -80,6 +81,7 @@
             <a href="/trades">{{ t.nav_trades }}</a>
             <a href="/daily-summary" class="active">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
         </div>
 
         <div class="nav-right">
@@ -129,6 +131,13 @@
             </div>
             <a href="/export/daily-summary?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
+
+        {% if data %}
+        <div class="card">
+            <div class="card-header">{{ t.chart_daily_pnl }}</div>
+            <canvas id="dailyPnlChart" style="max-height: 220px;"></canvas>
+        </div>
+        {% endif %}
 
         <div class="card">
             <div class="table-wrapper">
@@ -196,5 +205,77 @@
 
     <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
+    {% if data %}
+    <script>
+    (function() {
+        var dailyData = {{ data|tojson }};
+
+        function css(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        var labels = dailyData.map(function(d) { return d.date; });
+        var values = dailyData.map(function(d) { return d.daily_pnl; });
+        var colors = values.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; });
+        var borders = values.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
+
+        var ctx = document.getElementById('dailyPnlChart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: T.chart_daily_pnl,
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: borders,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return '₪' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: css('--text-secondary'), maxRotation: 45, maxTicksLimit: 20 },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) { return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
+                        },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        function applyTheme() {
+            var newColors  = values.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; });
+            var newBorders = values.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
+            chart.data.datasets[0].backgroundColor = newColors;
+            chart.data.datasets[0].borderColor = newBorders;
+            chart.options.scales.x.ticks.color = css('--text-secondary');
+            chart.options.scales.x.grid.color  = css('--bg-tertiary');
+            chart.options.scales.y.ticks.color = css('--text-secondary');
+            chart.options.scales.y.grid.color  = css('--bg-tertiary');
+            chart.update();
+        }
+        new MutationObserver(applyTheme)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

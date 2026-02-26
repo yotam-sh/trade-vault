@@ -7,6 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3/dist/d3-hierarchy.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <nav>
@@ -81,6 +82,7 @@
             <a href="/trades">{{ t.nav_trades }}</a>
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
         </div>
 
         <div class="nav-right">
@@ -206,6 +208,13 @@
         <div class="card">
             <div class="card-header">{{ t.treemap_title }}</div>
             <div id="treemap-chart" style="height: 420px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">{{ t.chart_allocation }}</div>
+            <div style="max-width: 340px; margin: 0 auto;">
+                <canvas id="allocationDonut"></canvas>
+            </div>
         </div>
 
         {% else %}
@@ -336,6 +345,67 @@
 
         render();
         window.addEventListener('resize', render);
+    })();
+    </script>
+    <script>
+    (function() {
+        var positions = {{ portfolio.positions|tojson }};
+
+        function css(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        // Aggregate market value by security type
+        var typeMap = {};
+        positions.forEach(function(pos) {
+            var t = pos.security_type || 'other';
+            typeMap[t] = (typeMap[t] || 0) + (pos.market_value || 0);
+        });
+
+        var labels = Object.keys(typeMap).map(function(k) { return T['type_' + k] || k; });
+        var values = Object.keys(typeMap).map(function(k) { return typeMap[k]; });
+        var palette = ['#58a6ff', '#3fb950', '#f0883e', '#bc8cff', '#ffa657', '#79c0ff'];
+
+        var ctx = document.getElementById('allocationDonut').getContext('2d');
+        var donut = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: palette.slice(0, labels.length),
+                    borderColor: css('--bg-secondary'),
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: css('--text-primary'), padding: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                var pct = total ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                                return ctx.label + ': ₪' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0}) + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Live theme re-render
+        function applyTheme() {
+            donut.data.datasets[0].borderColor = css('--bg-secondary');
+            donut.options.plugins.legend.labels.color = css('--text-primary');
+            donut.update();
+        }
+        new MutationObserver(applyTheme)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     })();
     </script>
     {% endif %}

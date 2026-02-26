@@ -10,6 +10,7 @@ TRANSLATIONS = {
     'nav_trades':         {'he': 'עסקאות',       'en': 'Trades'},
     'nav_daily_summary':  {'he': 'סיכום יומי',   'en': 'Daily Summary'},
     'nav_daily_details':  {'he': 'יומי מלא',     'en': 'Full Daily'},
+    'nav_graphs':         {'he': 'גרפים',         'en': 'Graphs'},
 
     # ── Common controls ──
     'pick_date':          {'he': 'בחר תאריך',        'en': 'Select Date'},
@@ -48,6 +49,22 @@ TRANSLATIONS = {
     'month_10': {'he': 'אוקטובר', 'en': 'October'},
     'month_11': {'he': 'נובמבר',  'en': 'November'},
     'month_12': {'he': 'דצמבר',   'en': 'December'},
+
+    # ── Graphs page ──
+    'page_graphs':              {'he': 'גרפים',                     'en': 'Graphs'},
+    'chart_portfolio_value':    {'he': 'שווי תיק לאורך זמן',        'en': 'Portfolio Value Over Time'},
+    'chart_monthly_return':     {'he': 'תשואה חודשית (%)',           'en': 'Monthly Return (%)'},
+    'chart_allocation':         {'he': 'פיזור תיק לפי סוג',         'en': 'Allocation by Type'},
+    'chart_daily_pnl':          {'he': 'רווח/הפסד יומי',            'en': 'Daily P&L'},
+    'chart_closed_pnl':         {'he': 'תשואת פוזיציות סגורות',     'en': 'Closed Positions Return'},
+    'chart_tax_breakdown':      {'he': 'פירוט מס',                  'en': 'Tax Breakdown'},
+    'chart_type_by_day':        {'he': 'שינוי יומי לפי סוג נייר',   'en': 'Daily Change by Security Type'},
+    'label_net_invested':       {'he': 'השקעה נטו',                 'en': 'Net Invested'},
+    'label_portfolio_value':    {'he': 'שווי תיק',                  'en': 'Portfolio Value'},
+    'label_partial_month':      {'he': 'חודש חלקי',                 'en': 'Partial month'},
+    'label_gross_gains':        {'he': 'רווחי מכירות',              'en': 'Gross Gains'},
+    'label_loss_offset':        {'he': 'קיזוז הפסדים',              'en': 'Loss Offset'},
+    'label_net_tax':            {'he': 'מס נטו',                    'en': 'Net Tax'},
 
     # ── Home page ──
     'page_overview':     {'he': 'סקירת תיק',        'en': 'Portfolio Overview'},

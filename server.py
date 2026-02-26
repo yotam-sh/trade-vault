@@ -16,9 +16,11 @@ from app.analytics import (
     get_portfolio_value,
     get_transaction_log,
     get_transaction_summary,
+    get_monthly_chart_data,
     get_daily_summary,
     get_daily_details,
     get_pivot_by_security,
+    get_daily_type_chart_data,
     get_pivot_by_date,
     get_trade_history,
     get_closed_positions,
@@ -252,10 +254,12 @@ def daily_details_view():
     details = get_daily_details(start_date=start, end_date=end)
     pivot_security = get_pivot_by_security(start_date=start, end_date=end)
     pivot_date = get_pivot_by_date(start_date=start, end_date=end)
+    type_chart = get_daily_type_chart_data(start_date=start, end_date=end)
     return render_template('daily_details.html',
                            details=details,
                            pivot_security=pivot_security,
                            pivot_date=pivot_date,
+                           type_chart=type_chart,
                            start=start, end=end)
 
 
@@ -318,6 +322,27 @@ def trades_view():
                            sales_summary=sales_summary, tax_years=tax_years,
                            selected_year=selected_year,
                            start=start, end=end)
+
+
+@app.route('/graphs')
+def graphs_view():
+    from app.snapshots import list_snapshots
+    from app.transactions import list_transactions
+    snapshots = list_snapshots()
+    monthly = get_monthly_chart_data()
+
+    # Compute correct cumulative net_invested per snapshot date.
+    # The stored snapshot.net_invested is always 0 — the daily importer never
+    # passes deposit/withdrawal totals when creating snapshots.
+    deposits = sorted(list_transactions(type_='deposit'), key=lambda d: d['date'])
+    withdrawals = sorted(list_transactions(type_='withdrawal'), key=lambda w: w['date'])
+    for snap in snapshots:
+        dt = snap['date']
+        cum_dep = sum(d['total_amount'] for d in deposits if d['date'] <= dt)
+        cum_wit = sum(w['total_amount'] for w in withdrawals if w['date'] <= dt)
+        snap['net_invested'] = cum_dep - cum_wit
+
+    return render_template('graphs.html', snapshots=snapshots, monthly=monthly)
 
 
 # ── Export routes ──

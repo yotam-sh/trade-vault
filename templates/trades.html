@@ -6,6 +6,7 @@
     <title>{{ t.nav_trades }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <nav>
@@ -80,6 +81,7 @@
             <a href="/trades" class="active">{{ t.nav_trades }}</a>
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
         </div>
 
         <div class="nav-right">
@@ -173,6 +175,15 @@
             </div>
         </div>
         {% endif %}
+        <!-- Tax Breakdown Donut -->
+        {% if sales_summary and sales_summary.total_gains > 0 %}
+        <div class="card">
+            <div class="card-header">{{ t.chart_tax_breakdown }}</div>
+            <div style="max-width: 320px; margin: 0 auto;">
+                <canvas id="taxDonutChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Trade Log -->
         <div class="card">
@@ -232,6 +243,7 @@
         {% if closed %}
         <div class="card">
             <div class="card-header">{{ t.closed_title }}</div>
+            <canvas id="closedPnlChart" style="max-height: 300px; margin-bottom: 16px;"></canvas>
             <div class="table-wrapper">
                 <table class="sortable">
                     <thead>
@@ -281,5 +293,123 @@
 
     <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
+    <script>
+    (function() {
+        function css(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        // ── Tax Breakdown Donut ───────────────────────────────────────────────
+        var taxCtxEl = document.getElementById('taxDonutChart');
+        if (taxCtxEl) {
+            var salesSummary = {{ sales_summary|tojson }};
+            var gains       = salesSummary.total_gains || 0;
+            var lossOffset  = salesSummary.tax_offset_from_losses || 0;
+            var netTax      = salesSummary.net_tax || 0;
+
+            var taxDonut = new Chart(taxCtxEl.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: [T.label_gross_gains, T.label_loss_offset, T.label_net_tax],
+                    datasets: [{
+                        data: [gains, lossOffset, netTax],
+                        backgroundColor: [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'],
+                        borderColor: css('--bg-secondary'),
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: css('--text-primary'), padding: 16 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.label + ': ₪' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            new MutationObserver(function() {
+                taxDonut.data.datasets[0].backgroundColor = [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'];
+                taxDonut.data.datasets[0].borderColor = css('--bg-secondary');
+                taxDonut.options.plugins.legend.labels.color = css('--text-primary');
+                taxDonut.update();
+            }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        }
+
+        // ── Closed Positions Horizontal Bar ───────────────────────────────────
+        var closedCtxEl = document.getElementById('closedPnlChart');
+        if (closedCtxEl) {
+            var lang = "{{ lang }}";
+            var closed = {{ closed|tojson }};
+            var sorted = closed.slice().sort(function(a, b) { return b.pnl_pct - a.pnl_pct; });
+            var names  = sorted.map(function(c) { return (lang === 'en' && c.name_en) ? c.name_en : c.name_he; });
+            var pcts   = sorted.map(function(c) { return c.pnl_pct; });
+            var colors = pcts.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; });
+            var borders = pcts.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
+
+            var closedChart = new Chart(closedCtxEl.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: names,
+                    datasets: [{
+                        label: T.chart_closed_pnl,
+                        data: pcts,
+                        backgroundColor: colors,
+                        borderColor: borders,
+                        borderWidth: 1,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.parsed.x.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: css('--text-secondary'),
+                                callback: function(v) { return v.toFixed(1) + '%'; }
+                            },
+                            grid: { color: css('--bg-tertiary') }
+                        },
+                        y: {
+                            ticks: { color: css('--text-secondary') },
+                            grid: { color: css('--bg-tertiary') }
+                        }
+                    }
+                }
+            });
+
+            new MutationObserver(function() {
+                var nc  = pcts.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; });
+                var nb  = pcts.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
+                closedChart.data.datasets[0].backgroundColor = nc;
+                closedChart.data.datasets[0].borderColor = nb;
+                closedChart.options.scales.x.ticks.color = css('--text-secondary');
+                closedChart.options.scales.x.grid.color  = css('--bg-tertiary');
+                closedChart.options.scales.y.ticks.color = css('--text-secondary');
+                closedChart.options.scales.y.grid.color  = css('--bg-tertiary');
+                closedChart.update();
+            }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        }
+    })();
+    </script>
 </body>
 </html>

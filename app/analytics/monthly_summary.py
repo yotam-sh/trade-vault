@@ -135,6 +135,11 @@ def get_transaction_log():
     return log
 
 
+def get_monthly_chart_data():
+    """Return monthly summaries for charting (portfolio value + return % over time)."""
+    return _compute_monthly_summaries()
+
+
 def get_transaction_summary():
     """Right-panel aggregate metrics for transactions view.
 
