@@ -1,6 +1,7 @@
 """Monthly summary computation and transaction log views."""
 
 import calendar
+from datetime import date
 from app.snapshots import list_snapshots, get_latest_snapshot
 from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
 
@@ -61,12 +62,16 @@ def _compute_monthly_summaries():
         expected = _count_sun_thu_days(year, month)
         actual = len(month_snaps)
 
+        today = date.today()
+        is_current_month = (year == today.year and month == today.month)
+        is_partial = is_current_month or (actual < expected * 0.8)
+
         result.append({
             'date': last_snap['date'],
             'balance': round(balance, 2),
             'cost_change_ils': round(cost_change_ils, 2),
             'cost_change_pct': cost_change_pct,
-            'is_partial': actual < expected * 0.8,
+            'is_partial': is_partial,
             'trading_days': actual,
             'expected_days': expected,
         })
