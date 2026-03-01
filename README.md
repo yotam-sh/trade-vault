@@ -19,7 +19,7 @@ Created with Claude Code.
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
 - **Web dashboard** — Six views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history, and a dedicated graphs page
-- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard, daily P&L bar on the summary page, security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, and portfolio value vs net invested + monthly return charts on the graphs page. All charts re-render instantly when you switch color themes
+- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (switchable between daily, weekly, and monthly granularity), security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, and portfolio value vs net invested + monthly return charts (switchable between cumulative total return and standalone monthly return) on the graphs page. All charts re-render instantly when you switch color themes
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
 - **Best/worst performers** — Daily summary highlights top and bottom movers
@@ -268,9 +268,9 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap, allocation donut, daily file upload |
 | **General** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
 | **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
-| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart |
+| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
-| **Graphs** | `/graphs` | Portfolio value vs net invested over time (line chart) and monthly return % (bar chart) |
+| **Graphs** | `/graphs` | Portfolio value vs net invested over time (line chart) and monthly return % bar chart with toggle between cumulative total return and standalone monthly return |
 
 ### Uploading daily files via the web
 
@@ -296,13 +296,13 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 
 | Page | Chart | Type |
 |------|-------|------|
-| **Dashboard** | Portfolio allocation by security type | Donut |
-| **Daily Summary** | Daily P&L over the filtered period | Bar (green/red) |
+| **Dashboard** | Portfolio allocation by security type with percentage labels | Donut |
+| **Daily Summary** | Daily P&L over the filtered period — daily / weekly / monthly toggle | Bar (green/red) |
 | **Daily Details** | P&L contribution by security type per day | Stacked bar |
 | **Trades** | Tax breakdown (gross gains / loss offset / net tax) | Donut |
 | **Trades** | Closed positions P&L % ranked | Horizontal bar |
 | **Graphs** | Portfolio value vs net invested over time | Line |
-| **Graphs** | Monthly return % with partial-month indicator | Bar |
+| **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
 
 The **Graphs** page (`/graphs`) is the dedicated chart hub, showing long-term performance trends across all imported data.
 

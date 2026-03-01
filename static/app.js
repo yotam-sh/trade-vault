@@ -530,6 +530,7 @@ function sameDay(a, b) {
     document.querySelectorAll('.lang-option').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var lang = btn.dataset.lang;
+            if (!lang) return; // ignore non-language buttons (e.g. chart toggles)
 
             // Update cookie
             document.cookie = 'lang=' + lang + '; path=/; max-age=' + (365 * 24 * 3600);

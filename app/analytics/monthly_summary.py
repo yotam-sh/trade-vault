@@ -40,6 +40,9 @@ def _compute_monthly_summaries():
         by_month.setdefault(month_key, []).append(snap)
 
     result = []
+    prev_balance = None
+    prev_cum_deposits = 0
+    prev_cum_withdrawals = 0
     for month_key in sorted(by_month):
         month_snaps = sorted(by_month[month_key], key=lambda s: s['date'])
         last_snap = month_snaps[-1]
@@ -57,6 +60,18 @@ def _compute_monthly_summaries():
         cost_change_ils = balance - net_invested if net_invested else 0
         cost_change_pct = cost_change_ils / net_invested if net_invested else 0
 
+        # Standalone monthly return (adjusted for cash flows in the month)
+        month_deposits = cum_deposits - prev_cum_deposits
+        month_withdrawals = cum_withdrawals - prev_cum_withdrawals
+        net_flow = month_deposits - month_withdrawals
+        if prev_balance:
+            standalone_pct = (balance - prev_balance - net_flow) / prev_balance
+        else:
+            standalone_pct = cost_change_pct  # first month: no prior balance
+        prev_balance = balance
+        prev_cum_deposits = cum_deposits
+        prev_cum_withdrawals = cum_withdrawals
+
         # Trading day completeness
         year, month = int(month_key[:4]), int(month_key[5:7])
         expected = _count_sun_thu_days(year, month)
@@ -71,6 +86,7 @@ def _compute_monthly_summaries():
             'balance': round(balance, 2),
             'cost_change_ils': round(cost_change_ils, 2),
             'cost_change_pct': cost_change_pct,
+            'monthly_standalone_pct': standalone_pct,
             'is_partial': is_partial,
             'trading_days': actual,
             'expected_days': expected,

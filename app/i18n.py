@@ -54,6 +54,8 @@ TRANSLATIONS = {
     'page_graphs':              {'he': 'גרפים',                     'en': 'Graphs'},
     'chart_portfolio_value':    {'he': 'שווי תיק לאורך זמן',        'en': 'Portfolio Value Over Time'},
     'chart_monthly_return':     {'he': 'תשואה חודשית (%)',           'en': 'Monthly Return (%)'},
+    'chart_mode_cumulative':    {'he': 'תשואה כוללת',                'en': 'Total Return'},
+    'chart_mode_standalone':    {'he': 'תשואה חודשית',               'en': 'Monthly Return'},
     'chart_allocation':         {'he': 'פיזור תיק לפי סוג',         'en': 'Allocation by Type'},
     'chart_daily_pnl':          {'he': 'רווח/הפסד יומי',            'en': 'Daily P&L'},
     'chart_closed_pnl':         {'he': 'תשואת פוזיציות סגורות',     'en': 'Closed Positions Return'},
@@ -123,6 +125,9 @@ TRANSLATIONS = {
     'th_worst_stock':       {'he': 'מניה חלשה',     'en': 'Worst Performing Stock'},
     'empty_daily_summary':  {'he': 'אין נתוני סיכום יומי. ייבא קבצים יומיים כדי ליצור היסטוריה.',
                              'en': 'No daily summary data. Import daily files to build history.'},
+    'chart_mode_daily':     {'he': 'יומי',   'en': 'Daily'},
+    'chart_mode_weekly':    {'he': 'שבועי',  'en': 'Weekly'},
+    'chart_mode_monthly':   {'he': 'חודשי',  'en': 'Monthly'},
 
     # ── Daily details page ──
     'page_daily_details':    {'he': 'יומי מלא - פירוט ניירות',  'en': 'Full Daily - Security Details'},

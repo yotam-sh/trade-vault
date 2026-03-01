@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3/dist/d3-hierarchy.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
     <nav>
@@ -349,6 +350,8 @@
     </script>
     <script>
     (function() {
+        Chart.register(ChartDataLabels);
+
         var positions = {{ portfolio.positions|tojson }};
 
         function css(v) {
@@ -392,6 +395,16 @@
                                 var pct = total ? (ctx.parsed / total * 100).toFixed(1) : 0;
                                 return ctx.label + ': ₪' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0}) + ' (' + pct + '%)';
                             }
+                        }
+                    },
+                    datalabels: {
+                        color: '#ffffff',
+                        font: { weight: 'bold', size: 13 },
+                        formatter: function(value, ctx) {
+                            var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var pct = total ? (value / total * 100) : 0;
+                            if (pct < 5) return '';
+                            return pct.toFixed(1) + '%';
                         }
                     }
                 }

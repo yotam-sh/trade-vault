@@ -103,7 +103,13 @@
 
         <!-- Chart B: Monthly Return % -->
         <div class="card">
-            <div class="card-header">{{ t.chart_monthly_return }}</div>
+            <div class="card-header">
+                <span>{{ t.chart_monthly_return }}</span>
+                <div class="lang-options" id="returnModeToggle">
+                    <button class="lang-option active" data-mode="cumulative">{{ t.chart_mode_cumulative }}</button>
+                    <button class="lang-option" data-mode="standalone">{{ t.chart_mode_standalone }}</button>
+                </div>
+            </div>
             <canvas id="monthlyReturnChart" style="max-height: 280px;"></canvas>
         </div>
         {% else %}
@@ -196,12 +202,23 @@
 
         // ── Chart B: Monthly Return % ─────────────────────────────────────────
         var mLabels = monthly.map(function(m) { return m.date.slice(0, 7); });
-        var mValues = monthly.map(function(m) { return +(m.cost_change_pct * 100).toFixed(2); });
-        var mColors = mValues.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
         var mAlpha  = monthly.map(function(m) { return m.is_partial ? '88' : 'cc'; });
-        var mBgColors = mColors.map(function(c, i) { return c + mAlpha[i]; });
 
-        var ctxB = document.getElementById('monthlyReturnChart').getContext('2d');
+        var mValuesCumulative = monthly.map(function(m) { return +(m.cost_change_pct * 100).toFixed(2); });
+        var mValuesStandalone = monthly.map(function(m) { return +(m.monthly_standalone_pct * 100).toFixed(2); });
+
+        var mActiveMode = 'cumulative';
+        var mValues     = mValuesCumulative.slice();
+
+        function buildBarColors(vals) {
+            return vals.map(function(v, i) {
+                var base = v >= 0 ? css('--positive') : css('--negative');
+                return { bg: base + mAlpha[i], border: base };
+            });
+        }
+
+        var initC = buildBarColors(mValues);
+        var ctxB  = document.getElementById('monthlyReturnChart').getContext('2d');
         var chartB = new Chart(ctxB, {
             type: 'bar',
             data: {
@@ -209,8 +226,8 @@
                 datasets: [{
                     label: T.chart_monthly_return,
                     data: mValues,
-                    backgroundColor: mBgColors,
-                    borderColor: mColors,
+                    backgroundColor: initC.map(function(c) { return c.bg; }),
+                    borderColor:     initC.map(function(c) { return c.border; }),
                     borderWidth: 1,
                     borderRadius: 3,
                 }]
@@ -232,17 +249,31 @@
                 scales: {
                     x: {
                         ticks: { color: css('--text-secondary'), maxRotation: 45 },
-                        grid: { color: css('--bg-tertiary') }
+                        grid:  { color: css('--bg-tertiary') }
                     },
                     y: {
-                        ticks: {
-                            color: css('--text-secondary'),
-                            callback: function(v) { return v.toFixed(1) + '%'; }
-                        },
-                        grid: { color: css('--bg-tertiary') }
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return v.toFixed(1) + '%'; } },
+                        grid:  { color: css('--bg-tertiary') }
                     }
                 }
             }
+        });
+
+        document.querySelectorAll('#returnModeToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var mode = btn.getAttribute('data-mode');
+                if (mode === mActiveMode) return;
+                mActiveMode = mode;
+                document.querySelectorAll('#returnModeToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                });
+                mValues = (mode === 'standalone') ? mValuesStandalone.slice() : mValuesCumulative.slice();
+                var cols = buildBarColors(mValues);
+                chartB.data.datasets[0].data            = mValues;
+                chartB.data.datasets[0].backgroundColor = cols.map(function(c) { return c.bg; });
+                chartB.data.datasets[0].borderColor     = cols.map(function(c) { return c.border; });
+                chartB.update();
+            });
         });
 
         // ── Live theme re-render ──────────────────────────────────────────────
@@ -258,10 +289,10 @@
             chartA.options.scales.y.grid.color  = css('--bg-tertiary');
             chartA.update();
 
-            // Chart B colors (recalc pos/neg)
-            var newColors = mValues.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
-            chartB.data.datasets[0].backgroundColor = newColors.map(function(c, i) { return c + mAlpha[i]; });
-            chartB.data.datasets[0].borderColor = newColors;
+            // Chart B colors (recalc pos/neg for whichever dataset is active)
+            var reC = buildBarColors(mValues);
+            chartB.data.datasets[0].backgroundColor = reC.map(function(c) { return c.bg; });
+            chartB.data.datasets[0].borderColor     = reC.map(function(c) { return c.border; });
             chartB.options.scales.x.ticks.color = css('--text-secondary');
             chartB.options.scales.x.grid.color  = css('--bg-tertiary');
             chartB.options.scales.y.ticks.color = css('--text-secondary');

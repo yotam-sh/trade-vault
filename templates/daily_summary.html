@@ -134,7 +134,14 @@
 
         {% if data %}
         <div class="card">
-            <div class="card-header">{{ t.chart_daily_pnl }}</div>
+            <div class="card-header">
+                <span>{{ t.chart_daily_pnl }}</span>
+                <div class="lang-options" id="pnlModeToggle">
+                    <button class="lang-option active" data-mode="daily">{{ t.chart_mode_daily }}</button>
+                    <button class="lang-option" data-mode="weekly" id="pnlWeeklyBtn">{{ t.chart_mode_weekly }}</button>
+                    <button class="lang-option" data-mode="monthly" id="pnlMonthlyBtn">{{ t.chart_mode_monthly }}</button>
+                </div>
+            </div>
             <canvas id="dailyPnlChart" style="max-height: 220px;"></canvas>
         </div>
         {% endif %}
@@ -214,21 +221,70 @@
             return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
         }
 
-        var labels = dailyData.map(function(d) { return d.date; });
-        var values = dailyData.map(function(d) { return d.daily_pnl; });
-        var colors = values.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; });
-        var borders = values.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
+        // ── Aggregation helpers ────────────────────────────────────────────
+        function weekStart(dateStr) {
+            var d = new Date(dateStr + 'T00:00:00');
+            d.setDate(d.getDate() - d.getDay()); // getDay(): 0=Sun (TASE week start)
+            return d.toISOString().slice(0, 10);
+        }
 
+        function aggregate(mode) {
+            if (mode === 'daily') {
+                return {
+                    labels: dailyData.map(function(d) { return d.date; }),
+                    values: dailyData.map(function(d) { return d.daily_pnl; }),
+                };
+            }
+            var buckets = {}, order = [], firstDate = {};
+            dailyData.forEach(function(d) {
+                var key = mode === 'weekly' ? weekStart(d.date) : d.date.slice(0, 7);
+                if (!(key in buckets)) {
+                    buckets[key] = 0;
+                    order.push(key);
+                    if (mode === 'weekly') firstDate[key] = d.date;
+                }
+                buckets[key] += d.daily_pnl;
+            });
+            var labels = (mode === 'weekly')
+                ? order.map(function(k) { return firstDate[k]; })
+                : order;
+            return {
+                labels: labels,
+                values: order.map(function(k) { return buckets[k]; }),
+            };
+        }
+
+        // ── Disable modes with only 1 unique period ───────────────────────
+        var uniqueWeeks  = new Set(dailyData.map(function(d) { return weekStart(d.date); })).size;
+        var uniqueMonths = new Set(dailyData.map(function(d) { return d.date.slice(0, 7); })).size;
+        var weeklyBtn  = document.getElementById('pnlWeeklyBtn');
+        var monthlyBtn = document.getElementById('pnlMonthlyBtn');
+        if (uniqueWeeks  <= 1) weeklyBtn.disabled  = true;
+        if (uniqueMonths <= 1) monthlyBtn.disabled  = true;
+
+        // ── Chart init ─────────────────────────────────────────────────────
+        var activeMode   = 'daily';
+        var active       = aggregate('daily');
+        var activeValues = active.values;
+
+        function buildColors(vals) {
+            return {
+                bg:     vals.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; }),
+                border: vals.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); }),
+            };
+        }
+
+        var initColors = buildColors(activeValues);
         var ctx = document.getElementById('dailyPnlChart').getContext('2d');
         var chart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: active.labels,
                 datasets: [{
                     label: T.chart_daily_pnl,
-                    data: values,
-                    backgroundColor: colors,
-                    borderColor: borders,
+                    data: activeValues,
+                    backgroundColor: initColors.bg,
+                    borderColor: initColors.border,
                     borderWidth: 1,
                     borderRadius: 3,
                 }]
@@ -261,11 +317,32 @@
             }
         });
 
+        // ── Toggle handler ─────────────────────────────────────────────────
+        document.querySelectorAll('#pnlModeToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (btn.disabled) return;
+                var mode = btn.getAttribute('data-mode');
+                if (mode === activeMode) return;
+                activeMode = mode;
+                document.querySelectorAll('#pnlModeToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                });
+                var agg = aggregate(mode);
+                activeValues = agg.values;
+                var cols = buildColors(activeValues);
+                chart.data.labels = agg.labels;
+                chart.data.datasets[0].data = activeValues;
+                chart.data.datasets[0].backgroundColor = cols.bg;
+                chart.data.datasets[0].borderColor = cols.border;
+                chart.update();
+            });
+        });
+
+        // ── Live theme re-render ───────────────────────────────────────────
         function applyTheme() {
-            var newColors  = values.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; });
-            var newBorders = values.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); });
-            chart.data.datasets[0].backgroundColor = newColors;
-            chart.data.datasets[0].borderColor = newBorders;
+            var cols = buildColors(activeValues);
+            chart.data.datasets[0].backgroundColor = cols.bg;
+            chart.data.datasets[0].borderColor = cols.border;
             chart.options.scales.x.ticks.color = css('--text-secondary');
             chart.options.scales.x.grid.color  = css('--bg-tertiary');
             chart.options.scales.y.ticks.color = css('--text-secondary');

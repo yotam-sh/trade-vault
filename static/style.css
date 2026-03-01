@@ -244,6 +244,11 @@ nav a:hover, nav a.active {
     border-color: var(--accent);
 }
 
+.lang-option:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 /* Theme options */
 .theme-options {
     display: flex;
