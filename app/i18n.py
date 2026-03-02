@@ -11,6 +11,7 @@ TRANSLATIONS = {
     'nav_daily_summary':  {'he': 'סיכום יומי',   'en': 'Daily Summary'},
     'nav_daily_details':  {'he': 'יומי מלא',     'en': 'Full Daily'},
     'nav_graphs':         {'he': 'גרפים',         'en': 'Graphs'},
+    'nav_positions':      {'he': 'פוזיציות',      'en': 'Positions'},
 
     # ── Common controls ──
     'pick_date':          {'he': 'בחר תאריך',        'en': 'Select Date'},
@@ -243,6 +244,68 @@ TRANSLATIONS = {
     'export_sheet_sells':     {'he': 'עסקאות מכירה',             'en': 'Sell Trades'},
     'export_sheet_closed':    {'he': 'פוזיציות סגורות',          'en': 'Closed Positions'},
     'export_taxable':         {'he': 'חייב במס',                 'en': 'Taxable'},
+
+    # ── Positions index page ──
+    'positions_open':           {'he': 'פוזיציות פתוחות',         'en': 'Open Positions'},
+    'positions_closed':         {'he': 'פוזיציות סגורות',         'en': 'Closed Positions'},
+    'positions_no_open':        {'he': 'אין פוזיציות פתוחות',     'en': 'No open positions'},
+    'positions_no_closed':      {'he': 'אין פוזיציות סגורות',     'en': 'No closed positions'},
+
+    # ── Individual position page ──
+    'position_status_open':     {'he': 'פתוחה',                   'en': 'Open'},
+    'position_status_closed':   {'he': 'סגורה',                   'en': 'Closed'},
+    'position_first_bought':    {'he': 'נרכש לראשונה',            'en': 'First Bought'},
+    'position_last_sold':       {'he': 'נמכר לאחרונה',            'en': 'Last Sold'},
+    'position_avg_cost':        {'he': 'עלות ממוצעת',             'en': 'Avg Cost'},
+    'position_unrealized_pnl':  {'he': 'רווח לא ממומש',           'en': 'Unrealized P&L'},
+    'position_realized_pnl':    {'he': 'רווח ממומש',              'en': 'Realized P&L'},
+    'position_holding_period':  {'he': 'תקופת החזקה',             'en': 'Holding Period'},
+    'position_what_if':         {'he': 'מה אם שמרת',              'en': 'What If Kept'},
+    'position_hyp_value':       {'he': 'ערך תיאורטי היום',        'en': 'Hypothetical Value Today'},
+    'position_opp_cost':        {'he': 'פוטנציאל שנפספס',         'en': 'Opportunity Cost'},
+    'position_no_yfinance':     {'he': 'לא ממופה ל-Yahoo Finance','en': 'Not mapped to Yahoo Finance'},
+    'position_tase_id':         {'he': 'מספר נייר',               'en': 'TASE ID'},
+    'position_sector':          {'he': 'ענף',                     'en': 'Sector'},
+    'position_industry':        {'he': 'תת-ענף',                  'en': 'Industry'},
+    'position_market_cap':      {'he': 'שווי שוק',                'en': 'Market Cap'},
+    'position_52w_range':       {'he': 'טווח 52 שבועות',          'en': '52W Range'},
+    'position_dividend_yield':  {'he': 'תשואת דיבידנד',           'en': 'Div Yield'},
+    'position_refresh_info':    {'he': 'רענן מ-Yahoo Finance',    'en': 'Refresh from Yahoo Finance'},
+    'position_price_chart':     {'he': 'גרף מחיר',                'en': 'Price Chart'},
+    'position_pnl_chart':       {'he': 'רווח/הפסד יומי',          'en': 'Daily P&L'},
+    'position_trade_history':   {'he': 'היסטוריית עסקאות',        'en': 'Trade History'},
+    'position_open_lots':       {'he': 'לוטים פתוחים (FIFO)',     'en': 'Open Lots (FIFO)'},
+    'position_company_info':    {'he': 'מידע על החברה',           'en': 'Company Info'},
+    'position_price_unavailable': {'he': 'נתוני מחיר אינם זמינים עבור נייר זה', 'en': 'Price data is not available for this security'},
+    'position_info_unavailable':  {'he': 'מידע על החברה אינו זמין. לחץ על "רענן" לנסות שוב.', 'en': 'Company info is not available. Click Refresh to try again.'},
+    'position_last_attempted':    {'he': 'ניסיון אחרון',             'en': 'Last attempted'},
+    'position_weight':          {'he': 'משקל בתיק',               'en': 'Portfolio Weight'},
+    'position_current_value':   {'he': 'שווי נוכחי',              'en': 'Current Value'},
+    'position_back':            {'he': '← פוזיציות',              'en': '← Positions'},
+    'position_current_price':   {'he': 'מחיר נוכחי',              'en': 'Current Price'},
+    'position_total_invested':  {'he': 'סה"כ הושקע',              'en': 'Total Invested'},
+    'position_period':          {'he': 'תקופה',                   'en': 'Period'},
+
+    # ── Chart range toggles (position page) ──
+    'chart_range_1w':           {'he': '1 שבוע',                  'en': '1W'},
+    'chart_range_1m':           {'he': '1 חודש',                  'en': '1M'},
+    'chart_range_3m':           {'he': '3 חודשים',                'en': '3M'},
+    'chart_range_6m':           {'he': '6 חודשים',                'en': '6M'},
+    'chart_range_ytd':          {'he': 'מתחילת שנה',              'en': 'YTD'},
+    'chart_range_1y':           {'he': '1 שנה',                   'en': '1Y'},
+    'chart_range_since_buy':    {'he': 'ממועד הרכישה',            'en': 'From Purchase'},
+    'chart_range_since_close':  {'he': 'מסגירה',                  'en': 'Since Close'},
+    'chart_range_all':          {'he': 'הכל',                     'en': 'All'},
+
+    # ── Extra table headers used on position page ──
+    'th_avg_cost':              {'he': 'עלות ממוצעת',             'en': 'Avg Cost'},
+    'th_days_held':             {'he': 'ימים',                    'en': 'Days'},
+    'th_lot_shares':            {'he': 'מניות בלוט',              'en': 'Lot Shares'},
+    'th_lot_cost':              {'he': 'עלות/מניה',               'en': 'Cost/Share'},
+    'th_cost_basis':            {'he': 'עלות כוללת',              'en': 'Cost Basis'},
+    'th_realized_pnl':          {'he': 'רווח ממומש',              'en': 'Realized P&L'},
+    'th_price_per_share':       {'he': 'מחיר למניה',              'en': 'Price/Share'},
+    'th_total_ils':             {'he': 'סה"כ (₪)',                'en': 'Total (₪)'},
 }
 
 

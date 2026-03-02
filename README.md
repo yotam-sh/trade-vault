@@ -29,6 +29,10 @@ Created with Claude Code.
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
 - **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L
 - **Position type badges** — Trade Log marks each trade as opening / increase / closing / reduction with a color-coded badge (blue / green / red / amber)
+- **Individual position pages** — Drill into any holding from the positions list to see a full position breakdown: current price, 52-week range, market stats (from Yahoo Finance), avg cost, unrealized P&L, open FIFO lots, trade history, a price chart with buy/sell markers, and a daily P&L bar chart. Closed positions show realized P&L, avg buy/sell prices, and a "what-if kept" hypothetical current value
+- **Price chart with trade markers** — Each position page includes an interactive Chart.js price chart sourced from Yahoo Finance history, with time-range filters (1W / 1M / 3M / 6M / YTD / 1Y / From Purchase / All) and buy/sell triangle markers snapped to the nearest trading day. Hovering shows a price tooltip with thousands-separated Agorot values
+- **Hebrew translation of company info** — When the UI is in Hebrew, the Company Info card on each position page automatically translates sector, industry, and description to Hebrew using Google Translate (cached 30 days per holding; re-translates if a prior attempt produced empty results)
+- **Agorot price display** — All per-share prices throughout the app (trade table, avg cost, open lots, positions list) are displayed in Israeli Agorot (as quoted on TASE) rather than Shekel, consistent with Yahoo Finance data and IBI raw price data
 
 ## Prerequisites
 
@@ -40,7 +44,7 @@ Created with Claude Code.
 ```bash
 git clone <repo-url>
 cd TradeVault
-pip install flask tinydb pandas openpyxl yfinance
+pip install flask tinydb pandas openpyxl yfinance deep-translator
 ```
 
 No additional configuration needed. The database file (`db/db.json`) is created automatically on first run.
@@ -88,6 +92,7 @@ TradeVault/
 │   │   ├── daily_analytics.py      # Daily summary and detail views
 │   │   ├── monthly_summary.py      # Auto-computed monthly summaries
 │   │   ├── portfolio_analytics.py  # Portfolio value and P&L
+│   │   ├── position_analytics.py   # Individual position data & yfinance integration
 │   │   ├── tax_calculator.py       # Capital gains tax calculations
 │   │   └── trade_analytics.py      # Trade history and closed positions
 │   ├── importers/          # Modular import layer
@@ -105,6 +110,8 @@ TradeVault/
 │       └── translation_service.py  # Yahoo Finance API integration
 ├── templates/
 │   ├── index.html          # Dashboard
+│   ├── positions.html      # All positions (open + closed tabs)
+│   ├── position.html       # Individual position detail page
 │   ├── transactions.html   # General ledger
 │   ├── daily_summary.html  # Daily summary
 │   ├── daily_details.html  # Detailed daily breakdown
@@ -266,6 +273,8 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | Page | URL | Description |
 |------|-----|-------------|
 | **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap, allocation donut, daily file upload |
+| **Positions** | `/positions` | All holdings with open/closed tabs, market value, cost, P&L, avg buy/sell prices (in Agorot) |
+| **Position detail** | `/position/<id>` | Full individual position view: price chart with buy/sell markers, company info from Yahoo Finance, trade history, FIFO lots, daily P&L chart |
 | **General** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
 | **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle |
@@ -301,6 +310,8 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Daily Details** | P&L contribution by security type per day | Stacked bar |
 | **Trades** | Tax breakdown (gross gains / loss offset / net tax) | Donut |
 | **Trades** | Closed positions P&L % ranked | Horizontal bar |
+| **Position detail** | Price history with buy/sell markers — 8 range filter buttons | Line + markers |
+| **Position detail** | Daily P&L over time for the position | Bar (green/red) |
 | **Graphs** | Portfolio value vs net invested over time | Line |
 | **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
 

@@ -25,6 +25,8 @@ from app.analytics import (
     get_trade_history,
     get_closed_positions,
     compute_yearly_tax,
+    get_position_data,
+    get_positions_list,
 )
 
 app = Flask(__name__)
@@ -343,6 +345,34 @@ def graphs_view():
         snap['net_invested'] = cum_dep - cum_wit
 
     return render_template('graphs.html', snapshots=snapshots, monthly=monthly)
+
+
+# ── Position routes ──
+
+@app.route('/positions')
+def positions_view():
+    data = get_positions_list()
+    return render_template('positions.html', data=data)
+
+
+@app.route('/position/<int:holding_id>')
+def position_view(holding_id):
+    data = get_position_data(holding_id)
+    if data is None:
+        return redirect(url_for('positions_view'))
+    if _get_lang() == 'he' and data.get('yfinance_symbol'):
+        from app.utils.translation_service import ensure_hebrew_translations_cached
+        yf_data = ensure_hebrew_translations_cached(data['holding'])
+        if yf_data:
+            data['yfinance_info'] = {**(data['yfinance_info'] or {}), **yf_data}
+    return render_template('position.html', data=data)
+
+
+@app.route('/position/<int:holding_id>/refresh-info', methods=['POST'])
+def position_refresh_info(holding_id):
+    from app.analytics.position_analytics import refresh_yfinance_info
+    refresh_yfinance_info(holding_id)
+    return redirect(url_for('position_view', holding_id=holding_id))
 
 
 # ── Export routes ──

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        {{ (data.holding.name_en if lang == 'en' and data.holding.name_en else data.holding.name_he) }} - TradeVault
+    </title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <nav>
+        <div class="nav-left">
+            <button class="settings-btn" id="settings-toggle">
+                {{ t.settings }}
+            </button>
+            <div class="settings-dropdown" id="settings-dropdown">
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_language }}</div>
+                    <div class="lang-options">
+                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
+                            עברית
+                        </button>
+                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
+                            English
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #0d1117"></span>
+                                <span class="color-sample" style="background: #161b22"></span>
+                                <span class="color-sample" style="background: #58a6ff"></span>
+                                <span class="color-sample" style="background: #3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #280905"></span>
+                                <span class="color-sample" style="background: #740A03"></span>
+                                <span class="color-sample" style="background: #C3110C"></span>
+                                <span class="color-sample" style="background: #E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #432323"></span>
+                                <span class="color-sample" style="background: #2F5755"></span>
+                                <span class="color-sample" style="background: #5A9690"></span>
+                                <span class="color-sample" style="background: #E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #37353E"></span>
+                                <span class="color-sample" style="background: #44444E"></span>
+                                <span class="color-sample" style="background: #715A5A"></span>
+                                <span class="color-sample" style="background: #D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <a href="/">{{ t.nav_home }}</a>
+            <a href="/transactions">{{ t.nav_transactions }}</a>
+            <a href="/trades">{{ t.nav_trades }}</a>
+            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+            <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions" class="active">{{ t.nav_positions }}</a>
+        </div>
+
+        <div class="nav-right">
+            <a href="/" class="brand">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Back link -->
+        <div style="margin-bottom: 1rem;">
+            <a href="/positions" class="position-link" style="font-size: 0.9rem; color: var(--text-secondary);">
+                {{ t.position_back }}
+            </a>
+        </div>
+
+        <!-- ── Header ───────────────────────────────────────────────────────── -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h2 style="margin: 0;">
+                    {{ (data.holding.name_en if lang == 'en' and data.holding.name_en else data.holding.name_he) }}
+                </h2>
+                <span style="color: var(--text-secondary); font-size: 0.95rem;">
+                    {{ (data.holding.ticker if lang == 'en' and data.holding.ticker else data.holding.tase_symbol) }}
+                </span>
+                {% if data.holding.security_type %}
+                <span class="badge badge-{{ data.holding.security_type }}">
+                    {% if data.holding.security_type == 'stock' %}{{ t.type_stock }}
+                    {% elif data.holding.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
+                    {% elif data.holding.security_type == 'etf' %}{{ t.type_etf }}
+                    {% elif data.holding.security_type == 'bond' %}{{ t.type_bond }}
+                    {% else %}{{ data.holding.security_type }}{% endif %}
+                </span>
+                {% endif %}
+                {% if data.is_open %}
+                <span class="badge badge-buy">{{ t.position_status_open }}</span>
+                {% else %}
+                <span class="badge badge-sell">{{ t.position_status_closed }}</span>
+                {% endif %}
+                <span style="color: var(--text-secondary); font-size: 0.8rem; margin-inline-start: auto;">
+                    {{ t.position_tase_id }}: {{ data.holding.tase_id }}
+                </span>
+            </div>
+
+            {% if not data.yfinance_symbol %}
+            <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; color: var(--text-secondary);">
+                ⚠ {{ t.position_no_yfinance }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ── Market stats bar (yfinance) ──────────────────────────────────── -->
+        {% if data.yfinance_info %}
+        {% set yf = data.yfinance_info %}
+        <div class="stat-grid" style="margin-bottom: 1rem;">
+            {% if yf.current_price %}
+            <div class="stat-item">
+                <span class="stat-label">{{ t.position_current_price }}</span>
+                <span class="stat-value">{{ '{:,.0f}'.format(yf.current_price) }}</span>
+            </div>
+            {% endif %}
+            {% if yf.price_change_pct is not none %}
+            <div class="stat-item">
+                <span class="stat-label">{{ t.th_change_pct }}</span>
+                <span class="stat-value {% if yf.price_change_pct >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ '{:+.2f}'.format(yf.price_change_pct * 100) }}%
+                </span>
+            </div>
+            {% endif %}
+            {% if yf.fifty_two_week_high %}
+            <div class="stat-item">
+                <span class="stat-label">{{ t.position_52w_range }}</span>
+                <span class="stat-value" style="font-size: 0.9rem;">
+                    {{ '{:,.0f}'.format(yf.fifty_two_week_low or 0) }} – {{ '{:,.0f}'.format(yf.fifty_two_week_high) }}
+                </span>
+            </div>
+            {% endif %}
+            {% if yf.market_cap %}
+            <div class="stat-item">
+                <span class="stat-label">{{ t.position_market_cap }}</span>
+                <span class="stat-value" style="font-size: 0.9rem;">
+                    {% if yf.market_cap >= 1000000000 %}
+                        {{ '{:.2f}'.format(yf.market_cap / 1000000000) }}B
+                    {% elif yf.market_cap >= 1000000 %}
+                        {{ '{:.1f}'.format(yf.market_cap / 1000000) }}M
+                    {% else %}
+                        {{ '{:,}'.format(yf.market_cap) }}
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+            {% if yf.dividend_yield %}
+            <div class="stat-item">
+                <span class="stat-label">{{ t.position_dividend_yield }}</span>
+                <span class="stat-value">{{ '{:.2f}'.format(yf.dividend_yield * 100) }}%</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ── Your Position Card ────────────────────────────────────────────── -->
+        {% if data.is_open and data.current_position %}
+        {% set pos = data.current_position %}
+        {% set unrealized = pos.market_value - pos.cost_basis %}
+        {% set unrealized_pct = (unrealized / pos.cost_basis * 100) if pos.cost_basis else 0 %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">{{ t.positions_open }}</div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.th_quantity }}</span>
+                    <span class="stat-value">{{ '{:,.4g}'.format(pos.quantity) }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_avg_cost }}</span>
+                    <span class="stat-value">
+                        {{ '{:,.1f}'.format(pos.cost_basis / pos.quantity * 100) if pos.quantity else '—' }}
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_total_invested }}</span>
+                    <span class="stat-value">{{ '{:,.2f}'.format(pos.cost_basis) }} ₪</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_current_value }}</span>
+                    <span class="stat-value">{{ '{:,.2f}'.format(pos.market_value) }} ₪</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_unrealized_pnl }} ₪</span>
+                    <span class="stat-value {% if unrealized >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ '{:+,.2f}'.format(unrealized) }}
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_unrealized_pnl }} %</span>
+                    <span class="stat-value {% if unrealized_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ '{:+.2f}'.format(unrealized_pct) }}%
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_weight }}</span>
+                    <span class="stat-value">{{ '{:.1f}'.format(pos.weight) }}%</span>
+                </div>
+                {% if data.holding.first_bought %}
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_first_bought }}</span>
+                    <span class="stat-value" style="font-size: 0.9rem;">{{ data.holding.first_bought }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% elif data.closed_summary %}
+        {% set cs = data.closed_summary %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">{{ t.positions_closed }}</div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.th_quantity }}</span>
+                    <span class="stat-value">{{ '{:,.4g}'.format(cs.total_shares) }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.th_avg_buy }}</span>
+                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_buy_price * 100) }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.th_avg_sell }}</span>
+                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_sell_price * 100) }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_total_invested }}</span>
+                    <span class="stat-value">{{ '{:,.2f}'.format(cs.total_cost) }} ₪</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_realized_pnl }} ₪</span>
+                    <span class="stat-value {% if cs.total_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ '{:+,.2f}'.format(cs.total_pnl) }}
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_realized_pnl }} %</span>
+                    <span class="stat-value {% if cs.pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ '{:+.2f}'.format(cs.pnl_pct) }}%
+                    </span>
+                </div>
+                {% if cs.period %}
+                <div class="stat-item">
+                    <span class="stat-label">{{ t.position_period }}</span>
+                    <span class="stat-value" style="font-size: 0.82rem;">{{ cs.period }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- What-if kept card -->
+            {% if data.hypothetical %}
+            {% set hyp = data.hypothetical %}
+            <div class="what-if-card">
+                <h4>{{ t.position_what_if }}</h4>
+                <div class="stat-grid" style="margin-bottom: 0;">
+                    <div class="stat-item">
+                        <span class="stat-label">{{ t.position_current_price }}</span>
+                        <span class="stat-value">{{ '{:,.0f}'.format(hyp.current_price) }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">{{ t.position_hyp_value }}</span>
+                        <span class="stat-value">{{ '{:,.2f}'.format(hyp.hypothetical_value) }} ₪</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">{{ t.position_opp_cost }}</span>
+                        <span class="stat-value {% if hyp.opportunity_cost >= 0 %}positive{% else %}negative{% endif %}">
+                            {{ '{:+,.2f}'.format(hyp.opportunity_cost) }} ₪
+                            ({{ '{:+.1f}'.format(hyp.opportunity_cost_pct) }}%)
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ── Price Chart ───────────────────────────────────────────────────── -->
+        {% if data.yfinance_symbol %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">{{ t.position_price_chart }}</div>
+            {% if data.price_history %}
+            <!-- Range toggle buttons -->
+            <div class="range-toggle" id="rangeToggle">
+                <button class="range-btn" data-range="1w">{{ t.chart_range_1w }}</button>
+                <button class="range-btn" data-range="1m">{{ t.chart_range_1m }}</button>
+                <button class="range-btn" data-range="3m">{{ t.chart_range_3m }}</button>
+                <button class="range-btn" data-range="6m">{{ t.chart_range_6m }}</button>
+                <button class="range-btn" data-range="ytd">{{ t.chart_range_ytd }}</button>
+                <button class="range-btn" data-range="1y">{{ t.chart_range_1y }}</button>
+                <button class="range-btn active" data-range="since_buy">{{ t.chart_range_since_buy }}</button>
+                {% if not data.is_open %}
+                <button class="range-btn" data-range="since_close">{{ t.chart_range_since_close }}</button>
+                {% endif %}
+                <button class="range-btn" data-range="all">{{ t.chart_range_all }}</button>
+            </div>
+            <canvas id="priceChart" style="max-height: 320px;"></canvas>
+            {% else %}
+            <p class="empty-state" style="padding: 1.5rem 0;">{{ t.position_price_unavailable }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ── P&L Over Time Chart ─────────────────────────────────────────── -->
+        {% if data.daily_prices %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">{{ t.position_pnl_chart }}</div>
+            <canvas id="pnlChart" style="max-height: 220px;"></canvas>
+        </div>
+        {% endif %}
+
+        <!-- ── Trade History ─────────────────────────────────────────────────── -->
+        {% if data.trades %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">{{ t.position_trade_history }}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ t.th_date }}</th>
+                        <th>{{ t.th_trade_action }}</th>
+                        <th>{{ t.th_trade_type }}</th>
+                        <th class="num">{{ t.th_quantity }}</th>
+                        <th class="num">{{ t.th_price_per_share }}</th>
+                        <th class="num">{{ t.th_total_ils }}</th>
+                        <th class="num">{{ t.th_realized_pnl }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tr in data.trades %}
+                    <tr>
+                        <td>{{ tr.date }}</td>
+                        <td>
+                            {% if tr.type == 'buy' %}
+                            <span class="badge badge-buy">{{ t.badge_buy }}</span>
+                            {% else %}
+                            <span class="badge badge-sell">{{ t.badge_sell }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ tr.position_type }}">
+                                {{ t[tr.position_type] if tr.position_type in t else tr.position_type }}
+                            </span>
+                        </td>
+                        <td class="num">{{ '{:,.4g}'.format(tr.shares) }}</td>
+                        <td class="num">{{ '{:,.1f}'.format(tr.price_per_share * 100) }}</td>
+                        <td class="num">{{ '{:,.2f}'.format(tr.total_amount) }}</td>
+                        <td class="num pnl">
+                            {% if tr.type == 'sell' and tr.realized_pnl %}
+                            {{ '{:+,.2f}'.format(tr.realized_pnl) }}
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- ── Open FIFO Lots ────────────────────────────────────────────────── -->
+        {% if data.is_open and data.open_lots %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">{{ t.position_open_lots }}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ t.th_date }}</th>
+                        <th class="num">{{ t.th_lot_shares }}</th>
+                        <th class="num">{{ t.th_lot_cost }}</th>
+                        <th class="num">{{ t.th_cost_basis }}</th>
+                        <th class="num">{{ t.th_days_held }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lot in data.open_lots %}
+                    <tr>
+                        <td>{{ lot.buy_date }}</td>
+                        <td class="num">{{ '{:,.4g}'.format(lot.remaining_shares) }}</td>
+                        <td class="num">{{ '{:,.1f}'.format(lot.cost_per_share * 100) }}</td>
+                        <td class="num">{{ '{:,.2f}'.format(lot.total_cost) }}</td>
+                        <td class="num">{{ lot.days_held or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- ── Company Info ──────────────────────────────────────────────────── -->
+        {% if data.yfinance_symbol %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+                <span>{{ t.position_company_info }}</span>
+                <form method="post" action="/position/{{ data.holding_id }}/refresh-info" style="margin: 0;">
+                    <button type="submit" class="export-btn" style="font-size: 0.78rem; padding: 0.2rem 0.6rem;">
+                        {{ t.position_refresh_info }}
+                    </button>
+                </form>
+            </div>
+            {% if data.yfinance_info %}
+            {% set yf = data.yfinance_info %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.5rem 1.5rem; margin-bottom: 0.75rem;">
+                {% if yf.sector %}
+                <div>
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">{{ t.position_sector }}</span><br>
+                    <span>{{ (yf.sector_he if lang == 'he' and yf.sector_he else yf.sector) }}</span>
+                </div>
+                {% endif %}
+                {% if yf.industry %}
+                <div>
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">{{ t.position_industry }}</span><br>
+                    <span>{{ (yf.industry_he if lang == 'he' and yf.industry_he else yf.industry) }}</span>
+                </div>
+                {% endif %}
+                <div>
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">Yahoo Finance</span><br>
+                    <a href="https://finance.yahoo.com/quote/{{ data.yfinance_symbol }}" target="_blank" class="position-link" style="color: var(--accent);">
+                        {{ data.yfinance_symbol }} ↗
+                    </a>
+                </div>
+                {% if yf.info_fetched_at %}
+                <div>
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">{{ t.th_date }}</span><br>
+                    <span style="color: var(--text-secondary); font-size: 0.82rem;">{{ yf.info_fetched_at }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% if yf.description %}
+            <div>
+                <p class="description-text" id="descText">{{ (yf.description_he if lang == 'he' and yf.description_he else yf.description) }}</p>
+                <button class="description-toggle" id="descToggle" onclick="toggleDesc()">▼</button>
+            </div>
+            {% endif %}
+            {% else %}
+            <p class="empty-state" style="padding: 1.5rem 0;">
+                {{ t.position_info_unavailable }}
+                {% if data.holding.yfinance_data and data.holding.yfinance_data.fetch_failed_at %}
+                <br><small style="color: var(--text-secondary);">{{ t.position_last_attempted }}: {{ data.holding.yfinance_data.fetch_failed_at[:10] }}</small>
+                {% endif %}
+            </p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script>var T = {{ t_json | safe }};</script>
+    <script>
+    (function() {
+        // ── Embedded data from Python ──────────────────────────────────────
+        var priceHistory = {{ data.price_history | tojson }};
+        var dailyPrices  = {{ data.daily_prices  | tojson }};
+        var trades       = {{ data.trades        | tojson }};
+        var firstBought  = {{ data.holding.first_bought | tojson }};
+        var lastSold     = {{ data.holding.last_sold | tojson }};
+        // Fallback: derive firstBought from earliest buy trade when holding field is missing
+        if (!firstBought && trades && trades.length > 0) {
+            var buyDates = trades.filter(function(t) { return t.type === 'buy'; }).map(function(t) { return t.date; }).sort();
+            if (buyDates.length > 0) firstBought = buyDates[0];
+        }
+        var isOpen       = {{ 'true' if data.is_open else 'false' }};
+
+        function css(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        // ── Price Chart ────────────────────────────────────────────────────
+        {% if data.price_history %}
+        var priceChart = null;
+        var activeRange = 'since_buy';
+
+        function filterHistory(range) {
+            if (!priceHistory || priceHistory.length === 0) return [];
+            var today = new Date();
+            var cutoff = null;
+
+            if (range === '1w') {
+                cutoff = new Date(today); cutoff.setDate(today.getDate() - 7);
+            } else if (range === '1m') {
+                cutoff = new Date(today); cutoff.setMonth(today.getMonth() - 1);
+            } else if (range === '3m') {
+                cutoff = new Date(today); cutoff.setMonth(today.getMonth() - 3);
+            } else if (range === '6m') {
+                cutoff = new Date(today); cutoff.setMonth(today.getMonth() - 6);
+            } else if (range === 'ytd') {
+                cutoff = new Date(today.getFullYear(), 0, 1);
+            } else if (range === '1y') {
+                cutoff = new Date(today); cutoff.setFullYear(today.getFullYear() - 1);
+            } else if (range === 'since_buy') {
+                cutoff = firstBought ? new Date(firstBought) : null;
+            } else if (range === 'since_close') {
+                cutoff = lastSold ? new Date(lastSold) : null;
+            } else {
+                // 'all'
+                cutoff = null;
+            }
+
+            if (!cutoff) return priceHistory;
+            var cutoffStr = cutoff.toISOString().slice(0, 10);
+            return priceHistory.filter(function(p) { return p.date >= cutoffStr; });
+        }
+
+        function buildTradeAnnotations(filteredDates) {
+            if (!filteredDates || filteredDates.length === 0) return { buys: [], sells: [] };
+            var buys = [], sells = [];
+            trades.forEach(function(tr) {
+                // Find exact or nearest price on/before trade date within visible range
+                var ph = priceHistory.find(function(p) { return p.date === tr.date; });
+                if (!ph) {
+                    // Find closest entry on or before trade date (handles weekends/holidays)
+                    var before = filteredDates.filter(function(d) { return d <= tr.date; });
+                    if (before.length > 0) {
+                        var nearestDate = before[before.length - 1];
+                        ph = priceHistory.find(function(p) { return p.date === nearestDate; });
+                    }
+                }
+                if (!ph) return;  // trade is before the visible range entirely
+                var idx = filteredDates.indexOf(ph.date);
+                if (idx === -1) return;
+                if (tr.type === 'buy') {
+                    buys.push({ x: ph.date, y: ph.close, shares: tr.shares, total: tr.total_amount });
+                } else {
+                    sells.push({ x: ph.date, y: ph.close, shares: tr.shares, pnl: tr.realized_pnl });
+                }
+            });
+            return { buys: buys, sells: sells };
+        }
+
+        function buildPriceChart(range) {
+            var filtered = filterHistory(range);
+            var labels = filtered.map(function(p) { return p.date; });
+            var prices = filtered.map(function(p) { return p.close; });
+
+            var acc = css('--accent');
+            var annotations = buildTradeAnnotations(labels);
+
+            var datasets = [
+                {
+                    label: T['position_current_price'] || 'Price',
+                    data: prices,
+                    borderColor: acc,
+                    backgroundColor: acc + '18',
+                    fill: true,
+                    pointRadius: 0,
+                    tension: 0.1,
+                    borderWidth: 2,
+                    order: 1,  // rendered behind markers
+                }
+            ];
+
+            if (annotations.buys.length > 0) {
+                var buyData = labels.map(function(d) {
+                    var b = annotations.buys.find(function(b) { return b.x === d; });
+                    return b ? b.y : null;
+                });
+                datasets.push({
+                    label: T['badge_buy'] || 'Buy',
+                    data: buyData,
+                    borderColor: css('--positive'),
+                    backgroundColor: css('--positive'),
+                    pointRadius: buyData.map(function(v) { return v !== null ? 7 : 0; }),
+                    pointHoverRadius: buyData.map(function(v) { return v !== null ? 9 : 0; }),
+                    pointStyle: buyData.map(function(v) { return v !== null ? 'triangle' : 'circle'; }),
+                    pointRotation: 0,
+                    showLine: false,
+                    order: 0,  // drawn on top of price line
+                });
+            }
+            if (annotations.sells.length > 0) {
+                var sellData = labels.map(function(d) {
+                    var s = annotations.sells.find(function(s) { return s.x === d; });
+                    return s ? s.y : null;
+                });
+                datasets.push({
+                    label: T['badge_sell'] || 'Sell',
+                    data: sellData,
+                    borderColor: css('--negative'),
+                    backgroundColor: css('--negative'),
+                    pointRadius: sellData.map(function(v) { return v !== null ? 7 : 0; }),
+                    pointHoverRadius: sellData.map(function(v) { return v !== null ? 9 : 0; }),
+                    pointStyle: sellData.map(function(v) { return v !== null ? 'triangle' : 'circle'; }),
+                    pointRotation: 180,
+                    showLine: false,
+                    order: 0,  // drawn on top of price line
+                });
+            }
+
+            if (priceChart) priceChart.destroy();
+            priceChart = new Chart(document.getElementById('priceChart'), {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: datasets.length > 1, labels: { color: css('--text-primary') } },
+                        tooltip: {
+                            filter: function(item) { return item.raw !== null; },
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.raw === null) return null;
+                                    var val = typeof ctx.raw === 'object' ? ctx.raw.y : ctx.raw;
+                                    return ctx.dataset.label + ': ' + Number(val).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: css('--text-secondary'), maxTicksLimit: 8 }, grid: { color: css('--border') } },
+                        y: { ticks: { color: css('--text-secondary'), callback: function(value) { return value.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } }, grid: { color: css('--border') } },
+                    }
+                }
+            });
+        }
+
+        buildPriceChart(activeRange);
+
+        document.querySelectorAll('#rangeToggle .range-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#rangeToggle .range-btn').forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                activeRange = btn.getAttribute('data-range');
+                buildPriceChart(activeRange);
+            });
+        });
+        {% endif %}
+
+        // ── P&L Over Time Chart ────────────────────────────────────────────
+        {% if data.daily_prices %}
+        var pnlLabels = dailyPrices.map(function(d) { return d.date; });
+        var pnlValues = dailyPrices.map(function(d) { return d.daily_pnl || 0; });
+
+        function buildPnlColors(vals) {
+            return vals.map(function(v) {
+                return v >= 0 ? css('--positive') + 'bb' : css('--negative') + 'bb';
+            });
+        }
+
+        var pnlChart = new Chart(document.getElementById('pnlChart'), {
+            type: 'bar',
+            data: {
+                labels: pnlLabels,
+                datasets: [{
+                    label: T['position_pnl_chart'] || 'Daily P&L',
+                    data: pnlValues,
+                    backgroundColor: buildPnlColors(pnlValues),
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: {
+                        label: function(ctx) { return (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(2) + ' ₪'; }
+                    }}
+                },
+                scales: {
+                    x: { ticks: { color: css('--text-secondary'), maxTicksLimit: 10 }, grid: { color: css('--border') } },
+                    y: { ticks: { color: css('--text-secondary') }, grid: { color: css('--border') } },
+                }
+            }
+        });
+        {% endif %}
+
+        // ── Theme re-render ────────────────────────────────────────────────
+        var themeObserver = new MutationObserver(function() {
+            {% if data.price_history %}
+            buildPriceChart(activeRange);
+            {% endif %}
+            {% if data.daily_prices %}
+            pnlChart.data.datasets[0].backgroundColor = buildPnlColors(pnlValues);
+            pnlChart.options.scales.x.ticks.color = css('--text-secondary');
+            pnlChart.options.scales.x.grid.color = css('--border');
+            pnlChart.options.scales.y.ticks.color = css('--text-secondary');
+            pnlChart.options.scales.y.grid.color = css('--border');
+            pnlChart.update();
+            {% endif %}
+        });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    })();
+
+    function toggleDesc() {
+        var el = document.getElementById('descText');
+        var btn = document.getElementById('descToggle');
+        if (el.classList.toggle('expanded')) {
+            btn.textContent = '▲';
+        } else {
+            btn.textContent = '▼';
+        }
+    }
+    </script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

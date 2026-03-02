@@ -10,6 +10,7 @@ from app.analytics.daily_analytics import (
 )
 from app.analytics.trade_analytics import get_trade_history, get_closed_positions, get_pivot_by_date
 from app.analytics.tax_calculator import compute_yearly_tax
+from app.analytics.position_analytics import get_position_data, get_positions_list
 
 __all__ = [
     'get_portfolio_value',
@@ -25,4 +26,6 @@ __all__ = [
     'get_trade_history',
     'get_closed_positions',
     'compute_yearly_tax',
+    'get_position_data',
+    'get_positions_list',
 ]

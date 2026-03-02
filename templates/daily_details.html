@@ -82,6 +82,7 @@
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details" class="active">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
         </div>
 
         <div class="nav-right">
@@ -175,7 +176,7 @@
                                         {% elif d.security_type == 'bond' %}{{ t.type_bond }}
                                         {% else %}{{ d.security_type }}{% endif %}
                                     </td>
-                                    <td>{{ (d.name_en if lang == 'en' and d.name_en else d.name) }}</td>
+                                    <td><a href="/position/{{ d.holding_id }}" class="position-link">{{ (d.name_en if lang == 'en' and d.name_en else d.name) }}</a></td>
                                     <td>{{ d.tase_id }}</td>
                                     <td>{{ (d.ticker if lang == 'en' and d.ticker else d.symbol) }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(d.change_ils or 0) }}</td>
@@ -215,7 +216,7 @@
                                 </tr>
                                 {% for sec in group.securities %}
                                 <tr>
-                                    <td>{{ (sec.name_en if lang == 'en' and sec.name_en else sec.name) }}</td>
+                                    <td><a href="/position/{{ sec.holding_id }}" class="position-link">{{ (sec.name_en if lang == 'en' and sec.name_en else sec.name) }}</a></td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(sec.total_change_ils) }}</td>
                                     <td class="num positive">{{ '{:,.2f}'.format(sec.max_change_ils or 0) }}</td>
                                     <td class="num negative">{{ '{:,.2f}'.format(sec.min_change_ils or 0) }}</td>

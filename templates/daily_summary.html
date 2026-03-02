@@ -82,6 +82,7 @@
             <a href="/daily-summary" class="active">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
         </div>
 
         <div class="nav-right">
@@ -181,7 +182,11 @@
 
                             <!-- Best performer -->
                             {% if day.best %}
-                            <td>{{ (day.best.ticker_en if lang == 'en' and day.best.ticker_en else day.best.symbol) }}</td>
+                            <td>
+                                {% if day.best.holding_id %}<a href="/position/{{ day.best.holding_id }}" class="position-link">{% endif %}
+                                {{ (day.best.ticker_en if lang == 'en' and day.best.ticker_en else day.best.symbol) }}
+                                {% if day.best.holding_id %}</a>{% endif %}
+                            </td>
                             <td class="num positive">{{ '{:,.2f}'.format(day.best.daily_pnl) }}</td>
                             <td class="num positive">{{ '{:.2f}'.format(day.best.daily_pnl_pct) }}%</td>
                             {% else %}
@@ -190,7 +195,11 @@
 
                             <!-- Worst performer -->
                             {% if day.worst %}
-                            <td>{{ (day.worst.ticker_en if lang == 'en' and day.worst.ticker_en else day.worst.symbol) }}</td>
+                            <td>
+                                {% if day.worst.holding_id %}<a href="/position/{{ day.worst.holding_id }}" class="position-link">{% endif %}
+                                {{ (day.worst.ticker_en if lang == 'en' and day.worst.ticker_en else day.worst.symbol) }}
+                                {% if day.worst.holding_id %}</a>{% endif %}
+                            </td>
                             <td class="num negative">{{ '{:,.2f}'.format(day.worst.daily_pnl) }}</td>
                             <td class="num negative">{{ '{:.2f}'.format(day.worst.daily_pnl_pct) }}%</td>
                             {% else %}

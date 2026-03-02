@@ -50,6 +50,7 @@ def get_daily_summary(start_date=None, end_date=None):
                 'name_en': enriched.get('name_en'),
                 'symbol': enriched.get('symbol', ''),  # TASE symbol
                 'ticker_en': enriched.get('ticker'),  # Yahoo Finance ticker (English)
+                'holding_id': pos.get('holding_id'),
                 'daily_pnl': pnl,
                 'daily_pnl_pct': round(pnl / pos.get('market_value', 1) * 100, 2) if pos.get('market_value') else 0,
             }
@@ -209,6 +210,7 @@ def get_pivot_by_security(start_date=None, end_date=None):
             mv = d.get('market_value', 0) or 0
             change = d.get('change_ils', 0) or 0
             by_security[holding_id] = {
+                'holding_id': holding_id,
                 'name': d['name'],
                 'name_en': d.get('name_en'),
                 'ticker': d.get('ticker'),  # Will use most recent ticker

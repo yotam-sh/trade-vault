@@ -82,6 +82,7 @@
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
         </div>
 
         <div class="nav-right">
@@ -215,10 +216,10 @@
                                 {% endif %}
                             </td>
                             <td><span class="badge badge-{{ tr.position_type }}">{{ t[tr.position_type] if tr.position_type in t else tr.position_type }}</span></td>
-                            <td>{{ (tr.name_en if lang == 'en' and tr.name_en else tr.name_he) }}</td>
+                            <td><a href="/position/{{ tr.holding_id }}" class="position-link">{{ (tr.name_en if lang == 'en' and tr.name_en else tr.name_he) }}</a></td>
                             <td>{{ (tr.ticker if lang == 'en' and tr.ticker else tr.symbol) }}</td>
                             <td class="num">{{ '{:,.0f}'.format(tr.shares or 0) }}</td>
-                            <td class="num">₪{{ '{:,.2f}'.format(tr.price_per_share or 0) }}</td>
+                            <td class="num">{{ '{:,.1f}'.format((tr.price_per_share or 0) * 100) }}</td>
                             <td class="num">₪{{ '{:,.2f}'.format(tr.total_amount or 0) }}</td>
                             <td class="num pnl">
                                 {% if tr.realized_pnl %}
@@ -261,7 +262,7 @@
                     <tbody>
                         {% for c in closed %}
                         <tr data-pnl="{{ c.total_pnl }}">
-                            <td>{{ (c.name_en if lang == 'en' and c.name_en else c.name_he) }}</td>
+                            <td><a href="/position/{{ c.holding_id }}" class="position-link">{{ (c.name_en if lang == 'en' and c.name_en else c.name_he) }}</a></td>
                             <td>
                                 {% if c.security_type == 'stock' %}{{ t.type_stock }}
                                 {% elif c.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
@@ -270,8 +271,8 @@
                                 {% else %}{{ c.security_type }}{% endif %}
                             </td>
                             <td class="num">{{ '{:,.0f}'.format(c.total_shares) }}</td>
-                            <td class="num">₪{{ '{:,.2f}'.format(c.avg_buy_price) }}</td>
-                            <td class="num">₪{{ '{:,.2f}'.format(c.avg_sell_price) }}</td>
+                            <td class="num">{{ '{:,.1f}'.format(c.avg_buy_price * 100) }}</td>
+                            <td class="num">{{ '{:,.1f}'.format(c.avg_sell_price * 100) }}</td>
                             <td class="num pnl">₪{{ '{:,.2f}'.format(c.total_pnl) }}</td>
                             <td class="num pnl">{{ '{:.2f}'.format(c.pnl_pct) }}%</td>
                             <td>{{ c.period }}</td>
