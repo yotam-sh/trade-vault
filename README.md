@@ -36,15 +36,27 @@ Created with Claude Code.
 
 ## Prerequisites
 
-- Python 3.10+
-- pip
+- Python 3.10+ **or** Docker
 
 ## Installation
 
+**Option A — Docker (recommended):**
 ```bash
 git clone <repo-url>
 cd TradeVault
-pip install flask tinydb pandas openpyxl yfinance deep-translator
+cp .env.example .env          # edit SECRET_KEY at minimum
+docker compose up -d
+# Open http://localhost:2501
+```
+`db/` and `data/` are stored in named Docker volumes (`tradevault_db`, `tradevault_data`) so your data persists across container restarts and upgrades.
+
+**Option B — plain Python:**
+```bash
+git clone <repo-url>
+cd TradeVault
+pip install -r requirements.txt
+python server.py
+# Open http://localhost:2501
 ```
 
 No additional configuration needed. The database file (`db/db.json`) is created automatically on first run.
@@ -58,12 +70,12 @@ python main.py import daily "data/daily_data/feb_2026/data.xlsx" --date 2026-02-
 # 2. (Optional) Import trade files
 python main.py import trades data/trades/
 
-# 4. View your portfolio
+# 3. View your portfolio
 python main.py show portfolio
 
-# 5. Launch the web dashboard — add deposits/withdrawals manually via the General page
+# 4. Launch the web dashboard — add deposits/withdrawals manually via the General page
 python server.py
-# Open http://localhost:5000
+# Open http://localhost:2501
 ```
 
 ## Project Structure
@@ -71,7 +83,11 @@ python server.py
 ```
 TradeVault/
 ├── main.py                 # CLI entry point
-├── server.py               # Flask web server (port 5000)
+├── server.py               # Flask web server (port 2501, Gunicorn-compatible)
+├── requirements.txt        # Python dependencies
+├── Dockerfile              # Container image (python:3.12-slim, Gunicorn)
+├── docker-compose.yml      # Compose stack with named volumes
+├── .env.example            # Environment variable template
 ├── app/
 │   ├── connection.py       # TinyDB singleton & table constants
 │   ├── schemas.py          # 8 table schemas & validation
@@ -86,6 +102,7 @@ TradeVault/
 │   ├── queries.py          # Analytics facade (imports from analytics/ modules)
 │   ├── excel_importer.py   # Import facade (imports from importers/ modules)
 │   ├── export.py           # Excel export functionality for all views
+│   ├── db_backup.py        # Database export/import utilities
 │   ├── i18n.py             # Hebrew/English translation strings
 │   ├── column_map.py       # Hebrew-English column mappings
 │   ├── analytics/          # Modular analytics layer
@@ -116,7 +133,8 @@ TradeVault/
 │   ├── daily_summary.html  # Daily summary
 │   ├── daily_details.html  # Detailed daily breakdown
 │   ├── trades.html         # Trade history
-│   └── graphs.html         # Graphs & charts
+│   ├── graphs.html         # Graphs & charts
+│   └── admin.html          # Admin (backup/restore)
 ├── static/
 │   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
 │   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
@@ -214,6 +232,21 @@ python main.py show trades
 ```
 Lists all buy/sell transactions and closed position summaries.
 
+### Exporting and importing the database
+
+**Export (create a backup):**
+```bash
+python main.py db export                         # saves db_backup_YYYY-MM-DD.json
+python main.py db export path/to/backup.json     # custom output path
+```
+Flushes the TinyDB cache and copies `db/db.json` to the output file. Use this to transfer your data between machines.
+
+**Import (restore from a backup):**
+```bash
+python main.py db import path/to/backup.json --replace
+```
+Validates the backup file, saves the current database as a `.bak` file for safety, then replaces the live database with the backup. The same export/import functionality is available in the web UI at `/admin`.
+
 ### Setting tickers
 
 ```bash
@@ -246,7 +279,7 @@ Start the server:
 ```bash
 python server.py
 ```
-Open `http://localhost:5000` in your browser.
+Open `http://localhost:2501` in your browser.
 
 ### Settings & Theming
 
@@ -280,6 +313,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
 | **Graphs** | `/graphs` | Portfolio value vs net invested over time (line chart) and monthly return % bar chart with toggle between cumulative total return and standalone monthly return |
+| **Admin** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database) |
 
 ### Uploading daily files via the web
 
@@ -373,6 +407,40 @@ Each page has an Export button (📥) that downloads the current view as an Exce
 - **Daily Details** — Exports per-security daily breakdown (respects active date filter)
 
 The export respects your current filters and language settings. Date ranges, security type filters, and search filters are all preserved in the exported data.
+
+## Deployment
+
+### Docker Compose (recommended)
+
+Copy `.env.example` to `.env` and set `SECRET_KEY` to a random string. Then:
+
+```bash
+docker compose up -d
+```
+
+The compose file mounts two named volumes:
+- `tradevault_db` → `/app/db` (the TinyDB database)
+- `tradevault_data` → `/app/data` (your Excel import files)
+
+To update to a newer image:
+```bash
+docker compose pull && docker compose up -d
+```
+
+> **Note:** Gunicorn is started with `--workers 1` because TinyDB's `CachingMiddleware` is not safe for concurrent writes across multiple worker processes.
+
+### TrueNAS Scale
+
+Use TrueNAS → Apps → Custom App, or SSH into the server and run `docker compose up -d` from the cloned repo directory. Point the volume paths to datasets on your ZFS pool if you prefer bind mounts over named volumes (see the commented example in `docker-compose.yml`).
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRET_KEY` | `tradevault-dev-key-change-in-production` | Flask session signing key — **change this** |
+| `DEBUG` | `false` | Enable Flask debug mode |
+| `PORT` | `2501` | Port the server listens on |
+| `DB_PATH` | `db/db.json` (relative to project root) | Path to TinyDB JSON file |
 
 ## Data Flow
 

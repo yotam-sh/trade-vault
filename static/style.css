@@ -1105,3 +1105,68 @@ a.position-link:hover {
     font-size: 0.8rem;
     padding: 0.25rem 0;
 }
+
+/* ── Admin page buttons ── */
+/* Selectors use element+class (specificity 0,1,1) to beat browser UA a:link (0,1,1) */
+a.admin-action-btn, button.admin-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+    transition: opacity 0.15s, box-shadow 0.15s;
+}
+a.admin-action-btn:hover, button.admin-action-btn:hover {
+    opacity: 0.88;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
+}
+
+a.admin-danger-btn, button.admin-danger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--negative);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+    transition: opacity 0.15s, box-shadow 0.15s;
+}
+a.admin-danger-btn:hover, button.admin-danger-btn:hover {
+    opacity: 0.88;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
+}
+
+a.admin-file-btn, span.admin-file-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+a.admin-file-btn:hover, span.admin-file-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+}

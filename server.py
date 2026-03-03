@@ -6,7 +6,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file
 from app.connection import get_db, close_db, flush_db
 from app.settings import init_default_settings
 from app.importers import import_daily_portfolio
@@ -30,7 +30,8 @@ from app.analytics import (
 )
 
 app = Flask(__name__)
-app.secret_key = 'tradevault-dev-key'
+app.secret_key = os.environ.get('SECRET_KEY', 'tradevault-dev-key-change-in-production')
+app.jinja_env.auto_reload = True
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'daily_data')
 
@@ -431,6 +432,68 @@ def export_view(view):
     return make_excel_response(df, f"{filename}.xlsx")
 
 
+@app.route('/admin')
+def admin():
+    lang = request.cookies.get('lang', 'he')
+    t = get_translations(lang)
+    return render_template('admin.html', t=t, lang=lang,
+                           dir='rtl' if lang == 'he' else 'ltr')
+
+
+@app.route('/admin/db-export')
+def admin_db_export():
+    import tempfile
+    from app.db_backup import export_db
+    tmp = tempfile.NamedTemporaryFile(suffix='.json', delete=False)
+    tmp.close()
+    export_db(tmp.name)
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    response = send_file(tmp.name, as_attachment=True,
+                         download_name=f'tradevault_backup_{date_str}.json',
+                         mimetype='application/json')
+
+    @response.call_on_close
+    def cleanup():
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    return response
+
+
+@app.route('/admin/db-import', methods=['POST'])
+def admin_db_import():
+    import tempfile
+    from app.db_backup import import_db
+    lang = request.cookies.get('lang', 'he')
+    file = request.files.get('backup_file')
+    if not file or not file.filename:
+        flash('No file uploaded' if lang == 'en' else 'לא הועלה קובץ', 'error')
+        return redirect(url_for('admin'))
+    tmp = tempfile.NamedTemporaryFile(suffix='.json', delete=False)
+    file.save(tmp.name)
+    try:
+        import_db(tmp.name)
+        flash('Database imported successfully' if lang == 'en' else 'מסד הנתונים יובא בהצלחה', 'success')
+    except ValueError as e:
+        flash(f'Import failed: {e}' if lang == 'en' else f'ייבוא נכשל: {e}', 'error')
+    finally:
+        os.unlink(tmp.name)
+    return redirect(url_for('admin'))
+
+
+@app.route('/health')
+def health_check():
+    try:
+        get_db()
+        return jsonify({'status': 'ok'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'detail': str(e)}), 503
+
+
 if __name__ == '__main__':
-    print("Starting TradeVault server on http://localhost:5000")
-    app.run(host="0.0.0.0", debug=True, port=5000)
+    debug = os.environ.get('DEBUG', 'false').lower() == 'true'
+    port = int(os.environ.get('PORT', 2501))
+    print(f"Starting TradeVault server on http://localhost:{port}")
+    app.run(host="0.0.0.0", debug=debug, port=port)

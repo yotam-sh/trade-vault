@@ -12,6 +12,7 @@ TRANSLATIONS = {
     'nav_daily_details':  {'he': 'יומי מלא',     'en': 'Full Daily'},
     'nav_graphs':         {'he': 'גרפים',         'en': 'Graphs'},
     'nav_positions':      {'he': 'פוזיציות',      'en': 'Positions'},
+    'nav_admin':          {'he': 'ניהול',          'en': 'Admin'},
 
     # ── Common controls ──
     'pick_date':          {'he': 'בחר תאריך',        'en': 'Select Date'},
@@ -306,6 +307,17 @@ TRANSLATIONS = {
     'th_realized_pnl':          {'he': 'רווח ממומש',              'en': 'Realized P&L'},
     'th_price_per_share':       {'he': 'מחיר למניה',              'en': 'Price/Share'},
     'th_total_ils':             {'he': 'סה"כ (₪)',                'en': 'Total (₪)'},
+
+    # ── Admin / Database Management ──
+    'admin_title':        {'he': 'ניהול מסד נתונים',                    'en': 'Database Management'},
+    'admin_export_title': {'he': 'ייצוא גיבוי',                         'en': 'Export Backup'},
+    'admin_export_desc':  {'he': 'הורדת קובץ גיבוי מלא של מסד הנתונים', 'en': 'Download a full backup of the database'},
+    'admin_export_btn':   {'he': 'הורד גיבוי',                          'en': 'Download Backup'},
+    'admin_import_title': {'he': 'ייבוא גיבוי',                         'en': 'Import Backup'},
+    'admin_import_desc':  {'he': 'החלפת מסד הנתונים מקובץ גיבוי (פעולה הרסנית — הנתונים הנוכחיים יוחלפו)',
+                           'en': 'Replace the database from a backup file (destructive — current data will be overwritten)'},
+    'admin_import_btn':   {'he': 'ייבא והחלף',                          'en': 'Import & Replace'},
+    'admin_import_label': {'he': 'בחר קובץ גיבוי (.json)',              'en': 'Choose backup file (.json)'},
 }
 
 

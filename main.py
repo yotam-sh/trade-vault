@@ -425,6 +425,24 @@ def cmd_set_yfinance(args):
     close_db()
 
 
+def cmd_db(args):
+    """Handle db subcommand (export/import)."""
+    if args.db_action == 'export':
+        from app.db_backup import export_db
+        get_db()
+        path = export_db(args.output)
+        close_db()
+        print(f'Database exported to: {path}')
+
+    elif args.db_action == 'import':
+        from app.db_backup import import_db
+        backup = import_db(args.input)
+        print(f'Database replaced. Previous DB backed up to: {backup}')
+
+    else:
+        print('Usage: main.py db export [path] | db import <path> --replace')
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='TradeVault: Personal portfolio tracker',
@@ -500,6 +518,21 @@ def main():
     p_refresh = subparsers.add_parser('refresh-yfinance',
                                       help='Refresh stock info from existing yfinance mappings')
     p_refresh.set_defaults(func=cmd_refresh_yfinance)
+
+    # db command
+    p_db = subparsers.add_parser('db', help='Database management')
+    p_db_sub = p_db.add_subparsers(dest='db_action')
+
+    p_db_export = p_db_sub.add_parser('export', help='Export database to a backup file')
+    p_db_export.add_argument('output', nargs='?',
+                             help='Output path (default: db_backup_YYYY-MM-DD.json)')
+
+    p_db_import = p_db_sub.add_parser('import', help='Replace database from a backup file')
+    p_db_import.add_argument('input', help='Backup file path')
+    p_db_import.add_argument('--replace', action='store_true', required=True,
+                             help='Required flag to confirm destructive replace')
+
+    p_db.set_defaults(func=cmd_db)
 
     args = parser.parse_args()
 

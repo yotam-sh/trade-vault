@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.nav_admin }} - TradeVault</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body>
+    <nav>
+        <div class="nav-left">
+            <button class="settings-btn" id="settings-toggle">
+                {{ t.settings }}
+            </button>
+            <div class="settings-dropdown" id="settings-dropdown">
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_language }}</div>
+                    <div class="lang-options">
+                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
+                            עברית
+                        </button>
+                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
+                            English
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #0d1117"></span>
+                                <span class="color-sample" style="background: #161b22"></span>
+                                <span class="color-sample" style="background: #58a6ff"></span>
+                                <span class="color-sample" style="background: #3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #280905"></span>
+                                <span class="color-sample" style="background: #740A03"></span>
+                                <span class="color-sample" style="background: #C3110C"></span>
+                                <span class="color-sample" style="background: #E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #432323"></span>
+                                <span class="color-sample" style="background: #2F5755"></span>
+                                <span class="color-sample" style="background: #5A9690"></span>
+                                <span class="color-sample" style="background: #E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #37353E"></span>
+                                <span class="color-sample" style="background: #44444E"></span>
+                                <span class="color-sample" style="background: #715A5A"></span>
+                                <span class="color-sample" style="background: #D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <a href="/">{{ t.nav_home }}</a>
+            <a href="/transactions">{{ t.nav_transactions }}</a>
+            <a href="/trades">{{ t.nav_trades }}</a>
+            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+            <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/admin" class="active">{{ t.nav_admin }}</a>
+        </div>
+
+        <div class="nav-right">
+            <a href="/" class="brand">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>{{ t.admin_title }}</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <div class="card-header">{{ t.admin_export_title }}</div>
+            <p style="color: var(--text-secondary); margin: 0 0 14px;">{{ t.admin_export_desc }}</p>
+            <form action="/admin/db-export" method="GET" style="display:inline;">
+                <button type="submit" class="admin-action-btn">{{ t.admin_export_btn }}</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-header">{{ t.admin_import_title }}</div>
+            <p style="color: var(--text-secondary); margin: 0 0 14px;">{{ t.admin_import_desc }}</p>
+            <form method="POST" action="/admin/db-import" enctype="multipart/form-data">
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <label for="backup_file" style="cursor: pointer;">
+                        <span class="admin-file-btn">{{ t.admin_import_label }}</span>
+                        <input type="file" id="backup_file" name="backup_file"
+                               accept=".json" style="display: none;"
+                               onchange="this.previousElementSibling.textContent = this.files[0]?.name || '{{ t.admin_import_label }}'">
+                    </label>
+                    <button type="submit" class="admin-danger-btn"
+                            onclick="return confirm('{{ t.admin_import_desc }}')">
+                        {{ t.admin_import_btn }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

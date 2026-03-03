@@ -1,0 +1,54 @@
+services:
+  tradevault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tradevault
+    restart: unless-stopped
+    ports:
+      - "${PORT:-2501}:2501"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - DEBUG=${DEBUG:-false}
+      - DB_PATH=/data/db/db.json
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+    volumes:
+      # Persistent database — survives container restarts and upgrades
+      - tradevault_db:/data/db
+      # Persistent Excel uploads — your brokerage files live here
+      - tradevault_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:2501/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  tradevault_db:
+    driver: local
+  tradevault_data:
+    driver: local
+
+# TrueNAS ZFS pool override (optional):
+# To store data on your ZFS pool for snapshot/backup benefits,
+# replace the volumes section above with:
+#
+# volumes:
+#   tradevault_db:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: /mnt/pool/tradevault/db
+#   tradevault_data:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       o: bind
+#       device: /mnt/pool/tradevault/data
+#
+# Then create the directories on TrueNAS before first run:
+#   mkdir -p /mnt/pool/tradevault/db /mnt/pool/tradevault/data

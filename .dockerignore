@@ -1,0 +1,32 @@
+# Version control
+.git/
+.gitignore
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Secrets and credentials
+env.yaml
+.env
+*.env
+
+# Personal data — mounted as volumes, never baked into the image
+db/
+data/
+
+# Documentation
+README.md
+LICENSE
+
+# IDE and tools
+.vscode/
+.idea/
+.claude/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+nul

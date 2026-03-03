@@ -6,7 +6,8 @@ from tinydb import TinyDB
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'db.json')
+_default_db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'db.json')
+DB_PATH = os.environ.get('DB_PATH', _default_db_path)
 
 # Table name constants
 HOLDINGS = 'holdings'

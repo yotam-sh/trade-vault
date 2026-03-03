@@ -30,3 +30,11 @@ nul
 
 # Claude Code
 .claude/
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Gunicorn
+gunicorn.pid
