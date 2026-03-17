@@ -8,9 +8,10 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
-            <button class="settings-btn" id="settings-toggle">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
             <div class="settings-dropdown" id="settings-dropdown">
@@ -71,6 +72,13 @@
                         </label>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -81,8 +89,7 @@
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions" class="active">{{ t.nav_positions }}</a>
-            <a href="/admin">{{ t.nav_admin }}</a>
+            <a href="/positions" class="active" aria-current="page">{{ t.nav_positions }}</a>
         </div>
 
         <div class="nav-right">
@@ -92,7 +99,7 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-content" role="main">
         <h1>{{ t.nav_positions }}</h1>
 
         <!-- Open Positions -->
@@ -100,18 +107,19 @@
             <div class="card-header">{{ t.positions_open }}</div>
             {% if data.open %}
             <table class="sortable">
+                <caption class="visually-hidden">{{ t.positions_open }}</caption>
                 <thead>
                     <tr>
-                        <th>{{ t.th_name }}</th>
-                        <th>{{ t.th_symbol }}</th>
-                        <th>{{ t.th_trade_type }}</th>
-                        <th class="num">{{ t.th_quantity }}</th>
-                        <th class="num">{{ t.th_value_ils }}</th>
-                        <th class="num">{{ t.th_cost_ils }}</th>
-                        <th class="num">{{ t.position_unrealized_pnl }} ₪</th>
-                        <th class="num">{{ t.position_unrealized_pnl }} %</th>
-                        <th class="num">{{ t.position_weight }}</th>
-                        <th>{{ t.position_first_bought }}</th>
+                        <th scope="col">{{ t.th_name }}</th>
+                        <th scope="col">{{ t.th_symbol }}</th>
+                        <th scope="col">{{ t.th_trade_type }}</th>
+                        <th scope="col" class="num">{{ t.th_quantity }}</th>
+                        <th scope="col" class="num">{{ t.th_value_ils }}</th>
+                        <th scope="col" class="num">{{ t.th_cost_ils }}</th>
+                        <th scope="col" class="num">{{ t.position_unrealized_pnl }} ₪</th>
+                        <th scope="col" class="num">{{ t.position_unrealized_pnl }} %</th>
+                        <th scope="col" class="num">{{ t.position_weight }}</th>
+                        <th scope="col">{{ t.position_first_bought }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -151,18 +159,19 @@
             <div class="card-header">{{ t.positions_closed }}</div>
             {% if data.closed %}
             <table class="sortable">
+                <caption class="visually-hidden">{{ t.positions_closed }}</caption>
                 <thead>
                     <tr>
-                        <th>{{ t.th_name }}</th>
-                        <th>{{ t.th_symbol }}</th>
-                        <th>{{ t.th_trade_type }}</th>
-                        <th class="num">{{ t.th_quantity }}</th>
-                        <th class="num">{{ t.th_avg_buy }}</th>
-                        <th class="num">{{ t.th_avg_sell }}</th>
-                        <th class="num">{{ t.th_cost_ils }}</th>
-                        <th class="num">{{ t.position_realized_pnl }} ₪</th>
-                        <th class="num">{{ t.position_realized_pnl }} %</th>
-                        <th>{{ t.position_period }}</th>
+                        <th scope="col">{{ t.th_name }}</th>
+                        <th scope="col">{{ t.th_symbol }}</th>
+                        <th scope="col">{{ t.th_trade_type }}</th>
+                        <th scope="col" class="num">{{ t.th_quantity }}</th>
+                        <th scope="col" class="num">{{ t.th_avg_buy }}</th>
+                        <th scope="col" class="num">{{ t.th_avg_sell }}</th>
+                        <th scope="col" class="num">{{ t.th_cost_ils }}</th>
+                        <th scope="col" class="num">{{ t.position_realized_pnl }} ₪</th>
+                        <th scope="col" class="num">{{ t.position_realized_pnl }} %</th>
+                        <th scope="col">{{ t.position_period }}</th>
                     </tr>
                 </thead>
                 <tbody>

@@ -1170,3 +1170,66 @@ a.admin-file-btn:hover, span.admin-file-btn:hover {
     background: var(--bg-hover);
     border-color: var(--accent);
 }
+
+/* ── Accessibility (IS 5568 / WCAG 2.1 AA) ── */
+
+/* Visually hidden — in DOM for screen readers, invisible on screen */
+.visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    border: 0; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap;
+}
+
+/* Skip-to-main-content link — appears on keyboard focus */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    inset-inline-start: 0;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    z-index: 9999;
+    border-radius: 0 0 4px 4px;
+    text-decoration: none;
+}
+.skip-link:focus { top: 0; }
+
+/* Settings dropdown page links */
+.settings-links {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-link {
+    display: block;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.settings-link:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+}
+
+/* Visible focus ring for all keyboard-navigable elements */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Ensure sortable th and treemap cells show focus ring */
+th[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}

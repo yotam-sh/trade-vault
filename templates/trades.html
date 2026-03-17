@@ -9,9 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <nav>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
-            <button class="settings-btn" id="settings-toggle">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
             <div class="settings-dropdown" id="settings-dropdown">
@@ -72,18 +73,24 @@
                         </label>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="nav-center">
             <a href="/">{{ t.nav_home }}</a>
             <a href="/transactions">{{ t.nav_transactions }}</a>
-            <a href="/trades" class="active">{{ t.nav_trades }}</a>
+            <a href="/trades" class="active" aria-current="page">{{ t.nav_trades }}</a>
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/admin">{{ t.nav_admin }}</a>
         </div>
 
         <div class="nav-right">
@@ -93,7 +100,7 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-content" role="main">
         <h1>{{ t.page_trades }}</h1>
 
         <div class="filters">
@@ -182,7 +189,7 @@
         <div class="card">
             <div class="card-header">{{ t.chart_tax_breakdown }}</div>
             <div style="max-width: 320px; margin: 0 auto;">
-                <canvas id="taxDonutChart"></canvas>
+                <canvas id="taxDonutChart" role="img" aria-label="{{ t.chart_tax_breakdown }}"></canvas>
             </div>
         </div>
         {% endif %}
@@ -192,17 +199,18 @@
             <div class="card-header">{{ t.trade_log_title }}</div>
             <div class="table-wrapper">
                 <table class="sortable">
+                    <caption class="visually-hidden">{{ t.trade_log_title }}</caption>
                     <thead>
                         <tr>
-                            <th>{{ t.th_date }}</th>
-                            <th>{{ t.th_trade_action }}</th>
-                            <th>{{ t.th_trade_type }}</th>
-                            <th>{{ t.th_name }}</th>
-                            <th>{{ t.th_symbol }}</th>
-                            <th>{{ t.th_quantity }}</th>
-                            <th>{{ t.th_price_ils }}</th>
-                            <th>{{ t.th_amount_ils }}</th>
-                            <th>{{ t.th_pnl_ils }}</th>
+                            <th scope="col">{{ t.th_date }}</th>
+                            <th scope="col">{{ t.th_trade_action }}</th>
+                            <th scope="col">{{ t.th_trade_type }}</th>
+                            <th scope="col">{{ t.th_name }}</th>
+                            <th scope="col">{{ t.th_symbol }}</th>
+                            <th scope="col">{{ t.th_quantity }}</th>
+                            <th scope="col">{{ t.th_price_ils }}</th>
+                            <th scope="col">{{ t.th_amount_ils }}</th>
+                            <th scope="col">{{ t.th_pnl_ils }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -245,19 +253,20 @@
         {% if closed %}
         <div class="card">
             <div class="card-header">{{ t.closed_title }}</div>
-            <canvas id="closedPnlChart" style="max-height: 300px; margin-bottom: 16px;"></canvas>
+            <canvas id="closedPnlChart" role="img" aria-label="{{ t.chart_closed_pnl }}" style="max-height: 300px; margin-bottom: 16px;"></canvas>
             <div class="table-wrapper">
                 <table class="sortable">
+                    <caption class="visually-hidden">{{ t.closed_title }}</caption>
                     <thead>
                         <tr>
-                            <th>{{ t.th_name }}</th>
-                            <th>{{ t.th_trade_type }}</th>
-                            <th>{{ t.th_quantity }}</th>
-                            <th>{{ t.th_avg_buy }}</th>
-                            <th>{{ t.th_avg_sell }}</th>
-                            <th>{{ t.th_pnl_ils }}</th>
-                            <th>%</th>
-                            <th>{{ t.th_period }}</th>
+                            <th scope="col">{{ t.th_name }}</th>
+                            <th scope="col">{{ t.th_trade_type }}</th>
+                            <th scope="col">{{ t.th_quantity }}</th>
+                            <th scope="col">{{ t.th_avg_buy }}</th>
+                            <th scope="col">{{ t.th_avg_sell }}</th>
+                            <th scope="col">{{ t.th_pnl_ils }}</th>
+                            <th scope="col">%</th>
+                            <th scope="col">{{ t.th_period }}</th>
                         </tr>
                     </thead>
                     <tbody>

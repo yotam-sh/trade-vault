@@ -6,13 +6,15 @@ TRANSLATIONS = {
     # ── Navigation & Brand ──
     'brand':              {'he': 'TradeVault',   'en': 'TradeVault'},
     'nav_home':           {'he': 'ראשי',         'en': 'Home'},
-    'nav_transactions':   {'he': 'כללי',         'en': 'General'},
-    'nav_trades':         {'he': 'עסקאות',       'en': 'Trades'},
+    'nav_transactions':   {'he': 'כללי',         'en': 'Account Overview'},
+    'nav_trades':         {'he': 'עסקאות',       'en': 'Activity'},
     'nav_daily_summary':  {'he': 'סיכום יומי',   'en': 'Daily Summary'},
-    'nav_daily_details':  {'he': 'יומי מלא',     'en': 'Full Daily'},
+    'nav_daily_details':  {'he': 'יומי מלא',     'en': 'Daily Details'},
     'nav_graphs':         {'he': 'גרפים',         'en': 'Graphs'},
     'nav_positions':      {'he': 'פוזיציות',      'en': 'Positions'},
-    'nav_admin':          {'he': 'ניהול',          'en': 'Admin'},
+    'nav_admin':          {'he': 'פרופיל',         'en': 'Profile'},
+    'nav_accessibility':  {'he': 'נגישות',         'en': 'Accessibility'},
+    'accessibility_title': {'he': 'הצהרת נגישות', 'en': 'Accessibility Statement'},
 
     # ── Common controls ──
     'pick_date':          {'he': 'בחר תאריך',        'en': 'Select Date'},
@@ -95,7 +97,7 @@ TRANSLATIONS = {
                           'en': 'No data available. Import a daily file to get started:'},
 
     # ── Transactions page ──
-    'page_transactions':       {'he': 'כללי - יומן פעולות',    'en': 'General - Activity Log'},
+    'page_transactions':       {'he': 'כללי - יומן פעולות',    'en': 'Account Overview'},
     'add_deposit_title':       {'he': 'הוספת הפקדה',           'en': 'Add Deposit'},
     'add_withdrawal_title':    {'he': 'הוספת משיכה',           'en': 'Add Withdrawal'},
     'label_amount':            {'he': 'סכום:',                 'en': 'Amount:'},
@@ -132,7 +134,7 @@ TRANSLATIONS = {
     'chart_mode_monthly':   {'he': 'חודשי',  'en': 'Monthly'},
 
     # ── Daily details page ──
-    'page_daily_details':    {'he': 'יומי מלא - פירוט ניירות',  'en': 'Full Daily - Security Details'},
+    'page_daily_details':    {'he': 'יומי מלא - פירוט ניירות',  'en': 'Daily Details'},
     'detail_title':          {'he': 'פירוט יומי לפי נייר',      'en': 'Daily Breakdown by Security'},
     'pivot_security_title':  {'he': 'סיכום לפי נייר',           'en': 'Summary by Security'},
     'pivot_date_title':      {'he': 'סיכום לפי תאריך',          'en': 'Summary by Date'},
@@ -158,6 +160,7 @@ TRANSLATIONS = {
     'settings':              {'he': 'הגדרות',          'en': 'Settings'},
     'settings_language':     {'he': 'שפה',             'en': 'Language'},
     'settings_theme':        {'he': 'ערכת צבעים',      'en': 'Color Palette'},
+    'settings_pages':        {'he': 'עמודים',           'en': 'Pages'},
     'theme_default':         {'he': 'ברירת מחדל',      'en': 'Default'},
     'theme_crimson':         {'he': 'ארגמן',           'en': 'Crimson'},
     'theme_teal':            {'he': 'כחול-ירוק',       'en': 'Teal'},
@@ -174,7 +177,7 @@ TRANSLATIONS = {
     'treemap_title':         {'he': 'תמהיל תיק',   'en': 'Portfolio Map'},
 
     # ── Trades page ──
-    'page_trades':        {'he': 'עסקאות - קניות ומכירות',   'en': 'Trades - Buys and Sells'},
+    'page_trades':        {'he': 'עסקאות - קניות ומכירות',   'en': 'Activity'},
     'label_tax_year':     {'he': 'שנת מס:',                  'en': 'Tax Year:'},
     'all_time':           {'he': 'כל התקופה',                'en': 'All Time'},
     'stat_gains':         {'he': 'רווח ממכירות',              'en': 'Gains from Sales'},

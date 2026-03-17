@@ -8,9 +8,10 @@
     <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
-    <nav>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
-            <button class="settings-btn" id="settings-toggle">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
             <div class="settings-dropdown" id="settings-dropdown">
@@ -71,6 +72,13 @@
                         </label>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -82,7 +90,6 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/admin" class="active">{{ t.nav_admin }}</a>
         </div>
 
         <div class="nav-right">
@@ -92,14 +99,14 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-content" role="main">
         <h1>{{ t.admin_title }}</h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         <div class="flash-messages">
             {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
+            <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
             {% endfor %}
         </div>
         {% endif %}

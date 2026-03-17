@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.accessibility_title }} - TradeVault</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
+        <div class="nav-left">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
+                {{ t.settings }}
+            </button>
+            <div class="settings-dropdown" id="settings-dropdown">
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_language }}</div>
+                    <div class="lang-options">
+                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
+                            עברית
+                        </button>
+                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
+                            English
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #0d1117"></span>
+                                <span class="color-sample" style="background: #161b22"></span>
+                                <span class="color-sample" style="background: #58a6ff"></span>
+                                <span class="color-sample" style="background: #3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #280905"></span>
+                                <span class="color-sample" style="background: #740A03"></span>
+                                <span class="color-sample" style="background: #C3110C"></span>
+                                <span class="color-sample" style="background: #E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #432323"></span>
+                                <span class="color-sample" style="background: #2F5755"></span>
+                                <span class="color-sample" style="background: #5A9690"></span>
+                                <span class="color-sample" style="background: #E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #37353E"></span>
+                                <span class="color-sample" style="background: #44444E"></span>
+                                <span class="color-sample" style="background: #715A5A"></span>
+                                <span class="color-sample" style="background: #D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <a href="/">{{ t.nav_home }}</a>
+            <a href="/transactions">{{ t.nav_transactions }}</a>
+            <a href="/trades">{{ t.nav_trades }}</a>
+            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+            <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
+        </div>
+
+        <div class="nav-right">
+            <a href="/" class="brand">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
+            </a>
+        </div>
+    </nav>
+
+    <div class="container" id="main-content" role="main">
+        <h1>{{ t.accessibility_title }}</h1>
+
+        {% if lang == 'he' %}
+        <div class="card">
+            <div class="card-header">הצהרת נגישות — TradeVault</div>
+            <div style="line-height: 1.8; padding: 8px 0;">
+
+                <p><strong>שם האתר/האפליקציה:</strong> TradeVault — מעקב תיק השקעות</p>
+                <p><strong>תאריך הצהרה זו:</strong> מרץ 2026</p>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">רמת נגישות</h2>
+                <p>
+                    אפליקציה זו שואפת לעמוד בדרישות <strong>תקן ישראלי IS 5568</strong>, המבוסס על
+                    הנחיות WCAG 2.1 ברמה AA (רמה בינונית-גבוהה).
+                </p>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">אמצעי נגישות שיושמו</h2>
+                <ul style="padding-inline-start: 1.5rem;">
+                    <li>קישור "דלג לתוכן הראשי" בראש כל עמוד, גלוי בעת ניווט במקלדת</li>
+                    <li>ניווט מלא במקלדת — כל הפעולות האינטראקטיביות נגישות ללא עכבר</li>
+                    <li>סמן מיקוד גלוי בכל אלמנט אינטראקטיבי</li>
+                    <li>תפריט ניווט ראשי עם ARIA landmark ותוויות מתאימות</li>
+                    <li>הגדרת שפה וכיוון (RTL/LTR) בתג <code>&lt;html&gt;</code></li>
+                    <li>כפתורי מיון בטבלאות עם תוויות <code>aria-sort</code></li>
+                    <li>לחצן לוח שנה עם <code>aria-expanded</code> וניווט חצים במקלדת</li>
+                    <li>הכרזת תאריך נבחר לקוראי מסך (<code>aria-live="polite"</code>)</li>
+                    <li>גרפים וtreemap עם תוויות alt וניווט מקלדת לתאים</li>
+                    <li>הודעות Flash מוכרזות מיידית לקוראי מסך (<code>role="alert"</code>)</li>
+                    <li>אזור תוכן ראשי מסומן (<code>role="main"</code>)</li>
+                    <li>הדף הפעיל בניווט מסומן עם <code>aria-current="page"</code></li>
+                </ul>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">מגבלות ידועות</h2>
+                <ul style="padding-inline-start: 1.5rem;">
+                    <li>גרפי Chart.js (תרשים ערך תיק, תשואה חודשית) הם אלמנטים ויזואליים; הנתונים הגולמיים זמינים בטבלאות בעמודים האחרים</li>
+                    <li>מפת תיק (Treemap) — הנתונים זמינים גם בעמוד הפוזיציות בפורמט טבלה</li>
+                </ul>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">משוב ויצירת קשר</h2>
+                <p>
+                    אם נתקלת בבעיית נגישות באפליקציה זו, אנא פנה אלינו כדי שנוכל לסייע
+                    ולשפר את הנגישות.
+                </p>
+                <p>
+                    ניתן לשלוח משוב בדף הגיטהאב של הפרויקט:
+                    <a href="https://github.com/yotam-sh/trade-vault" target="_blank" rel="noopener">github.com/yotam-sh/trade-vault</a>
+                </p>
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">מידע נוסף</h2>
+                <p>
+                    לפרטים על תקן IS 5568 ועל דרישות נגישות אתרי אינטרנט בישראל, ניתן לפנות ל
+                    <a href="https://www.gov.il/he/departments/general/web_accessibility" target="_blank" rel="noopener">
+                        נציבות שוויון זכויות לאנשים עם מוגבלות
+                    </a>.
+                </p>
+            </div>
+        </div>
+
+        {% else %}
+
+        <div class="card">
+            <div class="card-header">Accessibility Statement — TradeVault</div>
+            <div style="line-height: 1.8; padding: 8px 0;">
+
+                <p><strong>Application name:</strong> TradeVault — Portfolio Tracker</p>
+                <p><strong>Statement date:</strong> March 2026</p>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">Conformance Level</h2>
+                <p>
+                    This application aims to conform to <strong>Israeli Standard IS 5568</strong>, which is
+                    based on WCAG 2.1 Level AA (Web Content Accessibility Guidelines).
+                </p>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">Accessibility Features Implemented</h2>
+                <ul style="padding-inline-start: 1.5rem;">
+                    <li>Skip-to-main-content link at the top of every page, visible on keyboard focus</li>
+                    <li>Full keyboard navigation — all interactive actions are accessible without a mouse</li>
+                    <li>Visible focus indicator on all interactive elements</li>
+                    <li>Main navigation with ARIA landmarks and appropriate labels</li>
+                    <li>Language and direction (RTL/LTR) declared on the <code>&lt;html&gt;</code> element</li>
+                    <li>Table sort buttons with <code>aria-sort</code> state announcements</li>
+                    <li>Calendar picker button with <code>aria-expanded</code> and arrow-key navigation</li>
+                    <li>Selected date announced to screen readers via <code>aria-live="polite"</code></li>
+                    <li>Charts and treemap cells have alt labels and keyboard navigation</li>
+                    <li>Flash messages announced immediately to screen readers via <code>role="alert"</code></li>
+                    <li>Main content area marked with <code>role="main"</code></li>
+                    <li>Active navigation link marked with <code>aria-current="page"</code></li>
+                </ul>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">Known Limitations</h2>
+                <ul style="padding-inline-start: 1.5rem;">
+                    <li>Chart.js charts (portfolio value, monthly return) are visual elements; the underlying data is available in tabular form on other pages</li>
+                    <li>Portfolio treemap — data is also available in the Positions page as a table</li>
+                </ul>
+
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">Feedback and Contact</h2>
+                <p>
+                    If you encounter an accessibility barrier in this application, please contact us so we can
+                    assist and improve accessibility.
+                </p>
+                <p>
+                    Feedback can be submitted on the project's GitHub page:
+                    <a href="https://github.com/yotam-sh/trade-vault" target="_blank" rel="noopener">github.com/yotam-sh/trade-vault</a>
+                </p>
+                <h2 style="margin-top: 1.5rem; font-size: 1.1rem;">Further Information</h2>
+                <p>
+                    For details about IS 5568 and web accessibility requirements in Israel, see the
+                    <a href="https://www.gov.il/en/departments/general/web_accessibility" target="_blank" rel="noopener">
+                        Commission for Equal Rights of Persons with Disabilities
+                    </a>.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>var T = {{ t_json|safe }};</script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -8,9 +8,10 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
-            <button class="settings-btn" id="settings-toggle">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
             <div class="settings-dropdown" id="settings-dropdown">
@@ -71,18 +72,24 @@
                         </label>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="nav-center">
             <a href="/">{{ t.nav_home }}</a>
-            <a href="/transactions" class="active">{{ t.nav_transactions }}</a>
+            <a href="/transactions" class="active" aria-current="page">{{ t.nav_transactions }}</a>
             <a href="/trades">{{ t.nav_trades }}</a>
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/admin">{{ t.nav_admin }}</a>
         </div>
 
         <div class="nav-right">
@@ -92,12 +99,12 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-content" role="main">
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="flash flash-{{ category }}">{{ message }}</div>
+        <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
         {% endfor %}
         {% endif %}
         {% endwith %}
@@ -223,15 +230,16 @@
                 <div class="card-header">{{ t.transactions_title }}</div>
                 <div class="table-wrapper">
                     <table class="sortable">
+                        <caption class="visually-hidden">{{ t.transactions_title }}</caption>
                         <thead>
                             <tr>
-                                <th>{{ t.th_date }}</th>
-                                <th>{{ t.th_action }}</th>
-                                <th>{{ t.th_amount }}</th>
-                                <th>{{ t.th_balance }}</th>
-                                <th>{{ t.th_cost_change_pct }}</th>
-                                <th>{{ t.th_cost_change_ils }}</th>
-                                <th>{{ t.th_notes }}</th>
+                                <th scope="col">{{ t.th_date }}</th>
+                                <th scope="col">{{ t.th_action }}</th>
+                                <th scope="col">{{ t.th_amount }}</th>
+                                <th scope="col">{{ t.th_balance }}</th>
+                                <th scope="col">{{ t.th_cost_change_pct }}</th>
+                                <th scope="col">{{ t.th_cost_change_ils }}</th>
+                                <th scope="col">{{ t.th_notes }}</th>
                             </tr>
                         </thead>
                         <tbody>
