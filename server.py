@@ -472,6 +472,7 @@ def admin_db_import():
         flash('No file uploaded' if lang == 'en' else 'לא הועלה קובץ', 'error')
         return redirect(url_for('admin'))
     tmp = tempfile.NamedTemporaryFile(suffix='.json', delete=False)
+    tmp.close()
     file.save(tmp.name)
     try:
         import_db(tmp.name)
@@ -481,6 +482,11 @@ def admin_db_import():
     finally:
         os.unlink(tmp.name)
     return redirect(url_for('admin'))
+
+
+@app.route('/accessibility')
+def accessibility_view():
+    return render_template('accessibility.html')
 
 
 @app.route('/health')

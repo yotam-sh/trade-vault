@@ -9,9 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <nav>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
-            <button class="settings-btn" id="settings-toggle">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
             <div class="settings-dropdown" id="settings-dropdown">
@@ -72,6 +73,13 @@
                         </label>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -81,9 +89,8 @@
             <a href="/trades">{{ t.nav_trades }}</a>
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
-            <a href="/graphs" class="active">{{ t.nav_graphs }}</a>
+            <a href="/graphs" class="active" aria-current="page">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/admin">{{ t.nav_admin }}</a>
         </div>
 
         <div class="nav-right">
@@ -93,14 +100,14 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-content" role="main">
         <h1>{{ t.page_graphs }}</h1>
 
         {% if snapshots %}
         <!-- Chart A: Portfolio Value vs Net Invested Over Time -->
         <div class="card">
             <div class="card-header">{{ t.chart_portfolio_value }}</div>
-            <canvas id="portfolioValueChart" style="max-height: 340px;"></canvas>
+            <canvas id="portfolioValueChart" role="img" aria-label="{{ t.chart_portfolio_value }}" style="max-height: 340px;"></canvas>
         </div>
 
         <!-- Chart B: Monthly Return % -->
@@ -108,11 +115,11 @@
             <div class="card-header">
                 <span>{{ t.chart_monthly_return }}</span>
                 <div class="lang-options" id="returnModeToggle">
-                    <button class="lang-option active" data-mode="cumulative">{{ t.chart_mode_cumulative }}</button>
-                    <button class="lang-option" data-mode="standalone">{{ t.chart_mode_standalone }}</button>
+                    <button class="lang-option active" data-mode="cumulative" aria-pressed="true">{{ t.chart_mode_cumulative }}</button>
+                    <button class="lang-option" data-mode="standalone" aria-pressed="false">{{ t.chart_mode_standalone }}</button>
                 </div>
             </div>
-            <canvas id="monthlyReturnChart" style="max-height: 280px;"></canvas>
+            <canvas id="monthlyReturnChart" role="img" aria-label="{{ t.chart_monthly_return }}" style="max-height: 280px;"></canvas>
         </div>
         {% else %}
         <div class="card">
@@ -268,6 +275,7 @@
                 mActiveMode = mode;
                 document.querySelectorAll('#returnModeToggle .lang-option').forEach(function(b) {
                     b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
                 });
                 mValues = (mode === 'standalone') ? mValuesStandalone.slice() : mValuesCumulative.slice();
                 var cols = buildBarColors(mValues);

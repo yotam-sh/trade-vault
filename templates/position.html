@@ -11,9 +11,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <nav>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
-            <button class="settings-btn" id="settings-toggle">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
             <div class="settings-dropdown" id="settings-dropdown">
@@ -74,6 +75,13 @@
                         </label>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -84,8 +92,7 @@
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions" class="active">{{ t.nav_positions }}</a>
-            <a href="/admin">{{ t.nav_admin }}</a>
+            <a href="/positions" class="active" aria-current="page">{{ t.nav_positions }}</a>
         </div>
 
         <div class="nav-right">
@@ -95,7 +102,7 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-content" role="main">
 
         <!-- Back link -->
         <div style="margin-bottom: 1rem;">
@@ -313,19 +320,19 @@
             {% if data.price_history %}
             <!-- Range toggle buttons -->
             <div class="range-toggle" id="rangeToggle">
-                <button class="range-btn" data-range="1w">{{ t.chart_range_1w }}</button>
-                <button class="range-btn" data-range="1m">{{ t.chart_range_1m }}</button>
-                <button class="range-btn" data-range="3m">{{ t.chart_range_3m }}</button>
-                <button class="range-btn" data-range="6m">{{ t.chart_range_6m }}</button>
-                <button class="range-btn" data-range="ytd">{{ t.chart_range_ytd }}</button>
-                <button class="range-btn" data-range="1y">{{ t.chart_range_1y }}</button>
-                <button class="range-btn active" data-range="since_buy">{{ t.chart_range_since_buy }}</button>
+                <button class="range-btn" data-range="1w" aria-pressed="false">{{ t.chart_range_1w }}</button>
+                <button class="range-btn" data-range="1m" aria-pressed="false">{{ t.chart_range_1m }}</button>
+                <button class="range-btn" data-range="3m" aria-pressed="false">{{ t.chart_range_3m }}</button>
+                <button class="range-btn" data-range="6m" aria-pressed="false">{{ t.chart_range_6m }}</button>
+                <button class="range-btn" data-range="ytd" aria-pressed="false">{{ t.chart_range_ytd }}</button>
+                <button class="range-btn" data-range="1y" aria-pressed="false">{{ t.chart_range_1y }}</button>
+                <button class="range-btn active" data-range="since_buy" aria-pressed="true">{{ t.chart_range_since_buy }}</button>
                 {% if not data.is_open %}
-                <button class="range-btn" data-range="since_close">{{ t.chart_range_since_close }}</button>
+                <button class="range-btn" data-range="since_close" aria-pressed="false">{{ t.chart_range_since_close }}</button>
                 {% endif %}
-                <button class="range-btn" data-range="all">{{ t.chart_range_all }}</button>
+                <button class="range-btn" data-range="all" aria-pressed="false">{{ t.chart_range_all }}</button>
             </div>
-            <canvas id="priceChart" style="max-height: 320px;"></canvas>
+            <canvas id="priceChart" role="img" aria-label="{{ t.position_price_chart }}" style="max-height: 320px;"></canvas>
             {% else %}
             <p class="empty-state" style="padding: 1.5rem 0;">{{ t.position_price_unavailable }}</p>
             {% endif %}
@@ -336,7 +343,7 @@
         {% if data.daily_prices %}
         <div class="card" style="margin-bottom: 1rem;">
             <div class="card-header">{{ t.position_pnl_chart }}</div>
-            <canvas id="pnlChart" style="max-height: 220px;"></canvas>
+            <canvas id="pnlChart" role="img" aria-label="{{ t.position_pnl_chart }}" style="max-height: 220px;"></canvas>
         </div>
         {% endif %}
 
@@ -345,15 +352,16 @@
         <div class="card" style="margin-bottom: 1rem;">
             <div class="card-header">{{ t.position_trade_history }}</div>
             <table>
+                <caption class="visually-hidden">{{ t.position_trade_history }}</caption>
                 <thead>
                     <tr>
-                        <th>{{ t.th_date }}</th>
-                        <th>{{ t.th_trade_action }}</th>
-                        <th>{{ t.th_trade_type }}</th>
-                        <th class="num">{{ t.th_quantity }}</th>
-                        <th class="num">{{ t.th_price_per_share }}</th>
-                        <th class="num">{{ t.th_total_ils }}</th>
-                        <th class="num">{{ t.th_realized_pnl }}</th>
+                        <th scope="col">{{ t.th_date }}</th>
+                        <th scope="col">{{ t.th_trade_action }}</th>
+                        <th scope="col">{{ t.th_trade_type }}</th>
+                        <th scope="col" class="num">{{ t.th_quantity }}</th>
+                        <th scope="col" class="num">{{ t.th_price_per_share }}</th>
+                        <th scope="col" class="num">{{ t.th_total_ils }}</th>
+                        <th scope="col" class="num">{{ t.th_realized_pnl }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -392,13 +400,14 @@
         <div class="card" style="margin-bottom: 1rem;">
             <div class="card-header">{{ t.position_open_lots }}</div>
             <table>
+                <caption class="visually-hidden">{{ t.position_open_lots }}</caption>
                 <thead>
                     <tr>
-                        <th>{{ t.th_date }}</th>
-                        <th class="num">{{ t.th_lot_shares }}</th>
-                        <th class="num">{{ t.th_lot_cost }}</th>
-                        <th class="num">{{ t.th_cost_basis }}</th>
-                        <th class="num">{{ t.th_days_held }}</th>
+                        <th scope="col">{{ t.th_date }}</th>
+                        <th scope="col" class="num">{{ t.th_lot_shares }}</th>
+                        <th scope="col" class="num">{{ t.th_lot_cost }}</th>
+                        <th scope="col" class="num">{{ t.th_cost_basis }}</th>
+                        <th scope="col" class="num">{{ t.th_days_held }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -648,8 +657,12 @@
 
         document.querySelectorAll('#rangeToggle .range-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                document.querySelectorAll('#rangeToggle .range-btn').forEach(function(b) { b.classList.remove('active'); });
+                document.querySelectorAll('#rangeToggle .range-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-pressed', 'false');
+                });
                 btn.classList.add('active');
+                btn.setAttribute('aria-pressed', 'true');
                 activeRange = btn.getAttribute('data-range');
                 buildPriceChart(activeRange);
             });

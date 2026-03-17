@@ -6,7 +6,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ─── Table sorting ───
     document.querySelectorAll('table.sortable thead th').forEach(function (th) {
-        th.addEventListener('click', function () {
+        // Make headers keyboard-focusable and announce sort capability
+        th.setAttribute('tabindex', '0');
+        th.setAttribute('aria-sort', 'none');
+
+        function doSort() {
             var table = th.closest('table');
             var tbody = table.querySelector('tbody');
             var colIdx = Array.from(th.parentNode.children).indexOf(th);
@@ -15,8 +19,10 @@ document.addEventListener('DOMContentLoaded', function () {
             var isAsc = th.classList.contains('sorted-asc');
             table.querySelectorAll('th').forEach(function (h) {
                 h.classList.remove('sorted-asc', 'sorted-desc');
+                h.setAttribute('aria-sort', 'none');
             });
             th.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
+            th.setAttribute('aria-sort', isAsc ? 'descending' : 'ascending');
             var direction = isAsc ? -1 : 1;
 
             if (isGroupSortable) {
@@ -49,6 +55,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     group.rows.sort(function (a, b) {
                         var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
                         var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
+                        var dateRe = /^\d{4}-\d{2}-\d{2}$/;
+                        if (dateRe.test(aVal) && dateRe.test(bVal)) return (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) * direction;
                         var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
                         var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
                         if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
@@ -70,12 +78,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 rows.sort(function (a, b) {
                     var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
                     var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
+                    var dateRe = /^\d{4}-\d{2}-\d{2}$/;
+                    if (dateRe.test(aVal) && dateRe.test(bVal)) return (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) * direction;
                     var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
                     var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
                     if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
                     return aVal.localeCompare(bVal, 'he') * direction;
                 });
                 rows.forEach(function (row) { tbody.appendChild(row); });
+            }
+        }
+
+        th.addEventListener('click', doSort);
+        th.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                doSort();
             }
         });
     });
@@ -248,15 +266,25 @@ function initCalendarPickers() {
             }
         }
 
+        // Add aria-live to selected-dates so screen readers announce date changes
+        var selectedDatesEl = dropdown.querySelector('.selected-dates');
+        if (selectedDatesEl) selectedDatesEl.setAttribute('aria-live', 'polite');
+
         function openDropdown() {
             isOpen = true;
             dropdown.classList.add('open');
+            btn.setAttribute('aria-expanded', 'true');
             render();
+            // Move focus into the calendar
+            var grid = dropdown.querySelector('.calendar-grid');
+            var toFocus = grid.querySelector('.day.selected') || grid.querySelector('.day:not(.other-month)');
+            if (toFocus) toFocus.focus();
         }
 
         function closeDropdown() {
             isOpen = false;
             dropdown.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
         }
 
         // Toggle dropdown on button click
@@ -390,7 +418,51 @@ function initCalendarPickers() {
             var cell = document.createElement('div');
             cell.className = 'day';
             cell.textContent = date.getDate();
-            if (isOtherMonth) cell.classList.add('other-month');
+            if (isOtherMonth) {
+                cell.classList.add('other-month');
+                cell.setAttribute('aria-hidden', 'true');
+                cell.setAttribute('tabindex', '-1');
+            } else {
+                var months = [
+                    T.month_1, T.month_2, T.month_3, T.month_4, T.month_5, T.month_6,
+                    T.month_7, T.month_8, T.month_9, T.month_10, T.month_11, T.month_12
+                ];
+                cell.setAttribute('tabindex', '0');
+                cell.setAttribute('role', 'button');
+                cell.setAttribute('aria-label', date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear());
+
+                var isSelected = (state.mode === 'single' && state.selected && sameDay(date, state.selected))
+                    || (state.mode === 'range' && ((state.rangeStart && sameDay(date, state.rangeStart))
+                                                 || (state.rangeEnd && sameDay(date, state.rangeEnd))));
+                cell.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+                cell.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onDayClick(date);
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+                               e.key === 'ArrowUp'   || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        var delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+                        var newDate = new Date(date);
+                        newDate.setDate(date.getDate() + delta);
+                        if (newDate.getMonth() !== state.viewMonth || newDate.getFullYear() !== state.viewYear) {
+                            state.viewMonth = newDate.getMonth();
+                            state.viewYear  = newDate.getFullYear();
+                            render();
+                        }
+                        var newDay = newDate.getDate();
+                        var grid = dropdown.querySelector('.calendar-grid');
+                        grid.querySelectorAll('.day:not(.other-month)').forEach(function (c) {
+                            if (parseInt(c.textContent) === newDay) c.focus();
+                        });
+                    } else if (e.key === 'Escape') {
+                        closeDropdown();
+                        btn.focus();
+                    }
+                });
+            }
+
             if (sameDay(date, today)) cell.classList.add('today');
 
             // Highlight
@@ -495,6 +567,7 @@ function sameDay(a, b) {
     if (sessionStorage.getItem('settingsOpen') === 'true') {
         isOpen = true;
         settingsDropdown.classList.add('open');
+        settingsBtn.setAttribute('aria-expanded', 'true');
         sessionStorage.removeItem('settingsOpen');
     }
 
@@ -503,6 +576,7 @@ function sameDay(a, b) {
         e.stopPropagation();
         isOpen = !isOpen;
         settingsDropdown.classList.toggle('open', isOpen);
+        settingsBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
 
     // Close on outside click
@@ -510,6 +584,7 @@ function sameDay(a, b) {
         if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
             isOpen = false;
             settingsDropdown.classList.remove('open');
+            settingsBtn.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -518,6 +593,7 @@ function sameDay(a, b) {
         if (e.key === 'Escape' && isOpen) {
             isOpen = false;
             settingsDropdown.classList.remove('open');
+            settingsBtn.setAttribute('aria-expanded', 'false');
         }
     });
 

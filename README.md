@@ -18,7 +18,7 @@ Created with Claude Code.
 - **Data repair** — CLI repair commands fix P&L miscalculations, backfill missing percentages, remove non-trading days, and re-run trade interpolation from a given date
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
-- **Web dashboard** — Six views: portfolio overview, general ledger, daily summary, detailed daily breakdown, trade history, and a dedicated graphs page
+- **Web dashboard** — Seven views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, and positions — plus Profile and Accessibility pages accessible from the settings menu
 - **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (switchable between daily, weekly, and monthly granularity), security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, and portfolio value vs net invested + monthly return charts (switchable between cumulative total return and standalone monthly return) on the graphs page. All charts re-render instantly when you switch color themes
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
@@ -27,7 +27,10 @@ Created with Claude Code.
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
 - **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
-- **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L
+- **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L. Each cell is clickable (and keyboard-navigable) and navigates directly to that position's detail page
+- **Clickable daily dates** — In the Daily Summary table, clicking any date row navigates to the Daily Details page pre-filtered to that date
+- **IS 5568 / WCAG 2.1 AA accessibility** — Full keyboard navigation throughout; skip-to-main-content link; ARIA landmarks, roles, and live regions; calendar picker arrow-key navigation with focus management; sortable table headers keyboard-activated; `aria-current`, `aria-expanded`, `aria-sort`, `aria-pressed` on all interactive elements; visible focus ring; screen-reader announcements for flash messages and date changes
+- **Accessibility statement** — Dedicated `/accessibility` page (Hebrew and English) declaring IS 5568 conformance, listing implemented features, known limitations, and a feedback link to the GitHub repository
 - **Position type badges** — Trade Log marks each trade as opening / increase / closing / reduction with a color-coded badge (blue / green / red / amber)
 - **Individual position pages** — Drill into any holding from the positions list to see a full position breakdown: current price, 52-week range, market stats (from Yahoo Finance), avg cost, unrealized P&L, open FIFO lots, trade history, a price chart with buy/sell markers, and a daily P&L bar chart. Closed positions show realized P&L, avg buy/sell prices, and a "what-if kept" hypothetical current value
 - **Price chart with trade markers** — Each position page includes an interactive Chart.js price chart sourced from Yahoo Finance history, with time-range filters (1W / 1M / 3M / 6M / YTD / 1Y / From Purchase / All) and buy/sell triangle markers snapped to the nearest trading day. Hovering shows a price tooltip with thousands-separated Agorot values
@@ -129,12 +132,13 @@ TradeVault/
 │   ├── index.html          # Dashboard
 │   ├── positions.html      # All positions (open + closed tabs)
 │   ├── position.html       # Individual position detail page
-│   ├── transactions.html   # General ledger
+│   ├── transactions.html   # Account Overview ledger
 │   ├── daily_summary.html  # Daily summary
 │   ├── daily_details.html  # Detailed daily breakdown
-│   ├── trades.html         # Trade history
+│   ├── trades.html         # Activity / trade history
 │   ├── graphs.html         # Graphs & charts
-│   └── admin.html          # Admin (backup/restore)
+│   ├── admin.html          # Profile (backup/restore)
+│   └── accessibility.html  # IS 5568 accessibility statement
 ├── static/
 │   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
 │   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
@@ -245,7 +249,7 @@ Flushes the TinyDB cache and copies `db/db.json` to the output file. Use this to
 ```bash
 python main.py db import path/to/backup.json --replace
 ```
-Validates the backup file, saves the current database as a `.bak` file for safety, then replaces the live database with the backup. The same export/import functionality is available in the web UI at `/admin`.
+Validates the backup file, saves the current database as a `.bak` file for safety, then replaces the live database with the backup. The same export/import functionality is available in the web UI at `/admin` (Profile page, accessible from the settings dropdown).
 
 ### Setting tickers
 
@@ -301,19 +305,24 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 - Switching is instant (no page reload)
 - The theme preference is saved in a cookie and persists across pages and sessions
 
+**Pages:**
+- **Profile** — Database backup and restore (formerly "Admin")
+- **Accessibility** — IS 5568 accessibility statement
+
 ### Pages
 
 | Page | URL | Description |
 |------|-----|-------------|
-| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap, allocation donut, daily file upload |
+| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap (cells clickable → position page), allocation donut, daily file upload |
 | **Positions** | `/positions` | All holdings with open/closed tabs, market value, cost, P&L, avg buy/sell prices (in Agorot) |
 | **Position detail** | `/position/<id>` | Full individual position view: price chart with buy/sell markers, company info from Yahoo Finance, trade history, FIFO lots, daily P&L chart |
-| **General** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
-| **Trades** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
-| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle |
+| **Account Overview** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
+| **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
+| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle; click any date row to jump to Daily Details for that date |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
 | **Graphs** | `/graphs` | Portfolio value vs net invested over time (line chart) and monthly return % bar chart with toggle between cumulative total return and standalone monthly return |
-| **Admin** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database) |
+| **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database) — accessible from the settings (⚙) dropdown |
+| **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
 
 ### Uploading daily files via the web
 
@@ -353,21 +362,21 @@ The **Graphs** page (`/graphs`) is the dedicated chart hub, showing long-term pe
 
 ### Adding deposits via the web
 
-On the General page (`/transactions`), use the deposit form at the top-left:
+On the Account Overview page (`/transactions`), use the deposit form at the top-left:
 1. Enter the amount
 2. Pick a date using the calendar button (defaults to today)
 3. Click Add Deposit
 
 ### Adding withdrawals via the web
 
-On the General page (`/transactions`), use the withdrawal form at the top-right:
+On the Account Overview page (`/transactions`), use the withdrawal form at the top-right:
 1. Enter the amount
 2. Pick a date using the calendar button (defaults to today)
 3. Click Add Withdrawal
 
 ### Summary panel
 
-The right-side Summary panel on the General page shows metrics computed entirely from live DB data:
+The right-side Summary panel on the Account Overview page shows metrics computed entirely from live DB data:
 - **Total Deposits** — sum of all deposit transactions
 - **Net Invested** — deposits minus withdrawals
 - **Cost Change (₪ / %)** — current portfolio value minus net invested (all-time gain/loss)
@@ -400,7 +409,7 @@ The Daily Details page defaults to the most recent day when no filter is applied
 
 Each page has an Export button (📥) that downloads the current view as an Excel file:
 - **Dashboard** — Exports current portfolio positions with values and P&L
-- **General** — Exports deposit history and monthly summaries
+- **Account Overview** — Exports deposit history and monthly summaries
 - **Trades** — Exports all buy/sell transactions plus closed positions summary
   - **Tax Report** — Special multi-sheet Excel export with per-year capital gains calculations, loss carryover tracking, and comprehensive tax summary
 - **Daily Summary** — Exports daily totals with best/worst performers
@@ -539,6 +548,8 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
 - **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months using a TASE trading-day heuristic.
 - **No brokerage dependency**: The Summary panel (`get_transaction_summary()`) computes all metrics — total deposits, net invested, cost change — from live transaction and snapshot data. Deposits and withdrawals are entered via the web UI or CLI; no brokerage-specific file import is needed.
+- **Date sorting**: Table sort uses an ISO date regex guard (`/^\d{4}-\d{2}-\d{2}$/`) before falling back to `parseFloat`, so YYYY-MM-DD dates sort correctly instead of all comparing equal within the same year
+- **Windows DB import**: `NamedTemporaryFile` on Windows keeps an exclusive file handle open; the import route explicitly calls `tmp.close()` before writing the uploaded file so `os.unlink` can succeed after import
 - **Hebrew encoding**: The CLI uses `io.TextIOWrapper` to force UTF-8 output on Windows consoles
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
