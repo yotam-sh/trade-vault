@@ -1233,3 +1233,142 @@ th[tabindex]:focus-visible,
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+
+/* ── Graphs page grid layout ── */
+.graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+}
+@media (max-width: 900px) {
+    .graphs-grid { grid-template-columns: 1fr; }
+}
+.graphs-grid .card {
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.graphs-grid .card[data-width="100"] {
+    grid-column: 1 / -1;
+}
+.graphs-grid .card canvas {
+    max-width: 100%;
+}
+.chart-canvas-wrap {
+    position: relative;
+    height: 300px;
+}
+.graphs-grid .card .heatmap-wrap {
+    height: 300px;
+    overflow: hidden;
+    padding: 0.5rem 0;
+    position: relative;
+}
+
+/* Edit Layout button group — RTL-aware float */
+.layout-action-btns {
+    float: inline-end;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+}
+.layout-action-btns button {
+    flex: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.layout-save-btn,
+.layout-discard-btn,
+.layout-reset-btn {
+    display: none;
+    flex: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+body.graphs-edit-mode .layout-save-btn { display: inline-block; color: var(--positive); border-color: var(--positive); }
+body.graphs-edit-mode .layout-discard-btn { display: inline-block; color: var(--negative); border-color: var(--negative); }
+body.graphs-edit-mode .layout-reset-btn { display: inline-block; }
+
+/* Edit mode — whole card is the drag target */
+body.graphs-edit-mode .graphs-grid .card { cursor: grab; }
+body.graphs-edit-mode .graphs-grid .card:active { cursor: grabbing; }
+body.graphs-edit-mode .graphs-grid .card:hover { outline: 2px dashed var(--accent); }
+/* Locked card: not draggable, resize disabled */
+body.graphs-edit-mode .graphs-grid .card[data-locked="true"] { cursor: default; outline-color: var(--border); }
+body.graphs-edit-mode .graphs-grid .card[data-locked="true"] .width-btn { opacity: 0.35; pointer-events: none; }
+.lock-btn { font-size: 0.85rem; }
+.lock-btn[data-locked="true"] { color: var(--accent); border-color: var(--accent); }
+
+/* Layout action feedback text */
+.layout-feedback {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.layout-feedback.visible { opacity: 1; }
+
+/* Width toggle + hide buttons */
+.chart-edit-controls {
+    display: none;
+    gap: 4px;
+    align-items: center;
+}
+body.graphs-edit-mode .chart-edit-controls { display: flex; }
+
+.chart-ctrl-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    line-height: 1.4;
+}
+.chart-ctrl-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+.chart-ctrl-btn.hide-btn:hover { border-color: var(--negative); color: var(--negative); }
+
+/* Hidden charts tray */
+.hidden-charts-tray {
+    display: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 8px;
+}
+body.graphs-edit-mode .hidden-charts-tray { display: block; }
+.hidden-chart-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin: 4px;
+    font-size: 0.85rem;
+}
+.hidden-chart-pill button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 1px 6px;
+}
+.hidden-chart-pill button:hover { background: var(--accent); color: var(--bg-primary); }
+
+/* SortableJS ghost / chosen */
+.sortable-ghost { opacity: 0.3; }
+.sortable-chosen { box-shadow: 0 4px 16px rgba(0,0,0,0.3); }

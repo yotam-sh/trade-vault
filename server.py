@@ -27,6 +27,9 @@ from app.analytics import (
     compute_yearly_tax,
     get_position_data,
     get_positions_list,
+    get_historical_performance,
+    get_allocation_history,
+    get_top_positions_pnl,
 )
 
 app = Flask(__name__)
@@ -327,10 +330,32 @@ def trades_view():
                            start=start, end=end)
 
 
+@app.route('/api/graph-layout', methods=['GET'])
+def get_graph_layout():
+    from app.settings import get_setting
+    layout = get_setting('graph_layout', {
+        'order': ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+        'widths': {'A': 100, 'B': 100, 'C': 100, 'D': 100, 'E': 100, 'F': 100, 'G': 100},
+        'hidden': [],
+        'locked': [],
+    })
+    return jsonify(layout)
+
+
+@app.route('/api/graph-layout', methods=['POST'])
+def save_graph_layout():
+    from app.settings import set_setting
+    data = request.get_json(force=True)
+    set_setting('graph_layout', data)
+    flush_db()
+    return jsonify({'ok': True})
+
+
 @app.route('/graphs')
 def graphs_view():
     from app.snapshots import list_snapshots
     from app.transactions import list_transactions
+    from app.settings import get_setting
     snapshots = list_snapshots()
     monthly = get_monthly_chart_data()
 
@@ -345,7 +370,25 @@ def graphs_view():
         cum_wit = sum(w['total_amount'] for w in withdrawals if w['date'] <= dt)
         snap['net_invested'] = cum_dep - cum_wit
 
-    return render_template('graphs.html', snapshots=snapshots, monthly=monthly)
+    historical_perf = get_historical_performance()
+    allocation_history = get_allocation_history()
+    top_positions = get_top_positions_pnl()
+    graph_layout = get_setting('graph_layout', {
+        'order': ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+        'widths': {'A': 100, 'B': 100, 'C': 100, 'D': 100, 'E': 100, 'F': 100, 'G': 100},
+        'hidden': [],
+        'locked': [],
+    })
+
+    return render_template(
+        'graphs.html',
+        snapshots=snapshots,
+        monthly=monthly,
+        historical_perf=historical_perf,
+        allocation_history=allocation_history,
+        top_positions=top_positions,
+        graph_layout=graph_layout,
+    )
 
 
 # ── Position routes ──

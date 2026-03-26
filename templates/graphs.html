@@ -7,6 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
@@ -101,26 +102,144 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
-        <h1>{{ t.page_graphs }}</h1>
+        <h1>{{ t.page_graphs }}
+            <span class="layout-action-btns">
+                <span class="layout-feedback" id="layoutFeedback"></span>
+                <button class="lang-option layout-save-btn" id="saveLayoutBtn">{{ t.btn_save_layout }}</button>
+                <button class="lang-option layout-discard-btn" id="discardLayoutBtn">{{ t.btn_discard_layout }}</button>
+                <button class="lang-option layout-reset-btn" id="resetLayoutBtn">{{ t.btn_reset_layout }}</button>
+                <button class="lang-option" id="editLayoutBtn">{{ t.btn_edit_layout }}</button>
+            </span>
+        </h1>
 
         {% if snapshots %}
+        <div id="graphsGrid" class="graphs-grid">
+
         <!-- Chart A: Portfolio Value vs Net Invested Over Time -->
-        <div class="card">
-            <div class="card-header">{{ t.chart_portfolio_value }}</div>
-            <canvas id="portfolioValueChart" role="img" aria-label="{{ t.chart_portfolio_value }}" style="max-height: 340px;"></canvas>
+        <div class="card" data-chart-id="A" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_portfolio_value }}</span>
+                <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn lock-btn">🔓</button>
+                    <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                    <button class="chart-ctrl-btn hide-btn">×</button>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="portfolioValueChart" role="img" aria-label="{{ t.chart_portfolio_value }}"></canvas></div>
         </div>
 
         <!-- Chart B: Monthly Return % -->
-        <div class="card">
+        <div class="card" data-chart-id="B" data-width="100" data-locked="false">
             <div class="card-header">
                 <span>{{ t.chart_monthly_return }}</span>
-                <div class="lang-options" id="returnModeToggle">
-                    <button class="lang-option active" data-mode="cumulative" aria-pressed="true">{{ t.chart_mode_cumulative }}</button>
-                    <button class="lang-option" data-mode="standalone" aria-pressed="false">{{ t.chart_mode_standalone }}</button>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <div class="lang-options" id="returnModeToggle">
+                        <button class="lang-option active" data-mode="cumulative" aria-pressed="true">{{ t.chart_mode_cumulative }}</button>
+                        <button class="lang-option" data-mode="standalone" aria-pressed="false">{{ t.chart_mode_standalone }}</button>
+                    </div>
+                    <div class="chart-edit-controls">
+                        <button class="chart-ctrl-btn lock-btn">🔓</button>
+                        <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                        <button class="chart-ctrl-btn hide-btn">×</button>
+                    </div>
                 </div>
             </div>
-            <canvas id="monthlyReturnChart" role="img" aria-label="{{ t.chart_monthly_return }}" style="max-height: 280px;"></canvas>
+            <div class="chart-canvas-wrap"><canvas id="monthlyReturnChart" role="img" aria-label="{{ t.chart_monthly_return }}"></canvas></div>
         </div>
+
+        <!-- Chart C: Historical Performance by Day/Week/Month -->
+        <div class="card" data-chart-id="C" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_historical_perf }}</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <div class="lang-options" id="perfModeToggle">
+                        <button class="lang-option active" data-mode="by_day" aria-pressed="true">{{ t.chart_mode_days }}</button>
+                        <button class="lang-option" data-mode="by_week" aria-pressed="false">{{ t.chart_mode_weeks }}</button>
+                        <button class="lang-option" data-mode="by_month" aria-pressed="false">{{ t.chart_mode_months }}</button>
+                    </div>
+                    <div class="chart-edit-controls">
+                        <button class="chart-ctrl-btn lock-btn">🔓</button>
+                        <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                        <button class="chart-ctrl-btn hide-btn">×</button>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="historicalPerfChart" role="img" aria-label="{{ t.chart_historical_perf }}"></canvas></div>
+        </div>
+
+        <!-- Chart D: Drawdown from Peak -->
+        <div class="card" data-chart-id="D" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_drawdown }}</span>
+                <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn lock-btn">🔓</button>
+                    <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                    <button class="chart-ctrl-btn hide-btn">×</button>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="drawdownChart" role="img" aria-label="{{ t.chart_drawdown }}"></canvas></div>
+        </div>
+
+        <!-- Chart E: Daily P&L Heatmap -->
+        <div class="card" data-chart-id="E" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_heatmap }}</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <div class="lang-options" id="heatmapModeToggle">
+                        <button class="lang-option active" data-mode="daily" aria-pressed="true">{{ t.chart_mode_days }}</button>
+                        <button class="lang-option" data-mode="weekly" aria-pressed="false">{{ t.chart_mode_weeks }}</button>
+                        <button class="lang-option" data-mode="monthly" aria-pressed="false">{{ t.chart_mode_months }}</button>
+                    </div>
+                    <div class="chart-edit-controls">
+                        <button class="chart-ctrl-btn lock-btn">🔓</button>
+                        <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                        <button class="chart-ctrl-btn hide-btn">×</button>
+                    </div>
+                </div>
+            </div>
+            <div id="pnlHeatmap" class="heatmap-wrap"></div>
+        </div>
+
+        <!-- Chart F: Asset Allocation Over Time -->
+        <div class="card" data-chart-id="F" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_allocation_history }}</span>
+                <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn lock-btn">🔓</button>
+                    <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                    <button class="chart-ctrl-btn hide-btn">×</button>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="allocationHistoryChart" role="img" aria-label="{{ t.chart_allocation_history }}"></canvas></div>
+        </div>
+
+        <!-- Chart G: P&L by Position -->
+        <div class="card" data-chart-id="G" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_top_positions }}</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <div class="lang-options" id="topPosModeToggle">
+                        <button class="lang-option active" data-mode="ils" aria-pressed="true">₪</button>
+                        <button class="lang-option" data-mode="pct" aria-pressed="false">%</button>
+                    </div>
+                    <div class="chart-edit-controls">
+                        <button class="chart-ctrl-btn lock-btn">🔓</button>
+                        <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                        <button class="chart-ctrl-btn hide-btn">×</button>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="topPositionsChart" role="img" aria-label="{{ t.chart_top_positions }}"></canvas></div>
+        </div>
+
+        </div><!-- /graphsGrid -->
+
+        <!-- Hidden charts tray (visible only in edit mode) -->
+        <div class="hidden-charts-tray" id="hiddenChartsTray">
+            <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px;">{{ t.label_hidden_charts }}</div>
+            <div id="hiddenChartsPills"></div>
+        </div>
+
         {% else %}
         <div class="card">
             <p>{{ t.empty_no_data }}</p>
@@ -134,8 +253,23 @@
     {% if snapshots %}
     <script>
     (function() {
-        var snapshots = {{ snapshots|tojson }};
-        var monthly   = {{ monthly|tojson }};
+        var snapshots        = {{ snapshots|tojson }};
+        var monthly          = {{ monthly|tojson }};
+        var historicalPerf   = {{ historical_perf|tojson }};
+        var allocationHistory = {{ allocation_history|tojson }};
+        var topPositions     = {{ top_positions|tojson }};
+        var lang             = {{ lang|tojson }};
+
+        var CHART_INSTANCES = {};
+        var CHART_TITLES = {
+            A: T.chart_portfolio_value,
+            B: T.chart_monthly_return,
+            C: T.chart_historical_perf,
+            D: T.chart_drawdown,
+            E: T.chart_heatmap,
+            F: T.chart_allocation_history,
+            G: T.chart_top_positions
+        };
 
         function css(v) {
             return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -147,7 +281,7 @@
         var snapInvested = snapshots.map(function(s) { return s.net_invested; });
 
         var ctxA = document.getElementById('portfolioValueChart').getContext('2d');
-        var chartA = new Chart(ctxA, {
+        var chartA = new Chart(ctxA, { // chart A
             type: 'line',
             data: {
                 labels: snapLabels,
@@ -176,6 +310,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: {
@@ -208,6 +343,8 @@
                 }
             }
         });
+
+        CHART_INSTANCES['A'] = chartA;
 
         // ── Chart B: Monthly Return % ─────────────────────────────────────────
         var mLabels = monthly.map(function(m) { return m.date.slice(0, 7); });
@@ -243,6 +380,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -268,6 +406,8 @@
             }
         });
 
+        CHART_INSTANCES['B'] = chartB;
+
         document.querySelectorAll('#returnModeToggle .lang-option').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var mode = btn.getAttribute('data-mode');
@@ -285,6 +425,670 @@
                 chartB.update();
             });
         });
+
+        // ── Chart C: Historical Performance ───────────────────────────────────
+        var perfActiveMode = 'by_day';
+
+        function perfLabels(mode) {
+            return historicalPerf[mode].map(function(d) { return lang === 'he' ? d.label_he : d.label_en; });
+        }
+        function perfValues(mode) {
+            return historicalPerf[mode].map(function(d) { return d.avg_pct; });
+        }
+        function buildPerfColors(vals) {
+            return vals.map(function(v) {
+                var base = v >= 0 ? css('--positive') : css('--negative');
+                return { bg: base + 'bb', border: base };
+            });
+        }
+
+        var initPerfVals = perfValues('by_day');
+        var initPerfCols = buildPerfColors(initPerfVals);
+        var ctxC = document.getElementById('historicalPerfChart').getContext('2d');
+        var chartC = new Chart(ctxC, {
+            type: 'bar',
+            data: {
+                labels: perfLabels('by_day'),
+                datasets: [{
+                    label: T.label_avg_daily_return,
+                    data: initPerfVals,
+                    backgroundColor: initPerfCols.map(function(c) { return c.bg; }),
+                    borderColor:     initPerfCols.map(function(c) { return c.border; }),
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                var d = historicalPerf[perfActiveMode][ctx.dataIndex];
+                                return ctx.parsed.y.toFixed(3) + '% (' + d.count + ' ' + (lang === 'he' ? 'ימים' : 'days') + ')';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: css('--text-secondary') }, grid: { color: css('--bg-tertiary') } },
+                    y: {
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return v.toFixed(2) + '%'; } },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        CHART_INSTANCES['C'] = chartC;
+
+        document.querySelectorAll('#perfModeToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var mode = btn.getAttribute('data-mode');
+                if (mode === perfActiveMode) return;
+                perfActiveMode = mode;
+                document.querySelectorAll('#perfModeToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                var vals = perfValues(mode);
+                var cols = buildPerfColors(vals);
+                chartC.data.labels = perfLabels(mode);
+                chartC.data.datasets[0].data            = vals;
+                chartC.data.datasets[0].backgroundColor = cols.map(function(c) { return c.bg; });
+                chartC.data.datasets[0].borderColor     = cols.map(function(c) { return c.border; });
+                chartC.update();
+            });
+        });
+
+        // ── Chart D: Drawdown from Peak ───────────────────────────────────────
+        var peak = -Infinity;
+        var drawdowns = snapshots.map(function(s) {
+            if (s.total_market_value > peak) peak = s.total_market_value;
+            return peak > 0 ? +((s.total_market_value - peak) / peak * 100).toFixed(3) : 0;
+        });
+
+        var ctxD = document.getElementById('drawdownChart').getContext('2d');
+        var chartD = new Chart(ctxD, {
+            type: 'line',
+            data: {
+                labels: snapLabels,
+                datasets: [{
+                    label: T.label_drawdown_pct,
+                    data: drawdowns,
+                    borderColor: css('--negative'),
+                    backgroundColor: css('--negative') + '33',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.2,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return ctx.parsed.y.toFixed(2) + '%'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: css('--text-secondary'), maxTicksLimit: 12, maxRotation: 0 },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return v.toFixed(1) + '%'; } },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        CHART_INSTANCES['D'] = chartD;
+
+        // ── Chart E: Daily P&L Heatmap ────────────────────────────────────────
+        var heatmapRebuild = null; // exposed to outer scope for resizeAllCharts
+        (function() {
+            var heatmapEl = document.getElementById('pnlHeatmap');
+            if (!heatmapEl || !snapshots.length) return;
+
+            // Build date→ILS map (daily absolute P&L in shekels)
+            var dateIls = {};
+            snapshots.forEach(function(s) {
+                dateIls[s.date] = s.total_daily_pnl || 0;
+            });
+
+            var allDates = Object.keys(dateIls).sort();
+            if (!allDates.length) return;
+            var startDate = new Date(allDates[0]);
+            var endDate   = new Date(allDates[allDates.length - 1]);
+
+            function toDateStr(d) { return d.toISOString().slice(0, 10); }
+
+            // ── Floating tooltip ──────────────────────────────────────────────
+            var heatTip = document.createElement('div');
+            heatTip.style.cssText = 'position:fixed;z-index:9999;background:var(--bg-secondary,#1c2128);' +
+                'color:var(--text-primary,#e6edf3);padding:5px 10px;border-radius:6px;font-size:0.75rem;' +
+                'pointer-events:none;display:none;border:1px solid var(--bg-tertiary,#30363d);white-space:nowrap;';
+            document.body.appendChild(heatTip);
+
+            heatmapEl.addEventListener('mouseover', function(e) {
+                var cell = e.target.closest('[data-tip]');
+                if (cell && cell.getAttribute('data-tip')) {
+                    heatTip.textContent = cell.getAttribute('data-tip');
+                    heatTip.style.display = 'block';
+                } else {
+                    heatTip.style.display = 'none';
+                }
+            });
+            heatmapEl.addEventListener('mousemove', function(e) {
+                heatTip.style.left = (e.clientX + 14) + 'px';
+                heatTip.style.top  = (e.clientY + 14) + 'px';
+            });
+            heatmapEl.addEventListener('mouseout', function(e) {
+                if (!e.relatedTarget || !e.relatedTarget.closest('#pnlHeatmap')) {
+                    heatTip.style.display = 'none';
+                }
+            });
+
+            // ── Color helpers ─────────────────────────────────────────────────
+            function makeColorFn(maxAbsVal) {
+                var m = maxAbsVal || 1;
+                return function pctToColor(pct) {
+                    var intensity = Math.min(Math.abs(pct) / m, 1);
+                    if (pct > 0) {
+                        var g = Math.round(80 + 120 * intensity);
+                        return 'rgba(0,' + g + ',60,' + (0.3 + 0.7 * intensity) + ')';
+                    } else if (pct < 0) {
+                        var r = Math.round(80 + 120 * intensity);
+                        return 'rgba(' + r + ',0,20,' + (0.3 + 0.7 * intensity) + ')';
+                    }
+                    return 'var(--bg-tertiary)';
+                };
+            }
+
+            function legend(pctToColor, maxAbsVal) {
+                var html = '<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--text-secondary);margin-top:6px;">';
+                html += '<span>' + (lang === 'he' ? 'הפסד' : 'Loss') + '</span>';
+                [-1, -0.5, 0, 0.5, 1].forEach(function(v) {
+                    html += '<div style="width:11px;height:11px;border-radius:2px;background:' + pctToColor(v * maxAbsVal) + ';"></div>';
+                });
+                html += '<span>' + (lang === 'he' ? 'רווח' : 'Gain') + '</span></div>';
+                return html;
+            }
+
+            // ── Build functions per mode ──────────────────────────────────────
+            // Cell sizes are constrained by both the container width AND height so the
+            // data always fits without scrolling inside the fixed-height heatmap-wrap.
+            //
+            // Layout constants (must match CSS / inline styles below):
+            //   yearLabelH = 18px label + 4px margin-bottom = 22px per year block header
+            //   yearGap    = 16px  (gap:1rem between year <div>s)
+            //   legendH    = 28px  (legend row at the bottom)
+            //   padding    = 16px  (0.5rem top + 0.5rem bottom on .heatmap-wrap)
+
+            var _HM_LABEL  = 22;  // year label height incl. margin-bottom
+            var _HM_YGAP   = 16;  // gap between year blocks
+            var _HM_LEGEND = 28;  // legend row
+            var _HM_PAD    = 16;  // top + bottom padding of .heatmap-wrap
+
+            function _hmAvailH(numYears) {
+                // Height available for the cell rows across all year blocks
+                var containerH = (heatmapEl.clientHeight || 300) - _HM_PAD;
+                return containerH - _HM_LEGEND
+                     - numYears * _HM_LABEL
+                     - Math.max(0, numYears - 1) * _HM_YGAP;
+            }
+
+            function buildDaily() {
+                var maxAbs = 0;
+                Object.values(dateIls).forEach(function(v) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); });
+                var pctToColor = makeColorFn(maxAbs);
+
+                var years = [];
+                for (var y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) { years.push(y); }
+
+                var gapW = 3;      // gap between week columns (px)
+                var gapH = 2;      // gap between day rows (px)
+                var dayLabelW = 18; // width of day-of-week guide column
+                var monthLH   = 14; // height of month-name guide row
+
+                var containerW = Math.max(100, heatmapEl.clientWidth);
+                // Width available for week columns after reserving day-label column
+                var weeksW = containerW - dayLabelW - gapW;
+
+                // Height-based cell size (same for all years so rows are consistent)
+                // Each year block = monthLH + 7*cell + 6*gapH
+                var availH    = _hmAvailH(years.length) - years.length * monthLH;
+                var cellFromH = Math.max(4, Math.floor((availH / years.length - gapH * 6) / 7));
+
+                // Day-of-week guide labels — Sunday-start (index 0=Sun … 6=Sat)
+                // Israeli week is Sun–Sat; old TASE schedule was Sun–Thu, new is Mon–Fri
+                var dayLabels = lang === 'he'
+                    ? ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
+                    : ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+                var monthNames = lang === 'he'
+                    ? ['', 'ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ']
+                    : ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                // Always LTR so calendar flows Jan→Dec left→right regardless of app language
+                var html = '<div style="display:flex;flex-direction:column;gap:1rem;direction:ltr;">';
+
+                years.forEach(function(yr) {
+                    // Use Date.UTC so year boundaries are at UTC midnight, consistent
+                    // with how all data dates (ISO strings) are stored as UTC midnight.
+                    // new Date(yr, 0, 1) creates LOCAL midnight which in Israel (UTC+2)
+                    // becomes Dec 31 22:00 UTC — shifting every week-start by 1 day.
+                    var yrStart = new Date(Math.max(Date.UTC(yr, 0, 1), startDate));
+                    var yrEnd   = new Date(Math.min(Date.UTC(yr, 11, 31), endDate));
+                    // Align to Sunday of the first week (Israeli week starts Sunday)
+                    var sunday = new Date(yrStart);
+                    sunday.setDate(sunday.getDate() - sunday.getDay()); // getDay()==0 for Sunday
+
+                    // Build week list, noting which week a new month starts in
+                    var weeks = [];
+                    var tmp = new Date(sunday);
+                    while (tmp <= yrEnd) {
+                        var mStart = null;
+                        for (var d = 0; d < 7; d++) {
+                            var chk = new Date(tmp); chk.setDate(chk.getDate() + d);
+                            if (chk.getDate() === 1 && chk >= yrStart && chk <= yrEnd) {
+                                mStart = chk.getMonth() + 1; break;
+                            }
+                        }
+                        weeks.push({ start: new Date(tmp), mStart: mStart });
+                        tmp.setDate(tmp.getDate() + 7);
+                    }
+
+                    var numWeeks = weeks.length;
+                    // Square cell: min of width-based and height-based sizes
+                    var cellFromW = Math.max(4, Math.floor((weeksW - gapW * (numWeeks - 1)) / numWeeks));
+                    var cellSize  = Math.min(cellFromW, cellFromH);
+                    var cellW = cellSize;
+                    var cellH_yr = cellSize; // local alias used in this year's rows
+
+                    html += '<div>';
+                    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">' + yr + '</div>';
+                    html += '<div style="display:flex;gap:' + gapW + 'px;align-items:flex-start;">';
+
+                    // ── Day-of-week guide column ───────────────────────────────
+                    html += '<div style="width:' + dayLabelW + 'px;flex-shrink:0;display:flex;flex-direction:column;' +
+                        'gap:' + gapH + 'px;padding-top:' + monthLH + 'px;">';
+                    for (var dow = 0; dow < 7; dow++) {
+                        html += '<div style="height:' + cellH_yr + 'px;line-height:' + cellH_yr + 'px;' +
+                            'font-size:9px;color:var(--text-secondary);' +
+                            'opacity:0.5;overflow:hidden;">' + (dayLabels[dow] || '') + '</div>';
+                    }
+                    html += '</div>';
+
+                    // ── Weeks area (month guides + cells) ─────────────────────
+                    html += '<div style="flex:1;min-width:0;">';
+
+                    // Month-name guide row (absolutely positioned labels at month boundaries)
+                    html += '<div style="position:relative;height:' + monthLH + 'px;">';
+                    weeks.forEach(function(wk, idx) {
+                        if (!wk.mStart) return;
+                        html += '<span style="position:absolute;left:' + (idx * (cellW + gapW)) + 'px;top:2px;' +
+                            'font-size:0.62rem;color:var(--text-secondary);opacity:0.6;white-space:nowrap;">' +
+                            monthNames[wk.mStart] + '</span>';
+                    });
+                    html += '</div>';
+
+                    // Week columns
+                    html += '<div style="display:flex;gap:' + gapW + 'px;">';
+                    weeks.forEach(function(wk) {
+                        html += '<div style="display:flex;flex-direction:column;gap:' + gapH + 'px;">';
+                        for (var dow = 0; dow < 7; dow++) {
+                            var day = new Date(wk.start); day.setDate(day.getDate() + dow);
+                            var ds  = toDateStr(day);
+                            var ils = dateIls[ds];
+                            var inRange = day >= yrStart && day <= yrEnd;
+                            var color = (inRange && ils !== undefined) ? pctToColor(ils) : 'transparent';
+                            var tip   = (inRange && ils !== undefined) ? ds + ': ₪' + ils.toFixed(0) : '';
+                            html += '<div data-tip="' + tip + '" style="width:' + cellSize + 'px;height:' + cellSize + 'px;' +
+                                'border-radius:2px;background:' + color + ';"></div>';
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>'; // week columns
+
+                    html += '</div>'; // weeks area
+                    html += '</div>'; // flex row
+                    html += '</div>'; // year block
+                });
+
+                html += legend(pctToColor, maxAbs) + '</div>';
+                return html;
+            }
+
+            function buildWeekly() {
+                // Aggregate daily ILS by ISO year-week (YYYY-Www)
+                var weekMap = {};
+                allDates.forEach(function(ds) {
+                    var d = new Date(ds);
+                    var thu = new Date(d);
+                    thu.setDate(d.getDate() + (4 - (d.getDay() || 7)));
+                    var yr = thu.getFullYear();
+                    var jan1 = new Date(Date.UTC(yr, 0, 1)); // UTC midnight, consistent with data dates
+                    var wk = Math.ceil(((thu - jan1) / 86400000 + 1) / 7);
+                    var key = yr + '-' + (wk < 10 ? '0' + wk : wk);
+                    if (!weekMap[key]) weekMap[key] = { sum: 0, yr: yr, wk: wk };
+                    weekMap[key].sum += dateIls[ds];
+                });
+
+                var maxAbs = 0;
+                Object.values(weekMap).forEach(function(v) { if (Math.abs(v.sum) > maxAbs) maxAbs = Math.abs(v.sum); });
+                var pctToColor = makeColorFn(maxAbs);
+
+                var years = [];
+                for (var y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) { years.push(y); }
+
+                var gap = 2;
+                var containerW = Math.max(100, heatmapEl.clientWidth);
+
+                // Cell size from height: 1 row per year
+                // availH = numYears * cell  →  cell = availH / numYears
+                var availH    = _hmAvailH(years.length);
+                var cellFromH = Math.floor(availH / years.length);
+
+                var html = '<div style="display:flex;flex-direction:column;gap:1rem;">';
+                years.forEach(function(yr) {
+                    var yrWeeks = Object.keys(weekMap).filter(function(k) { return weekMap[k].yr === yr; }).sort();
+                    if (!yrWeeks.length) return;
+                    var numWeeks  = yrWeeks.length;
+                    var cellFromW = Math.floor((containerW - gap * (numWeeks - 1)) / numWeeks);
+                    var cellSize  = Math.max(4, Math.min(cellFromW, cellFromH));
+                    html += '<div>';
+                    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">' + yr + '</div>';
+                    html += '<div style="display:flex;gap:' + gap + 'px;flex-wrap:nowrap;">';
+                    yrWeeks.forEach(function(key) {
+                        var entry = weekMap[key];
+                        var color = pctToColor(entry.sum);
+                        var tip   = (lang === 'he' ? 'שב׳ ' : 'Wk ') + entry.wk + ' ' + yr + ': ₪' + entry.sum.toFixed(0);
+                        html += '<div data-tip="' + tip + '" style="width:' + cellSize + 'px;height:' + cellSize + 'px;border-radius:2px;background:' + color + ';"></div>';
+                    });
+                    html += '</div></div>';
+                });
+                html += legend(pctToColor, maxAbs) + '</div>';
+                return html;
+            }
+
+            function buildMonthly() {
+                var monthNames = lang === 'he'
+                    ? ['', 'ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ']
+                    : ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                var monthMap = {};
+                allDates.forEach(function(ds) {
+                    var key = ds.slice(0, 7);
+                    if (!monthMap[key]) monthMap[key] = 0;
+                    monthMap[key] += dateIls[ds];
+                });
+
+                var maxAbs = 0;
+                Object.values(monthMap).forEach(function(v) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); });
+                var pctToColor = makeColorFn(maxAbs);
+
+                var years = [];
+                for (var y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) { years.push(y); }
+
+                var gap = 4;
+                var containerW = Math.max(100, heatmapEl.clientWidth);
+
+                // Each year row: cell + ~12px month-label below it
+                // availH = numYears * (cell + 12)  →  cell = availH/numYears - 12
+                var availH    = _hmAvailH(years.length);
+                var cellFromH = Math.floor(availH / years.length) - 12;
+                var cellFromW = Math.floor((containerW - gap * 11) / 12);
+                var cellSize  = Math.max(8, Math.min(cellFromW, cellFromH));
+                var labelSize = Math.min(9, Math.max(7, Math.round(cellSize * 0.35)));
+
+                var html = '<div style="display:flex;flex-direction:column;gap:1rem;">';
+                years.forEach(function(yr) {
+                    html += '<div>';
+                    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">' + yr + '</div>';
+                    html += '<div style="display:flex;gap:' + gap + 'px;flex-wrap:nowrap;">';
+                    for (var mo = 1; mo <= 12; mo++) {
+                        var key = yr + '-' + (mo < 10 ? '0' + mo : mo);
+                        var sum = monthMap[key];
+                        var color = sum !== undefined ? pctToColor(sum) : 'var(--bg-tertiary)';
+                        var tip   = sum !== undefined
+                            ? monthNames[mo] + ' ' + yr + ': ₪' + sum.toFixed(0)
+                            : monthNames[mo] + ' ' + yr;
+                        html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">';
+                        html += '<div data-tip="' + tip + '" style="width:' + cellSize + 'px;height:' + cellSize + 'px;border-radius:3px;background:' + color + ';"></div>';
+                        html += '<span style="font-size:' + labelSize + 'px;color:var(--text-secondary);">' + monthNames[mo] + '</span>';
+                        html += '</div>';
+                    }
+                    html += '</div></div>';
+                });
+                html += legend(pctToColor, maxAbs) + '</div>';
+                return html;
+            }
+
+            // ── Initial render and toggle ─────────────────────────────────────
+            var heatmapActiveMode = 'daily';
+
+            function buildHeatmap(mode) {
+                heatmapEl.innerHTML = mode === 'weekly' ? buildWeekly()
+                                    : mode === 'monthly' ? buildMonthly()
+                                    : buildDaily();
+            }
+
+            buildHeatmap('daily');
+            heatmapRebuild = function() { buildHeatmap(heatmapActiveMode); };
+
+            // Rebuild when container WIDTH changes (card width toggle, window resize).
+            // Track last width to avoid looping when rebuilding changes the element's height.
+            if (typeof ResizeObserver !== 'undefined') {
+                var heatmapResizeTimer = null;
+                var lastHeatmapWidth = 0;
+                new ResizeObserver(function(entries) {
+                    var newWidth = Math.round(entries[0].contentRect.width);
+                    if (Math.abs(newWidth - lastHeatmapWidth) < 2) return;
+                    lastHeatmapWidth = newWidth;
+                    clearTimeout(heatmapResizeTimer);
+                    heatmapResizeTimer = setTimeout(function() {
+                        buildHeatmap(heatmapActiveMode);
+                    }, 80);
+                }).observe(heatmapEl);
+            }
+
+            document.querySelectorAll('#heatmapModeToggle .lang-option').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var mode = btn.getAttribute('data-mode');
+                    if (mode === heatmapActiveMode) return;
+                    heatmapActiveMode = mode;
+                    document.querySelectorAll('#heatmapModeToggle .lang-option').forEach(function(b) {
+                        b.classList.toggle('active', b === btn);
+                        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                    });
+                    buildHeatmap(mode);
+                });
+            });
+        })();
+
+        // Chart E has no Chart.js instance; CHART_INSTANCES['E'] left undefined
+
+        // ── Chart F: Asset Allocation Over Time ───────────────────────────────
+        var allocLabels  = allocationHistory.map(function(d) { return d.date; });
+        var allocTypes   = ['stock', 'etf', 'mutual_fund', 'bond', 'other'];
+        var allocColors  = ['--accent', '--positive', '--text-primary', '--text-secondary', '--bg-tertiary'];
+        var allocLabelKeys = ['label_stock', 'label_etf', 'label_mutual_fund', 'label_bond', 'label_other'];
+
+        // Only include types that have non-zero data in at least one snapshot
+        var usedTypes = allocTypes.filter(function(type) {
+            return allocationHistory.some(function(d) { return d[type] > 0; });
+        });
+        var usedColors    = usedTypes.map(function(t) { return allocColors[allocTypes.indexOf(t)]; });
+        var usedLabelKeys = usedTypes.map(function(t) { return allocLabelKeys[allocTypes.indexOf(t)]; });
+
+        function buildAllocDatasets() {
+            return usedTypes.map(function(type, i) {
+                return {
+                    label: T[usedLabelKeys[i]],
+                    data: allocationHistory.map(function(d) { return d[type]; }),
+                    borderColor: css(usedColors[i]),
+                    backgroundColor: css(usedColors[i]) + '55',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.2,
+                    fill: true,
+                };
+            });
+        }
+
+        var ctxF = document.getElementById('allocationHistoryChart').getContext('2d');
+        var chartF = new Chart(ctxF, {
+            type: 'line',
+            data: { labels: allocLabels, datasets: buildAllocDatasets() },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: css('--text-primary') } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { color: css('--text-secondary'), maxTicksLimit: 12, maxRotation: 0 }, grid: { color: css('--bg-tertiary') } },
+                    y: {
+                        stacked: true,
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return '₪' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        CHART_INSTANCES['F'] = chartF;
+
+        // ── Chart G: P&L by Position ──────────────────────────────────────────
+        var topActiveMode = 'ils';
+        var currentSorted = [];
+
+        function getSortedForMode(mode) {
+            return topPositions.slice().sort(function(a, b) {
+                return mode === 'pct' ? a.pnl_pct - b.pnl_pct : a.total_pnl - b.total_pnl;
+            });
+        }
+        function labelsFor(sorted) {
+            return sorted.map(function(d) { return d.symbol || d.name_he; });
+        }
+        function fullNameFor(d) {
+            return lang === 'he' ? d.name_he : (d.name_en || d.name_he);
+        }
+        function dataFor(sorted, mode) {
+            return sorted.map(function(d) { return mode === 'pct' ? d.pnl_pct : d.total_pnl; });
+        }
+        function topBarColors(data) {
+            return data.map(function(v) {
+                return { bg: (v >= 0 ? css('--positive') : css('--negative')) + 'bb', border: v >= 0 ? css('--positive') : css('--negative') };
+            });
+        }
+
+        currentSorted = getSortedForMode('ils');
+        var initData   = dataFor(currentSorted, 'ils');
+        var initColors = topBarColors(initData);
+
+        var ctxG = document.getElementById('topPositionsChart').getContext('2d');
+        var chartG = new Chart(ctxG, {
+            type: 'bar',
+            data: {
+                labels: labelsFor(currentSorted),
+                datasets: [{
+                    label: T.label_total_pnl,
+                    data: initData,
+                    backgroundColor: initColors.map(function(c) { return c.bg; }),
+                    borderColor:     initColors.map(function(c) { return c.border; }),
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) {
+                                var idx = items[0] && items[0].dataIndex;
+                                return currentSorted[idx] ? fullNameFor(currentSorted[idx]) : '';
+                            },
+                            label: function(ctx) {
+                                if (topActiveMode === 'ils') {
+                                    return '₪' + ctx.parsed.x.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                } else {
+                                    return ctx.parsed.x.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) {
+                                return topActiveMode === 'ils'
+                                    ? '₪' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 })
+                                    : v.toFixed(1) + '%';
+                            }
+                        },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        afterFit: function(s) {
+                            var maxW = 0;
+                            (s.ticks || []).forEach(function(t) {
+                                var w = s.ctx.measureText(t.label || '').width;
+                                if (w > maxW) maxW = w;
+                            });
+                            if (maxW > 0) s.width = Math.ceil(maxW) + 16;
+                        },
+                        ticks: { color: css('--text-secondary') },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        document.querySelectorAll('#topPosModeToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var mode = btn.getAttribute('data-mode');
+                if (mode === topActiveMode) return;
+                topActiveMode = mode;
+                document.querySelectorAll('#topPosModeToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                currentSorted = getSortedForMode(mode);
+                var data = dataFor(currentSorted, mode);
+                var cols = topBarColors(data);
+                chartG.data.labels                      = labelsFor(currentSorted);
+                chartG.data.datasets[0].data            = data;
+                chartG.data.datasets[0].backgroundColor = cols.map(function(c) { return c.bg; });
+                chartG.data.datasets[0].borderColor     = cols.map(function(c) { return c.border; });
+                chartG.update();
+            });
+        });
+
+        CHART_INSTANCES['G'] = chartG;
 
         // ── Live theme re-render ──────────────────────────────────────────────
         function applyTheme() {
@@ -308,10 +1112,364 @@
             chartB.options.scales.y.ticks.color = css('--text-secondary');
             chartB.options.scales.y.grid.color  = css('--bg-tertiary');
             chartB.update();
+
+            // Chart C
+            var reP = buildPerfColors(chartC.data.datasets[0].data);
+            chartC.data.datasets[0].backgroundColor = reP.map(function(c) { return c.bg; });
+            chartC.data.datasets[0].borderColor     = reP.map(function(c) { return c.border; });
+            chartC.options.scales.x.ticks.color = css('--text-secondary');
+            chartC.options.scales.x.grid.color  = css('--bg-tertiary');
+            chartC.options.scales.y.ticks.color = css('--text-secondary');
+            chartC.options.scales.y.grid.color  = css('--bg-tertiary');
+            chartC.update();
+
+            // Chart D
+            chartD.data.datasets[0].borderColor     = css('--negative');
+            chartD.data.datasets[0].backgroundColor = css('--negative') + '33';
+            chartD.options.scales.x.ticks.color = css('--text-secondary');
+            chartD.options.scales.x.grid.color  = css('--bg-tertiary');
+            chartD.options.scales.y.ticks.color = css('--text-secondary');
+            chartD.options.scales.y.grid.color  = css('--bg-tertiary');
+            chartD.update();
+
+            // Chart F
+            chartF.data.datasets.forEach(function(ds, i) {
+                ds.borderColor     = css(usedColors[i]);
+                ds.backgroundColor = css(usedColors[i]) + '55';
+            });
+            chartF.options.plugins.legend.labels.color = css('--text-primary');
+            chartF.options.scales.x.ticks.color = css('--text-secondary');
+            chartF.options.scales.x.grid.color  = css('--bg-tertiary');
+            chartF.options.scales.y.ticks.color = css('--text-secondary');
+            chartF.options.scales.y.grid.color  = css('--bg-tertiary');
+            chartF.update();
+
+            // Chart G
+            var reT = topBarColors(dataFor(currentSorted, topActiveMode));
+            chartG.data.datasets[0].backgroundColor = reT.map(function(c) { return c.bg; });
+            chartG.data.datasets[0].borderColor     = reT.map(function(c) { return c.border; });
+            chartG.options.scales.x.ticks.color = css('--text-secondary');
+            chartG.options.scales.x.grid.color  = css('--bg-tertiary');
+            chartG.options.scales.y.ticks.color = css('--text-secondary');
+            chartG.options.scales.y.grid.color  = css('--bg-tertiary');
+            chartG.update();
         }
 
         new MutationObserver(applyTheme)
             .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+        // ── Modular layout ────────────────────────────────────────────────────
+
+        function resizeAllCharts() {
+            Object.values(CHART_INSTANCES).forEach(function(c) { if (c && c.resize) c.resize(); });
+            if (heatmapRebuild) heatmapRebuild();
+        }
+
+        function saveLayout() {
+            var grid = document.getElementById('graphsGrid');
+            if (!grid) return;
+            var order = [], widths = {}, locked = [];
+            grid.querySelectorAll('.card[data-chart-id]').forEach(function(card) {
+                var id = card.getAttribute('data-chart-id');
+                order.push(id);
+                widths[id] = parseInt(card.getAttribute('data-width') || '100', 10);
+                if (card.getAttribute('data-locked') === 'true') locked.push(id);
+            });
+            var hidden = Array.from(document.querySelectorAll('#hiddenChartsPills [data-chart-id]'))
+                .map(function(el) { return el.getAttribute('data-chart-id'); });
+            fetch('/api/graph-layout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order: order, widths: widths, hidden: hidden, locked: locked })
+            });
+        }
+
+        var feedbackTimer = null;
+        function showFeedback(text) {
+            var el = document.getElementById('layoutFeedback');
+            if (!el) return;
+            el.textContent = text;
+            el.classList.add('visible');
+            clearTimeout(feedbackTimer);
+            feedbackTimer = setTimeout(function() { el.classList.remove('visible'); }, 2200);
+        }
+
+        function toggleLock(id) {
+            var grid = document.getElementById('graphsGrid');
+            var card = grid ? grid.querySelector('[data-chart-id="' + id + '"]') : null;
+            if (!card) return;
+            var locked = card.getAttribute('data-locked') === 'true';
+            card.setAttribute('data-locked', locked ? 'false' : 'true');
+            var lockBtn = card.querySelector('.lock-btn');
+            if (lockBtn) lockBtn.textContent = locked ? '🔓' : '🔒';
+            saveLayout();
+        }
+
+        function hideCard(id, save) {
+            var grid = document.getElementById('graphsGrid');
+            var card = grid ? grid.querySelector('[data-chart-id="' + id + '"]') : null;
+            if (!card) return;
+            card.style.display = 'none';
+            var pill = document.createElement('span');
+            pill.className = 'hidden-chart-pill';
+            pill.setAttribute('data-chart-id', id);
+            pill.innerHTML = (CHART_TITLES[id] || id) +
+                ' <button onclick="showChart(\'' + id + '\')">' + T.btn_show_chart + '</button>';
+            document.getElementById('hiddenChartsPills').appendChild(pill);
+            if (save !== false) saveLayout();
+        }
+
+        window.showChart = function(id) {
+            var grid = document.getElementById('graphsGrid');
+            var card = grid ? grid.querySelector('[data-chart-id="' + id + '"]') : null;
+            if (card) card.style.display = '';
+            var pill = document.querySelector('#hiddenChartsPills [data-chart-id="' + id + '"]');
+            if (pill) pill.remove();
+            setTimeout(resizeAllCharts, 50);
+            saveLayout();
+        };
+
+        function toggleWidth(id) {
+            var grid = document.getElementById('graphsGrid');
+            var card = grid ? grid.querySelector('[data-chart-id="' + id + '"]') : null;
+            if (!card || card.getAttribute('data-locked') === 'true') return;
+            var current = parseInt(card.getAttribute('data-width') || '100', 10);
+            var next = current === 100 ? 50 : 100;
+            card.setAttribute('data-width', String(next));
+            var btn = card.querySelector('.width-btn');
+            if (btn) btn.textContent = next === 100 ? '⬜⬜' : '⬛';
+            setTimeout(resizeAllCharts, 50);
+            saveLayout();
+        }
+
+        function applyLayout(layout) {
+            var grid = document.getElementById('graphsGrid');
+            if (!grid || !layout) return;
+            // Re-order DOM nodes
+            (layout.order || []).forEach(function(id) {
+                var card = grid.querySelector('[data-chart-id="' + id + '"]');
+                if (card) grid.appendChild(card);
+            });
+            // Apply widths
+            Object.keys(layout.widths || {}).forEach(function(id) {
+                var card = grid.querySelector('[data-chart-id="' + id + '"]');
+                if (card) card.setAttribute('data-width', String(layout.widths[id]));
+            });
+            // Reset all locked states, then re-apply saved ones
+            grid.querySelectorAll('.card[data-chart-id]').forEach(function(card) {
+                card.setAttribute('data-locked', 'false');
+                var lb = card.querySelector('.lock-btn');
+                if (lb) lb.textContent = '🔓';
+            });
+            (layout.locked || []).forEach(function(id) {
+                var card = grid.querySelector('[data-chart-id="' + id + '"]');
+                if (card) {
+                    card.setAttribute('data-locked', 'true');
+                    var lb = card.querySelector('.lock-btn');
+                    if (lb) lb.textContent = '🔒';
+                }
+            });
+            // Apply hidden (without saving back — this is the restore)
+            (layout.hidden || []).forEach(function(id) { hideCard(id, false); });
+            setTimeout(resizeAllCharts, 50);
+        }
+
+        // Fetch and apply saved layout on page load
+        fetch('/api/graph-layout').then(function(r) { return r.json(); }).then(applyLayout);
+
+        // ── Edit mode ─────────────────────────────────────────────────────────
+        var sortableInstance = null;
+        var layoutSnapshot   = null;
+
+        function captureSnapshot() {
+            var grid = document.getElementById('graphsGrid');
+            var order = [], widths = {}, locked = [];
+            grid.querySelectorAll('.card[data-chart-id]').forEach(function(card) {
+                var id = card.getAttribute('data-chart-id');
+                order.push(id);
+                widths[id] = parseInt(card.getAttribute('data-width') || '100', 10);
+                if (card.getAttribute('data-locked') === 'true') locked.push(id);
+            });
+            var hidden = Array.from(document.querySelectorAll('#hiddenChartsPills [data-chart-id]'))
+                .map(function(el) { return el.getAttribute('data-chart-id'); });
+            return { order: order, widths: widths, hidden: hidden, locked: locked };
+        }
+
+        // After a drag-drop, auto-fit widths so a 100%-wide card placed next to
+        // a 50%-wide card shrinks to 50% to share the row.
+        function snapWidths() {
+            var grid = document.getElementById('graphsGrid');
+            var cards = Array.from(grid.querySelectorAll('.card[data-chart-id]'))
+                .filter(function(c) { return c.style.display !== 'none'; });
+            var i = 0;
+            while (i < cards.length) {
+                var w = parseInt(cards[i].getAttribute('data-width') || '100', 10);
+                if (w === 50) {
+                    if (i + 1 < cards.length) {
+                        // Pair with next card: if it's 100% and not locked, shrink it
+                        var nw = parseInt(cards[i + 1].getAttribute('data-width') || '100', 10);
+                        if (nw === 100 && cards[i + 1].getAttribute('data-locked') !== 'true') {
+                            cards[i + 1].setAttribute('data-width', '50');
+                            var nb = cards[i + 1].querySelector('.width-btn');
+                            if (nb) nb.textContent = '⬛';
+                        }
+                        i += 2;
+                    } else {
+                        // Lone 50% card at end — expand to full width only if not locked
+                        if (cards[i].getAttribute('data-locked') !== 'true') {
+                            cards[i].setAttribute('data-width', '100');
+                            var eb = cards[i].querySelector('.width-btn');
+                            if (eb) eb.textContent = '⬜⬜';
+                        }
+                        i++;
+                    }
+                } else {
+                    i++;
+                }
+            }
+        }
+
+        function wireCardButtons() {
+            document.querySelectorAll('#graphsGrid .card[data-chart-id]').forEach(function(card) {
+                var id = card.getAttribute('data-chart-id');
+                var w = parseInt(card.getAttribute('data-width') || '100', 10);
+                var isLocked = card.getAttribute('data-locked') === 'true';
+                var lockBtn  = card.querySelector('.lock-btn');
+                var widthBtn = card.querySelector('.width-btn');
+                var hideBtn  = card.querySelector('.hide-btn');
+                if (lockBtn) {
+                    lockBtn.textContent = isLocked ? '🔒' : '🔓';
+                    lockBtn.onclick = function() { toggleLock(id); };
+                }
+                if (widthBtn) {
+                    widthBtn.textContent = w === 100 ? '⬜⬜' : '⬛';
+                    widthBtn.onclick = function() { toggleWidth(id); };
+                }
+                if (hideBtn) {
+                    hideBtn.onclick = function() { hideCard(id, true); };
+                }
+            });
+        }
+
+        function enterEditMode() {
+            layoutSnapshot = captureSnapshot();
+            document.body.classList.add('graphs-edit-mode');
+            editBtn.textContent = T.btn_done_editing;
+            wireCardButtons();
+            sortableInstance = Sortable.create(document.getElementById('graphsGrid'), {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                swapThreshold: 0.65,
+                filter: '[data-locked="true"]',
+                preventOnFilter: false,
+                onMove: function(evt) {
+                    // Never drag a locked card
+                    if (evt.dragged.getAttribute('data-locked') === 'true') return false;
+
+                    var grid = document.getElementById('graphsGrid');
+                    var cards = Array.from(grid.querySelectorAll('.card[data-chart-id]'));
+                    var fromIdx = cards.indexOf(evt.dragged);
+                    var relatedIdx = cards.indexOf(evt.related);
+                    // toIdx: where the dragged card would land (in original-index space)
+                    var toIdx = evt.willInsertAfter ? relatedIdx + 1 : relatedIdx;
+
+                    for (var i = 0; i < cards.length; i++) {
+                        if (cards[i] === evt.dragged) continue;
+                        if (cards[i].getAttribute('data-locked') !== 'true') continue;
+                        var L = i;
+
+                        // Compute new index of this locked card after the move.
+                        // Step 1: remove dragged from fromIdx
+                        var newL = fromIdx < L ? L - 1 : L;
+                        // Step 2: insert dragged at toIdx (adjust toIdx for removal)
+                        var insertAt = fromIdx < toIdx ? toIdx - 1 : toIdx;
+                        if (insertAt <= newL) newL++;
+
+                        if (newL === L) continue; // locked card unaffected, OK
+
+                        // Locked card would move. Allow ONLY the one exception:
+                        // the dragged card is the immediate predecessor (fromIdx === L-1)
+                        // AND it is moving to after the locked card (toIdx > L).
+                        // This lets the locked card naturally fill the vacated left slot.
+                        if (fromIdx === L - 1 && toIdx > L) continue;
+
+                        return false; // block — would displace a locked card
+                    }
+                    return true;
+                },
+                onEnd: function() { snapWidths(); wireCardButtons(); setTimeout(resizeAllCharts, 50); saveLayout(); }
+            });
+        }
+
+        function exitEditMode() {
+            document.body.classList.remove('graphs-edit-mode');
+            editBtn.textContent = T.btn_edit_layout;
+            if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null; }
+            layoutSnapshot = null;
+        }
+
+        function resetLayout() {
+            var DEFAULT_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            // Restore any hidden charts first
+            Array.from(document.querySelectorAll('#hiddenChartsPills [data-chart-id]')).forEach(function(pill) {
+                showChart(pill.getAttribute('data-chart-id'));
+            });
+            var widths = {};
+            DEFAULT_ORDER.forEach(function(id) { widths[id] = 100; });
+            applyLayout({ order: DEFAULT_ORDER, widths: widths, hidden: [], locked: [] });
+            saveLayout();
+            showFeedback(T.feedback_layout_reset);
+            setTimeout(resizeAllCharts, 50);
+        }
+
+        var editBtn    = document.getElementById('editLayoutBtn');
+        var saveBtn    = document.getElementById('saveLayoutBtn');
+        var discardBtn = document.getElementById('discardLayoutBtn');
+        var resetBtn   = document.getElementById('resetLayoutBtn');
+
+        if (editBtn) {
+            editBtn.addEventListener('click', function() {
+                if (document.body.classList.contains('graphs-edit-mode')) {
+                    saveLayout();
+                    exitEditMode();
+                } else {
+                    enterEditMode();
+                }
+            });
+        }
+
+        if (saveBtn) {
+            // Save checkpoint without exiting edit mode
+            saveBtn.addEventListener('click', function() {
+                layoutSnapshot = captureSnapshot();
+                saveLayout();
+                showFeedback(T.feedback_layout_saved);
+            });
+        }
+
+        if (discardBtn) {
+            discardBtn.addEventListener('click', function() {
+                if (layoutSnapshot) {
+                    // Clear any pills introduced during this edit session
+                    Array.from(document.querySelectorAll('#hiddenChartsPills [data-chart-id]')).forEach(function(pill) {
+                        var id = pill.getAttribute('data-chart-id');
+                        var card = document.querySelector('#graphsGrid [data-chart-id="' + id + '"]');
+                        if (card) card.style.display = '';
+                        pill.remove();
+                    });
+                    applyLayout(layoutSnapshot);
+                }
+                exitEditMode();
+                showFeedback(T.feedback_layout_discarded);
+                setTimeout(resizeAllCharts, 50);
+            });
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', resetLayout);
+        }
+
     })();
     </script>
     {% endif %}
