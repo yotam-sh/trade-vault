@@ -44,11 +44,57 @@ def get_positions_list():
                 ),
                 'weight': pos.get('weight', 0),
                 'first_bought': holding.get('first_bought') if holding else None,
+                'days_holding': (
+                    (date.today() - date.fromisoformat(holding['first_bought'])).days
+                    if holding and holding.get('first_bought') else None
+                ),
             })
 
     closed = get_closed_positions()
 
     return {'open': open_positions, 'closed': closed}
+
+
+def get_top_positions_pnl():
+    """Return all positions ranked by total P&L (realized + unrealized).
+
+    Combines open unrealized P&L with closed realized P&L per holding.
+    Returns list of {holding_id, name_he, name_en, total_pnl, cost_basis} sorted by total_pnl desc.
+    """
+    combined = {}  # holding_id -> {name_he, name_en, total_pnl, cost_basis}
+
+    # Open positions: unrealized P&L
+    portfolio = get_portfolio_value()
+    if portfolio:
+        for pos in portfolio['positions']:
+            if pos.get('quantity', 0) <= 0:
+                continue
+            hid = pos['holding_id']
+            unrealized = pos.get('market_value', 0) - pos.get('cost_basis', 0)
+            combined[hid] = {
+                'holding_id': hid,
+                'name_he': pos.get('name_he', ''),
+                'name_en': pos.get('name_en'),
+                'symbol': pos.get('symbol', ''),
+                'total_pnl': unrealized,
+                'cost_basis': pos.get('cost_basis', 0),
+            }
+
+    # Add realized P&L from partial sells on still-open positions
+    for cp in get_closed_positions():
+        hid = cp.get('holding_id')
+        if hid is None or hid not in combined:
+            continue
+        combined[hid]['total_pnl'] += cp.get('total_pnl', 0) or 0
+        combined[hid]['cost_basis'] += cp.get('total_cost', 0) or 0
+
+    result = sorted(combined.values(), key=lambda x: x['total_pnl'], reverse=True)
+    # Add pnl_pct
+    for entry in result:
+        cb = entry.get('cost_basis', 0)
+        entry['pnl_pct'] = round(entry['total_pnl'] / cb * 100, 2) if cb else 0
+        entry['total_pnl'] = round(entry['total_pnl'], 2)
+    return result
 
 
 def get_position_data(holding_id):

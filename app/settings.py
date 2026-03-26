@@ -34,6 +34,12 @@ def init_default_settings():
         'cost_method': 'fifo',
         'ticker_map': {},
         'last_import_date': None,
+        'graph_layout': {
+            'order': ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+            'widths': {'A': 100, 'B': 100, 'C': 100, 'D': 100, 'E': 100, 'F': 100, 'G': 100},
+            'hidden': [],
+            'locked': [],
+        },
     }
     for key, value in defaults.items():
         if get_setting(key) is None:

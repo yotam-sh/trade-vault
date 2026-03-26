@@ -119,7 +119,7 @@
                         <th scope="col" class="num">{{ t.position_unrealized_pnl }} ₪</th>
                         <th scope="col" class="num">{{ t.position_unrealized_pnl }} %</th>
                         <th scope="col" class="num">{{ t.position_weight }}</th>
-                        <th scope="col">{{ t.position_first_bought }}</th>
+                        <th scope="col" class="num">{{ t.position_days_holding }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -144,7 +144,7 @@
                         <td class="num pnl">{{ '{:,.2f}'.format(pos.unrealized_pnl) }}</td>
                         <td class="num pnl">{{ '{:.2f}'.format(pos.unrealized_pnl_pct) }}%</td>
                         <td class="num">{{ '{:.1f}'.format(pos.weight) }}%</td>
-                        <td>{{ pos.first_bought or '—' }}</td>
+                        <td class="num">{{ pos.days_holding if pos.days_holding is not none else '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

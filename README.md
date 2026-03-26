@@ -320,7 +320,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle; click any date row to jump to Daily Details for that date |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
-| **Graphs** | `/graphs` | Portfolio value vs net invested over time (line chart) and monthly return % bar chart with toggle between cumulative total return and standalone monthly return |
+| **Graphs** | `/graphs` | Seven interactive charts: portfolio value vs net invested, monthly return %, historical performance, drawdown from peak, daily P&L heatmap, asset allocation over time, and P&L by position — with drag-and-drop layout, resizable cards, show/hide per chart, and a reset-layout button |
 | **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database) — accessible from the settings (⚙) dropdown |
 | **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
 
@@ -357,8 +357,13 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Position detail** | Daily P&L over time for the position | Bar (green/red) |
 | **Graphs** | Portfolio value vs net invested over time | Line |
 | **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
+| **Graphs** | Historical performance — daily P&L bar with daily/weekly/monthly granularity toggle | Bar |
+| **Graphs** | Drawdown from peak | Line |
+| **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
+| **Graphs** | Asset allocation over time | Stacked area |
+| **Graphs** | P&L by position — ranked by ILS or % toggle; TASE ticker labels, full name on hover | Horizontal bar |
 
-The **Graphs** page (`/graphs`) is the dedicated chart hub, showing long-term performance trends across all imported data.
+The **Graphs** page (`/graphs`) is the dedicated chart hub with seven configurable panels. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
 
 ### Adding deposits via the web
 

@@ -3,6 +3,8 @@
 """Portfolio analytics and reporting queries, including frontend view queries."""
 
 import calendar
+from datetime import datetime
+from collections import defaultdict
 
 from app.holdings import get_holding
 from app.snapshots import list_snapshots, get_latest_snapshot
@@ -298,3 +300,75 @@ def get_pivot_by_security(start_date=None, end_date=None):
     return {'groups': list(result.values()), 'grand_total': grand_total}
 
 
+def get_historical_performance():
+    """Return average daily P&L % grouped by day-of-week, week-of-year, and month-of-year.
+
+    Returns {'by_day': [...], 'by_week': [...], 'by_month': [...]}
+    Each list contains {label, avg_pct, count} dicts.
+    """
+    all_snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
+
+    # Build prev_value map so we can compute change% vs prior close
+    prev_value_map = {}
+    for i, snap in enumerate(all_snapshots):
+        if i > 0:
+            prev_value_map[snap['date']] = all_snapshots[i - 1]['total_market_value']
+
+    day_buckets = defaultdict(list)    # 0=Mon .. 6=Sun
+    week_buckets = defaultdict(list)   # 1..53
+    month_buckets = defaultdict(list)  # 1..12
+
+    for snap in all_snapshots:
+        daily_pnl = snap.get('total_daily_pnl', 0) or 0
+        prev_close = prev_value_map.get(snap['date'])
+        morning_value = prev_close if prev_close else (snap['total_market_value'] - daily_pnl)
+        if not morning_value or morning_value <= 0:
+            continue
+        pct = daily_pnl / morning_value * 100
+
+        dt = datetime.fromisoformat(snap['date'])
+        day_buckets[dt.weekday()].append(pct)
+        week_buckets[dt.isocalendar()[1]].append(pct)
+        month_buckets[dt.month].append(pct)
+
+    day_names_he = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
+    day_names_en = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    month_names_he = ['', 'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
+                      'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+    month_names_en = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    by_day = []
+    for dow in sorted(day_buckets):
+        vals = day_buckets[dow]
+        by_day.append({
+            'key': dow,
+            'label_he': day_names_he[dow],
+            'label_en': day_names_en[dow],
+            'avg_pct': round(sum(vals) / len(vals), 3),
+            'count': len(vals),
+        })
+
+    by_week = []
+    for wk in sorted(week_buckets):
+        vals = week_buckets[wk]
+        by_week.append({
+            'key': wk,
+            'label_he': f'שב׳ {wk}',
+            'label_en': f'Wk {wk}',
+            'avg_pct': round(sum(vals) / len(vals), 3),
+            'count': len(vals),
+        })
+
+    by_month = []
+    for mo in sorted(month_buckets):
+        vals = month_buckets[mo]
+        by_month.append({
+            'key': mo,
+            'label_he': month_names_he[mo],
+            'label_en': month_names_en[mo],
+            'avg_pct': round(sum(vals) / len(vals), 3),
+            'count': len(vals),
+        })
+
+    return {'by_day': by_day, 'by_week': by_week, 'by_month': by_month}
