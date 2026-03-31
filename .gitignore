@@ -14,6 +14,7 @@ env.yaml
 
 # Database (user data, regenerated from imports)
 db/db.json
+db/*.bak
 db/imports/
 
 # Data files (personal brokerage exports)
