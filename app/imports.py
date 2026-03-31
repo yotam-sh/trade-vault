@@ -33,6 +33,12 @@ def create_import(filename, filepath, file_hash, data_date, import_type,
     return table.insert(record)
 
 
+def update_import(import_id, **kwargs):
+    """Update fields on an existing import record."""
+    table = get_table(IMPORTS)
+    table.update(kwargs, doc_ids=[import_id])
+
+
 def find_by_hash(file_hash):
     """Check if a file has already been imported by its SHA-256 hash."""
     table = get_table(IMPORTS)

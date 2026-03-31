@@ -7,8 +7,6 @@ from app.holdings import (
     add_holding,
     update_holding,
 )
-from app.settings import get_setting
-
 
 def find_holding_by_name(name_he):
     """Find an existing holding by Hebrew name, with fuzzy fallback.
@@ -77,23 +75,20 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
 
     if holding is None:
         # Create new holding
-        ticker_map = get_setting('ticker_map', {})
-        ticker = ticker_map.get(tase_symbol) or ticker_map.get(name_he)
-
         doc_id = add_holding(
             tase_id=tase_id,
             tase_symbol=tase_symbol,
             name_he=name_he,
             security_type=security_type,
             currency=currency,
-            ticker=ticker,
+            ticker=None,
             is_active=quantity > 0,
         )
 
         # Fetch the newly created holding
         from app.holdings import get_holding
         holding = get_holding(doc_id)
-        return doc_id, True, holding
+        return doc_id, True, holding, None
 
     else:
         # Holding exists
@@ -108,4 +103,29 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                 from app.holdings import get_holding
                 holding = get_holding(holding_id)
 
-        return holding_id, False, holding
+        # Detect name change
+        name_change = None
+        if holding['name_he'] != name_he:
+            name_change = {
+                'tase_id': tase_id,
+                'old_name_he': holding['name_he'],
+                'new_name_he': name_he,
+                'old_name_en': holding.get('name_en'),
+                'new_name_en': None,
+            }
+            update_holding(holding_id, name_he=name_he)
+            # Try to refresh English name from yfinance
+            ticker = holding.get('ticker')
+            if ticker:
+                try:
+                    from app.utils.translation_service import fetch_info_from_yfinance
+                    info = fetch_info_from_yfinance(ticker)
+                    if info and info.get('name'):
+                        update_holding(holding_id, name_en=info['name'])
+                        name_change['new_name_en'] = info['name']
+                except Exception:
+                    pass
+            from app.holdings import get_holding
+            holding = get_holding(holding_id)
+
+        return holding_id, False, holding, name_change

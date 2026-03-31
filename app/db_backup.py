@@ -6,6 +6,9 @@ import shutil
 from datetime import datetime
 from app.connection import get_db, close_db, flush_db, DB_PATH
 
+# Dedicated directory for export backups and pre-import safety copies.
+IMPORTS_DIR = os.path.join(os.path.dirname(DB_PATH), 'imports')
+
 # Minimum tables that must exist for a valid TradeVault backup.
 # TinyDB only creates a table entry once data is inserted, so not all tables
 # are guaranteed to be present in every database.
@@ -16,8 +19,9 @@ def export_db(output_path=None):
     """Flush cache and copy db.json to output_path. Returns the output path."""
     flush_db()
     if output_path is None:
+        os.makedirs(IMPORTS_DIR, exist_ok=True)
         date_str = datetime.now().strftime('%Y-%m-%d')
-        output_path = f'db_backup_{date_str}.json'
+        output_path = os.path.join(IMPORTS_DIR, f'db_backup_{date_str}.json')
     shutil.copy2(DB_PATH, output_path)
     return output_path
 
@@ -48,8 +52,9 @@ def import_db(source_path):
         raise ValueError(msg)
 
     # Backup current db before replacing
+    os.makedirs(IMPORTS_DIR, exist_ok=True)
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = DB_PATH + f'.pre_import_{ts}.bak'
+    backup_path = os.path.join(IMPORTS_DIR, f'db.pre_import_{ts}.bak')
     if os.path.exists(DB_PATH):
         shutil.copy2(DB_PATH, backup_path)
 

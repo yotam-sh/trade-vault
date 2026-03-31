@@ -32,7 +32,6 @@ def init_default_settings():
     defaults = {
         'default_currency': 'ILS',
         'cost_method': 'fifo',
-        'ticker_map': {},
         'last_import_date': None,
         'graph_layout': {
             'order': ['A', 'B', 'C', 'D', 'E', 'F', 'G'],

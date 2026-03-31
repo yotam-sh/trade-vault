@@ -283,13 +283,6 @@ def cmd_set_ticker(args):
             return
 
     set_ticker(holding.doc_id, args.ticker)
-
-    # Also update ticker_map in settings
-    from app.settings import get_setting, set_setting
-    ticker_map = get_setting('ticker_map', {})
-    ticker_map[holding['tase_symbol']] = args.ticker
-    set_setting('ticker_map', ticker_map)
-
     print(f"Set ticker for {holding['name_he']} -> {args.ticker}")
     close_db()
 

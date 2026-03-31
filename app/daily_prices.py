@@ -10,18 +10,19 @@ def add_daily_price(holding_id, ticker, date, price, quantity, market_value,
     """Insert a daily price record. Returns doc_id."""
     table = get_table(DAILY_PRICES)
 
-    # Check for duplicate (ticker, date)
+    # Check for duplicate (holding_id, date)
     D = Query()
-    existing = table.search((D.ticker == ticker) & (D.date == date))
+    existing = table.search((D.holding_id == holding_id) & (D.date == date))
     if existing:
         # Update existing record instead
         doc_id = existing[0].doc_id
-        kwargs.update({
-            'holding_id': holding_id, 'price': price, 'quantity': quantity,
+        update_data = {
+            'ticker': ticker, 'price': price, 'quantity': quantity,
             'market_value': market_value, 'cost_basis': cost_basis,
             'currency': currency, 'import_id': import_id,
-        })
-        table.update(kwargs, doc_ids=[doc_id])
+        }
+        update_data.update(kwargs)
+        table.update(update_data, doc_ids=[doc_id])
         return doc_id
 
     record = {
@@ -38,9 +39,6 @@ def add_daily_price(holding_id, ticker, date, price, quantity, market_value,
         'fifo_change_pct': kwargs.get('fifo_change_pct'),
         'fifo_change_ils': kwargs.get('fifo_change_ils'),
         'fifo_avg_price': kwargs.get('fifo_avg_price'),
-        'unrealized_pnl': kwargs.get('unrealized_pnl'),
-        'unrealized_pnl_pct': kwargs.get('unrealized_pnl_pct'),
-        'holding_weight_pct': kwargs.get('holding_weight_pct'),
         'currency': currency,
         'import_id': import_id,
         'created_at': now_iso(),
@@ -53,19 +51,19 @@ def add_daily_price(holding_id, ticker, date, price, quantity, market_value,
     return table.insert(record)
 
 
-def get_price(ticker, date):
-    """Get a price record for a specific ticker and date."""
+def get_price(holding_id, date):
+    """Get a price record for a specific holding and date."""
     table = get_table(DAILY_PRICES)
     D = Query()
-    results = table.search((D.ticker == ticker) & (D.date == date))
+    results = table.search((D.holding_id == holding_id) & (D.date == date))
     return results[0] if results else None
 
 
-def get_latest_price(ticker):
-    """Get the most recent price record for a ticker."""
+def get_latest_price(holding_id):
+    """Get the most recent price record for a holding."""
     table = get_table(DAILY_PRICES)
     D = Query()
-    results = table.search(D.ticker == ticker)
+    results = table.search(D.holding_id == holding_id)
     if not results:
         return None
     return sorted(results, key=lambda r: r['date'], reverse=True)[0]
@@ -78,20 +76,20 @@ def get_prices_by_date(date):
     return table.search(D.date == date)
 
 
-def get_price_history(ticker, start_date=None, end_date=None):
-    """Get price history for a ticker within an optional date range."""
+def get_price_history(holding_id, start_date=None, end_date=None):
+    """Get price history for a holding within an optional date range."""
     table = get_table(DAILY_PRICES)
     D = Query()
     if start_date and end_date:
         results = table.search(
-            (D.ticker == ticker) & (D.date >= start_date) & (D.date <= end_date)
+            (D.holding_id == holding_id) & (D.date >= start_date) & (D.date <= end_date)
         )
     elif start_date:
-        results = table.search((D.ticker == ticker) & (D.date >= start_date))
+        results = table.search((D.holding_id == holding_id) & (D.date >= start_date))
     elif end_date:
-        results = table.search((D.ticker == ticker) & (D.date <= end_date))
+        results = table.search((D.holding_id == holding_id) & (D.date <= end_date))
     else:
-        results = table.search(D.ticker == ticker)
+        results = table.search(D.holding_id == holding_id)
     return sorted(results, key=lambda r: r['date'])
 
 

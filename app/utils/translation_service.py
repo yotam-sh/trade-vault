@@ -6,6 +6,7 @@ then fetches English stock names from yfinance.
 
 from app.holdings import update_holding, get_holding_by_tase_id
 from app.settings import get_setting, set_setting
+from app.yfinance_cache import get_yfinance_cache, upsert_yfinance_cache
 
 
 def fetch_info_from_yfinance(yfinance_symbol):
@@ -316,13 +317,14 @@ def _translate_text(text, target_lang='iw'):
 
 
 def ensure_hebrew_translations_cached(holding, force_refresh=False):
-    """Translate sector/industry/description to Hebrew, caching in holding.yfinance_data.
+    """Translate sector/industry/description to Hebrew, caching in yfinance_cache table.
 
     Translations are cached for 30 days (translation_fetched_at field).
     Returns the updated yfinance_data dict, or None if no yfinance data to translate.
     """
     from datetime import date, timedelta
-    cached = holding.get('yfinance_data') or {}
+    holding_id = holding.doc_id
+    cached = get_yfinance_cache(holding_id)
     if not cached.get('sector') and not cached.get('description'):
         return None
 
@@ -350,8 +352,8 @@ def ensure_hebrew_translations_cached(holding, force_refresh=False):
         'description_he': description_he,
         'translation_fetched_at': date.today().isoformat(),
     }
-    merged = {**cached, **updates}
-    update_holding(holding.doc_id, yfinance_data=merged)
+    merged = {**{k: v for k, v in cached.items() if k != 'holding_id'}, **updates}
+    upsert_yfinance_cache(holding_id, merged)
     return merged
 
 
@@ -369,7 +371,8 @@ def ensure_yfinance_info_cached(holding, force_refresh=False):
     if not yfinance_symbol:
         return None
 
-    cached = holding.get('yfinance_data') or {}
+    holding_id = holding.doc_id
+    cached = get_yfinance_cache(holding_id)
     fetched_at = cached.get('info_fetched_at')
 
     stale = True
@@ -390,15 +393,16 @@ def ensure_yfinance_info_cached(holding, force_refresh=False):
     if stale:
         info = fetch_rich_info_from_yfinance(yfinance_symbol)
         if info:
-            # Preserve existing keys (e.g. name/symbol set by set_yfinance_mapping)
-            # Also clear any prior fetch_failed_at on success
-            merged = {k: v for k, v in {**cached, **info}.items() if k != 'fetch_failed_at'}
-            update_holding(holding.doc_id, yfinance_data=merged,
-                           name_en=info.get('name'), ticker=info.get('symbol'))
+            # Preserve existing keys; clear any prior fetch_failed_at on success
+            cache_data = {k: v for k, v in cached.items() if k != 'holding_id'}
+            merged = {k: v for k, v in {**cache_data, **info}.items() if k != 'fetch_failed_at'}
+            upsert_yfinance_cache(holding_id, merged)
+            update_holding(holding_id, name_en=info.get('name'), ticker=info.get('symbol'))
             return merged
         # Fetch failed — record failure timestamp to rate-limit retries
-        failure_record = {**cached, 'fetch_failed_at': datetime.now().isoformat()}
-        update_holding(holding.doc_id, yfinance_data=failure_record)
+        cache_data = {k: v for k, v in cached.items() if k != 'holding_id'}
+        failure_record = {**cache_data, 'fetch_failed_at': datetime.now().isoformat()}
+        upsert_yfinance_cache(holding_id, failure_record)
         # Return stale successful data if we have it, otherwise None
         return cached if cached.get('info_fetched_at') else None
 

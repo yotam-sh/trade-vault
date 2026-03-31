@@ -419,6 +419,55 @@ def position_refresh_info(holding_id):
     return redirect(url_for('position_view', holding_id=holding_id))
 
 
+@app.route('/api/yfinance/search')
+def api_yfinance_search():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    try:
+        import yfinance as yf
+        results = yf.Search(q, max_results=8).quotes
+        return jsonify([
+            {
+                'symbol': r['symbol'],
+                'name': r.get('longname') or r.get('shortname', ''),
+                'exchange': r.get('exchDisp', ''),
+            }
+            for r in results if r.get('symbol')
+        ])
+    except Exception:
+        return jsonify([])
+
+
+@app.route('/api/holdings/<int:holding_id>/update-name', methods=['POST'])
+def api_update_holding_name(holding_id):
+    from app.holdings import get_holding, update_holding
+    holding = get_holding(holding_id)
+    if not holding:
+        return jsonify({'error': 'Not found'}), 404
+
+    data = request.get_json()
+    confirm = (data.get('confirm') or '').strip()
+    current_name_he = holding.get('name_he', '')
+
+    if confirm != current_name_he:
+        return jsonify({'error': 'confirmation_mismatch'}), 400
+
+    updates = {}
+    new_name_he = (data.get('name_he') or '').strip()
+    if new_name_he:
+        updates['name_he'] = new_name_he
+    if 'name_en' in data:
+        updates['name_en'] = (data['name_en'] or '').strip() or None
+    if data.get('ticker'):
+        updates['ticker'] = data['ticker'].strip()
+
+    if updates:
+        update_holding(holding_id, **updates)
+
+    return jsonify({'success': True})
+
+
 # ── Export routes ──
 from app.export import build_dataframe, make_excel_response, make_csv_response, build_tax_report
 

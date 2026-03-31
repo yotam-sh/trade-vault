@@ -137,6 +137,31 @@
                 <span style="color: var(--text-secondary); font-size: 0.8rem; margin-inline-start: auto;">
                     {{ t.position_tase_id }}: {{ data.holding.tase_id }}
                 </span>
+                <button id="editNameBtn" onclick="toggleNameEdit()" style="background: none; border: 1px solid var(--border); border-radius: 5px; padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;" title="{{ t.position_edit_name }}">✏ {{ t.position_edit_name }}</button>
+            </div>
+
+            <!-- ── Inline name edit panel ── -->
+            <div id="nameEditPanel" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <div style="display: grid; gap: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem;">{{ t.position_name_he }}</label>
+                        <input id="editNameHe" type="text" value="{{ data.holding.name_he }}" dir="rtl"
+                            style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                    <div style="position: relative;">
+                        <label style="display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem;">{{ t.position_name_en }}</label>
+                        <input id="editNameEn" type="text" value="{{ data.holding.name_en or '' }}"
+                            placeholder="{{ t.position_yf_search_placeholder }}"
+                            autocomplete="off"
+                            style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box;">
+                        <input id="editTicker" type="hidden" value="{{ data.holding.ticker or '' }}">
+                        <div id="yfDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 5px; z-index: 100; max-height: 220px; overflow-y: auto; margin-top: 2px;"></div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <button onclick="toggleNameEdit()" style="padding: 0.4rem 1rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary);">{{ t.position_name_cancel }}</button>
+                        <button onclick="openConfirmModal()" style="padding: 0.4rem 1rem; background: var(--accent); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600;">{{ t.position_name_save }}</button>
+                    </div>
+                </div>
             </div>
 
             {% if not data.yfinance_symbol %}
@@ -144,6 +169,23 @@
                 ⚠ {{ t.position_no_yfinance }}
             </div>
             {% endif %}
+        </div>
+
+        <!-- ── Confirmation modal ── -->
+        <div id="confirmModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; max-width: 420px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                <h3 style="margin: 0 0 0.75rem;">{{ t.position_edit_name }}</h3>
+                <div id="confirmSummary" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.6;"></div>
+                <label style="display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem;">{{ t.position_name_confirm_prompt }}:</label>
+                <input id="confirmInput" type="text" dir="rtl"
+                    style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box; margin-bottom: 0.5rem;"
+                    placeholder="{{ data.holding.name_he }}">
+                <div id="confirmError" style="display: none; color: var(--negative, #f85149); font-size: 0.82rem; margin-bottom: 0.5rem;">{{ t.position_name_confirm_mismatch }}</div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
+                    <button onclick="closeConfirmModal()" style="padding: 0.4rem 1rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary);">{{ t.position_name_cancel }}</button>
+                    <button onclick="submitNameChange()" style="padding: 0.4rem 1rem; background: var(--negative, #da3633); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600;">{{ t.position_name_save }}</button>
+                </div>
+            </div>
         </div>
 
         <!-- ── Market stats bar (yfinance) ──────────────────────────────────── -->
@@ -735,6 +777,118 @@
             btn.textContent = '▼';
         }
     }
+
+    // ── Name edit ──────────────────────────────��─────────────────────────────
+    var _yfSearchTimer = null;
+
+    function toggleNameEdit() {
+        var panel = document.getElementById('nameEditPanel');
+        var btn = document.getElementById('editNameBtn');
+        var visible = panel.style.display !== 'none';
+        panel.style.display = visible ? 'none' : 'block';
+        if (!visible) {
+            document.getElementById('editNameEn').focus();
+        }
+    }
+
+    document.getElementById('editNameEn').addEventListener('input', function() {
+        clearTimeout(_yfSearchTimer);
+        var q = this.value.trim();
+        if (q.length < 2) { hideDropdown(); return; }
+        _yfSearchTimer = setTimeout(function() { fetchYfSearch(q); }, 300);
+    });
+
+    document.getElementById('editNameEn').addEventListener('blur', function() {
+        setTimeout(hideDropdown, 200);
+    });
+
+    function fetchYfSearch(q) {
+        fetch('/api/yfinance/search?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(results) { renderDropdown(results); });
+    }
+
+    function renderDropdown(results) {
+        var dd = document.getElementById('yfDropdown');
+        if (!results.length) { hideDropdown(); return; }
+        dd.innerHTML = results.map(function(r) {
+            return '<div class="yf-option" data-symbol="' + r.symbol + '" data-name="' + (r.name || '').replace(/"/g, '&quot;') + '" ' +
+                'style="padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid var(--border);">' +
+                '<span style="font-weight: 600;">' + r.symbol + '</span>' +
+                '<span style="color: var(--text-secondary); margin-inline-start: 0.5rem;">' + (r.name || '') + '</span>' +
+                (r.exchange ? '<span style="color: var(--text-secondary); font-size: 0.75rem; float: ' + (document.documentElement.dir === 'rtl' ? 'left' : 'right') + ';">' + r.exchange + '</span>' : '') +
+                '</div>';
+        }).join('');
+        dd.querySelectorAll('.yf-option').forEach(function(el) {
+            el.addEventListener('mouseenter', function() { this.style.background = 'var(--bg-primary)'; });
+            el.addEventListener('mouseleave', function() { this.style.background = ''; });
+            el.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                document.getElementById('editNameEn').value = this.dataset.name;
+                document.getElementById('editTicker').value = this.dataset.symbol;
+                hideDropdown();
+            });
+        });
+        dd.style.display = 'block';
+    }
+
+    function hideDropdown() {
+        document.getElementById('yfDropdown').style.display = 'none';
+    }
+
+    function openConfirmModal() {
+        var newHe = document.getElementById('editNameHe').value.trim();
+        var newEn = document.getElementById('editNameEn').value.trim();
+        if (!newHe) { document.getElementById('editNameHe').focus(); return; }
+        var currentHe = '{{ data.holding.name_he | e }}';
+        var currentEn = '{{ data.holding.name_en | e }}' || '—';
+        var summary = document.getElementById('confirmSummary');
+        summary.innerHTML =
+            '<strong>{{ t.position_name_he }}:</strong> ' + currentHe + ' → ' + (newHe || currentHe) + '<br>' +
+            '<strong>{{ t.position_name_en }}:</strong> ' + currentEn + ' → ' + (newEn || currentEn);
+        document.getElementById('confirmInput').value = '';
+        document.getElementById('confirmError').style.display = 'none';
+        var modal = document.getElementById('confirmModal');
+        modal.style.display = 'flex';
+        setTimeout(function() { document.getElementById('confirmInput').focus(); }, 50);
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+    }
+
+    function submitNameChange() {
+        var confirm = document.getElementById('confirmInput').value.trim();
+        var currentHe = '{{ data.holding.name_he | e }}';
+        if (confirm !== currentHe) {
+            document.getElementById('confirmError').style.display = 'block';
+            document.getElementById('confirmInput').focus();
+            return;
+        }
+        var payload = {
+            name_he: document.getElementById('editNameHe').value.trim(),
+            name_en: document.getElementById('editNameEn').value.trim(),
+            ticker: document.getElementById('editTicker').value.trim(),
+            confirm: confirm,
+        };
+        fetch('/api/holdings/{{ data.holding_id }}/update-name', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(res) {
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                document.getElementById('confirmError').style.display = 'block';
+            }
+        });
+    }
+
+    document.getElementById('confirmModal').addEventListener('click', function(e) {
+        if (e.target === this) closeConfirmModal();
+    });
     </script>
     <script src="/static/app.js"></script>
 </body>

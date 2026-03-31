@@ -28,7 +28,7 @@ def has_nearby_trade(holding_id, date, action_type, days=2):
     return False
 
 
-def interpolate_position_changes(data_date, today_prices):
+def interpolate_position_changes(data_date, today_prices, import_id=None):
     """Detect buys/sells by comparing today's holdings with previous day.
 
     Compares the holdings in today_prices with the previous trading day's
@@ -38,6 +38,7 @@ def interpolate_position_changes(data_date, today_prices):
     Args:
         data_date: ISO date string for today
         today_prices: List of daily price records for today
+        import_id: Import record ID to link transactions to (optional)
 
     Returns:
         Tuple of (interpolated_buys: int, interpolated_sells: int)
@@ -97,6 +98,7 @@ def interpolate_position_changes(data_date, today_prices):
             price_per_share=price,
             currency=p.get('currency', 'ILS'),
             source='interpolated',
+            import_id=import_id,
         )
         create_lot(
             holding_id=hid,
@@ -135,6 +137,7 @@ def interpolate_position_changes(data_date, today_prices):
             sell_lot_details=sell_details,
             currency=p.get('currency', 'ILS'),
             source='interpolated',
+            import_id=import_id,
         )
         remaining = get_open_lots(ticker)
         if not remaining:
@@ -170,6 +173,7 @@ def interpolate_position_changes(data_date, today_prices):
                 price_per_share=price,
                 currency=p.get('currency', 'ILS'),
                 source='interpolated',
+                import_id=import_id,
             )
             create_lot(
                 holding_id=hid,
@@ -209,6 +213,7 @@ def interpolate_position_changes(data_date, today_prices):
                 sell_lot_details=sell_details,
                 currency=p.get('currency', 'ILS'),
                 source='interpolated',
+                import_id=import_id,
             )
             # No deactivate_holding — holding still exists with reduced quantity
             interp_sells += 1

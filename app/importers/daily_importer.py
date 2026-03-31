@@ -33,7 +33,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
         print(f"File already imported on {existing['import_date']} (status: {existing['status']})")
         create_import(
             filename=os.path.basename(filepath),
-            filepath=filepath,
+            filepath=os.path.basename(filepath),
             file_hash=fhash,
             data_date=data_date,
             import_type='daily_portfolio',
@@ -52,10 +52,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
     errors = []
     securities = []
     daily_prices_list = []
-
-    # Get ticker map from settings
-    from app.settings import get_setting
-    ticker_map = get_setting('ticker_map', {})
+    name_changes = []
 
     for idx, row in df.iterrows():
         try:
@@ -71,7 +68,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
             quantity = float(row.get('quantity', 0))
 
             # Find or create holding using utility
-            holding_id, is_new, holding = find_or_create_holding(
+            holding_id, is_new, holding, name_change = find_or_create_holding(
                 tase_id=tase_id,
                 tase_symbol=symbol,
                 name_he=name_he,
@@ -82,22 +79,21 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
             )
             if is_new:
                 new_holdings += 1
+            if name_change:
+                name_changes.append(name_change)
 
             # Parse price fields
-            price = float(row.get('price', 0))
-            market_value = float(row.get('market_value', 0))
-            cost_basis = float(row.get('cost_basis', 0))
-            daily_pnl = float(row.get('daily_pnl', 0)) if pd.notna(row.get('daily_pnl')) else 0
+            price = round(float(row.get('price', 0)), 4)
+            market_value = round(float(row.get('market_value', 0)), 2)
+            cost_basis = round(float(row.get('cost_basis', 0)), 2)
+            daily_pnl = round(float(row.get('daily_pnl', 0)), 2) if pd.notna(row.get('daily_pnl')) else 0
             price_change_pct = clean_percent(row.get('price_change_pct'))
-            unrealized_pnl = float(row.get('unrealized_pnl', 0)) if pd.notna(row.get('unrealized_pnl')) else None
-            unrealized_pnl_pct = float(row.get('unrealized_pnl_pct', 0)) if pd.notna(row.get('unrealized_pnl_pct')) else None
-            holding_weight = float(row.get('holding_weight_pct', 0)) if pd.notna(row.get('holding_weight_pct')) else None
-            fifo_cost = float(row.get('fifo_cost', 0)) if pd.notna(row.get('fifo_cost')) else None
+            fifo_cost = round(float(row.get('fifo_cost', 0)), 2) if pd.notna(row.get('fifo_cost')) else None
             fifo_change_pct = clean_percent(row.get('fifo_change_pct'))
-            fifo_change_ils = float(row.get('fifo_change_ils', 0)) if pd.notna(row.get('fifo_change_ils')) else None
-            fifo_avg_price = float(row.get('fifo_avg_price', 0)) if pd.notna(row.get('fifo_avg_price')) else None
+            fifo_change_ils = round(float(row.get('fifo_change_ils', 0)), 2) if pd.notna(row.get('fifo_change_ils')) else None
+            fifo_avg_price = round(float(row.get('fifo_avg_price', 0)), 4) if pd.notna(row.get('fifo_avg_price')) else None
 
-            ticker_for_record = (holding and holding.get('ticker')) or ticker_map.get(symbol) or symbol or name_he
+            ticker_for_record = (holding and holding.get('ticker')) or symbol or name_he
 
             # Create daily price record (import_id filled after import record created)
             dp_data = {
@@ -111,16 +107,13 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
                 'currency': currency,
                 'price_change_pct': price_change_pct,
                 'daily_pnl': daily_pnl,
-                'unrealized_pnl': unrealized_pnl,
-                'unrealized_pnl_pct': unrealized_pnl_pct,
-                'holding_weight_pct': holding_weight,
                 'fifo_cost': fifo_cost,
                 'fifo_change_pct': fifo_change_pct,
                 'fifo_change_ils': fifo_change_ils,
                 'fifo_avg_price': fifo_avg_price,
             }
             daily_prices_list.append(dp_data)
-            securities.append(ticker_for_record)
+            securities.append(tase_id)
             rows_imported += 1
 
         except Exception as e:
@@ -130,7 +123,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
     # Create import record
     import_id = create_import(
         filename=os.path.basename(filepath),
-        filepath=filepath,
+        filepath=os.path.basename(filepath),
         file_hash=fhash,
         data_date=data_date,
         import_type='daily_portfolio',
@@ -158,7 +151,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
     interpolated_buys = 0
     interpolated_sells = 0
     if interpolate:
-        ib, is_ = interpolate_position_changes(data_date, daily_prices_list)
+        ib, is_ = interpolate_position_changes(data_date, daily_prices_list, import_id=import_id)
         interpolated_buys = ib
         interpolated_sells = is_
 
@@ -171,6 +164,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
         'interpolated_buys': interpolated_buys,
         'interpolated_sells': interpolated_sells,
         'errors': errors,
+        'name_changes': name_changes,
     }
 
     interp_msg = ''
@@ -178,6 +172,8 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
         interp_msg = f", interpolated: {interpolated_buys} buys, {interpolated_sells} sells"
     print(f"Imported {rows_imported} rows ({new_holdings} new holdings, "
           f"{rows_skipped} skipped{interp_msg})")
+    for nc in name_changes:
+        print(f"  Name change (tase_id {nc['tase_id']}): {nc['old_name_he']} → {nc['new_name_he']}")
     if errors:
         for e in errors:
             print(f"  Error: {e}")

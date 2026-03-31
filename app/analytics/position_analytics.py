@@ -156,8 +156,6 @@ def get_position_data(holding_id):
 
     if yfinance_symbol:
         yfinance_info = ensure_yfinance_info_cached(holding)
-        if yfinance_info:
-            holding['yfinance_data'] = yfinance_info  # sync in-memory state for translation
         price_history = get_yfinance_history(yfinance_symbol)
 
         # For closed positions: compute "what if kept" hypothetical

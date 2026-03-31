@@ -44,7 +44,7 @@ class BaseImporter:
 
         return create_import(
             filename=os.path.basename(self.filepath),
-            filepath=self.filepath,
+            filepath=os.path.basename(self.filepath),
             file_hash=file_hash(self.filepath),
             data_date=data_date,
             import_type=import_type,

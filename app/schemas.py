@@ -10,8 +10,6 @@ HOLDING_SCHEMA = {
     'name_he': (str, True),
     'name_en': (str, False),
     'security_type': (str, True),
-    'sector': (str, False),
-    'industry': (str, False),
     'currency': (str, True),
     'exchange': (str, False),
     'is_active': (bool, True),
@@ -19,7 +17,6 @@ HOLDING_SCHEMA = {
     'last_sold': (str, False),
     'tags': (list, False),
     'notes': (str, False),
-    'yfinance_data': (dict, False),
     'created_at': (str, True),
     'updated_at': (str, True),
 }
@@ -62,9 +59,6 @@ DAILY_PRICE_SCHEMA = {
     'fifo_change_pct': (float, False),
     'fifo_change_ils': (float, False),
     'fifo_avg_price': (float, False),
-    'unrealized_pnl': (float, False),
-    'unrealized_pnl_pct': (float, False),
-    'holding_weight_pct': (float, False),
     'currency': (str, True),
     'import_id': (int, True),
     'created_at': (str, True),
@@ -88,25 +82,6 @@ PORTFOLIO_SNAPSHOT_SCHEMA = {
     'created_at': (str, True),
 }
 
-DIVIDEND_SCHEMA = {
-    'holding_id': (int, True),
-    'ticker': (str, True),
-    'transaction_id': (int, False),
-    'ex_date': (str, False),
-    'record_date': (str, False),
-    'payment_date': (str, True),
-    'amount_per_share': (float, True),
-    'shares_held': (float, True),
-    'gross_amount': (float, True),
-    'tax_withheld': (float, False),
-    'net_amount': (float, True),
-    'currency': (str, True),
-    'reinvested': (bool, False),
-    'source': (str, True),
-    'notes': (str, False),
-    'created_at': (str, True),
-    'updated_at': (str, True),
-}
 
 IMPORT_SCHEMA = {
     'filename': (str, True),
@@ -154,7 +129,6 @@ SCHEMAS = {
     'transactions': TRANSACTION_SCHEMA,
     'daily_prices': DAILY_PRICE_SCHEMA,
     'portfolio_snapshots': PORTFOLIO_SNAPSHOT_SCHEMA,
-    'dividends': DIVIDEND_SCHEMA,
     'imports': IMPORT_SCHEMA,
     'settings': SETTINGS_SCHEMA,
     'tax_lots': TAX_LOT_SCHEMA,

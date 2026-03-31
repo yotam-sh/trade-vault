@@ -6,7 +6,7 @@ import pandas as pd
 from app.column_map import MORNING_BALANCE_COLUMNS, MORNING_BALANCE_SKIP_NAMES, clean_percent
 from app.daily_prices import add_daily_price, get_prices_by_date
 from app.snapshots import generate_snapshot_from_prices
-from app.settings import get_setting
+
 from app.utils.date_utils import parse_date_from_filename, is_tase_weekend
 from app.utils.file_utils import check_duplicate
 from app.utils.holding_resolver import find_holding_by_name
@@ -47,7 +47,6 @@ def import_morning_balance_folder(folder_path):
 
     print(f"Found {len(dated_files)} morning balance files in {folder_path}")
 
-    ticker_map = get_setting('ticker_map', {})
     total_rows = 0
     files_imported = 0
     files_skipped = 0
@@ -106,16 +105,11 @@ def import_morning_balance_folder(folder_path):
                 holding_id = holding.doc_id
 
                 # Parse fields (weight/pct columns may contain '%' strings)
-                price = float(row.get('price', 0)) if pd.notna(row.get('price')) else 0
-                cost_basis = float(row.get('cost_basis', 0)) if pd.notna(row.get('cost_basis')) else 0
-                holding_weight = clean_percent(row.get('holding_weight_pct'))
-                fifo_cost = float(row.get('fifo_cost', 0)) if pd.notna(row.get('fifo_cost')) else None
+                price = round(float(row.get('price', 0)), 4) if pd.notna(row.get('price')) else 0
+                cost_basis = round(float(row.get('cost_basis', 0)), 2) if pd.notna(row.get('cost_basis')) else 0
+                fifo_cost = round(float(row.get('fifo_cost', 0)), 2) if pd.notna(row.get('fifo_cost')) else None
                 fifo_change_pct = clean_percent(row.get('fifo_change_pct'))
-                fifo_change_ils = float(row.get('fifo_change_ils', 0)) if pd.notna(row.get('fifo_change_ils')) else None
-                unrealized_pnl_pct = clean_percent(row.get('unrealized_pnl_pct'))
-
-                # Compute unrealized P&L
-                unrealized_pnl = market_value - cost_basis if cost_basis else None
+                fifo_change_ils = round(float(row.get('fifo_change_ils', 0)), 2) if pd.notna(row.get('fifo_change_ils')) else None
 
                 # Compute daily P&L from previous day
                 daily_pnl = 0
@@ -131,17 +125,17 @@ def import_morning_balance_folder(folder_path):
 
                         if abs(quantity - prev_qty) < 0.001:
                             # Same quantity: simple market value difference
-                            daily_pnl = market_value - prev_mv
+                            daily_pnl = round(market_value - prev_mv, 2)
                         else:
                             # Quantity changed (buy/sell): P&L only from price
                             # movement on shares held across both days
                             common_qty = min(prev_qty, quantity)
-                            daily_pnl = common_qty * (today_price_per - prev_price_per)
+                            daily_pnl = round(common_qty * (today_price_per - prev_price_per), 2)
 
                         if prev_price_per > 0:
-                            price_change_pct_val = (today_price_per - prev_price_per) / prev_price_per * 100
+                            price_change_pct_val = round((today_price_per - prev_price_per) / prev_price_per * 100, 4)
 
-                ticker_for_record = (holding and holding.get('ticker')) or ticker_map.get(name_raw) or name_raw
+                ticker_for_record = (holding and holding.get('ticker')) or name_raw
 
                 dp_data = {
                     'holding_id': holding_id,
@@ -154,9 +148,6 @@ def import_morning_balance_folder(folder_path):
                     'currency': 'ILS',
                     'price_change_pct': price_change_pct_val,
                     'daily_pnl': daily_pnl,
-                    'unrealized_pnl': unrealized_pnl,
-                    'unrealized_pnl_pct': unrealized_pnl_pct,
-                    'holding_weight_pct': holding_weight,
                     'fifo_cost': fifo_cost,
                     'fifo_change_pct': fifo_change_pct,
                     'fifo_change_ils': fifo_change_ils,
@@ -175,7 +166,7 @@ def import_morning_balance_folder(folder_path):
                 # Still record the import for dedup, but don't create price/snapshot records
                 create_import(
                     filename=os.path.basename(filepath),
-                    filepath=filepath,
+                    filepath=os.path.basename(filepath),
                     file_hash=fhash,
                     data_date=data_date,
                     import_type='morning_balance',
@@ -191,7 +182,7 @@ def import_morning_balance_folder(folder_path):
         # Create import record
         import_id = create_import(
             filename=os.path.basename(filepath),
-            filepath=filepath,
+            filepath=os.path.basename(filepath),
             file_hash=fhash,
             data_date=data_date,
             import_type='morning_balance',

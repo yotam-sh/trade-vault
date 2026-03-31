@@ -9,7 +9,7 @@ from collections import defaultdict
 from app.holdings import get_holding
 from app.snapshots import list_snapshots, get_latest_snapshot
 from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
-from app.dividends import total_dividends
+
 
 def get_daily_summary(start_date=None, end_date=None):
     """View 2: Daily summary (סיכום יומי) - daily portfolio with best/worst.

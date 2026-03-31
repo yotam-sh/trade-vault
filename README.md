@@ -25,6 +25,8 @@ Created with Claude Code.
 - **Best/worst performers** — Daily summary highlights top and bottom movers
 - **Closed position tracking** — P&L summary for fully sold positions
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
+- **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the English name is re-fetched from Yahoo Finance and the holding is updated silently; name changes are printed in the import log
+- **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
 - **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
 - **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L. Each cell is clickable (and keyboard-navigable) and navigates directly to that position's detail page
@@ -99,7 +101,7 @@ TradeVault/
 │   ├── transactions.py     # Buy/sell/deposit CRUD
 │   ├── daily_prices.py     # Per-security daily price records
 │   ├── tax_lots.py         # FIFO tax lot engine
-│   ├── dividends.py        # Dividend tracking
+│   ├── yfinance_cache.py   # yfinance data cache table (separate from holdings)
 │   ├── snapshots.py        # Portfolio snapshot generation
 │   ├── imports.py          # Import audit trail & dedup
 │   ├── queries.py          # Analytics facade (imports from analytics/ modules)
@@ -145,7 +147,8 @@ TradeVault/
 │   ├── logo.svg            # Favicon
 │   └── logo_with_name.svg  # Navigation header logo
 ├── db/
-│   └── db.json             # TinyDB database (auto-created)
+│   ├── db.json             # TinyDB database (auto-created)
+│   └── imports/            # DB export backups and pre-import safety copies (not tracked in git)
 └── data/                   # Your Excel data files (not tracked in git)
     ├── daily_data/         # Daily portfolio exports, organized by month
     ├── morning_balance/    # Historic morning balance files (DDMMYYYY.xlsx)
@@ -240,7 +243,7 @@ Lists all buy/sell transactions and closed position summaries.
 
 **Export (create a backup):**
 ```bash
-python main.py db export                         # saves db_backup_YYYY-MM-DD.json
+python main.py db export                         # saves db/imports/db_backup_YYYY-MM-DD.json
 python main.py db export path/to/backup.json     # custom output path
 ```
 Flushes the TinyDB cache and copies `db/db.json` to the output file. Use this to transfer your data between machines.
@@ -249,7 +252,7 @@ Flushes the TinyDB cache and copies `db/db.json` to the output file. Use this to
 ```bash
 python main.py db import path/to/backup.json --replace
 ```
-Validates the backup file, saves the current database as a `.bak` file for safety, then replaces the live database with the backup. The same export/import functionality is available in the web UI at `/admin` (Profile page, accessible from the settings dropdown).
+Validates the backup file, saves the current database as `db/imports/db.pre_import_<timestamp>.bak` for safety, then replaces the live database with the backup. The same export/import functionality is available in the web UI at `/admin` (Profile page, accessible from the settings dropdown).
 
 ### Setting tickers
 
@@ -516,9 +519,9 @@ Uses TinyDB (a lightweight JSON document database). The database file is created
 | `daily_prices` | Per-security per-day price and value snapshots |
 | `portfolio_snapshots` | End-of-day portfolio totals |
 | `tax_lots` | FIFO cost basis lots for capital gains tracking |
-| `dividends` | Dividend payment records |
+| `yfinance_cache` | Cached Yahoo Finance data per holding (price, sector, description, translations) |
 | `imports` | Audit trail of imported files (SHA-256 dedup) |
-| `settings` | Key/value configuration (currency, ticker map, etc.) |
+| `settings` | Key/value configuration (currency, yfinance mappings, etc.) |
 
 ### Resetting the database
 
@@ -559,6 +562,9 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
 - **Interpolation**: When a daily import detects position changes compared to the previous day, it automatically creates buy/sell transactions (unless a nearby real trade already exists). Three cases are handled: new holdings (full buy), disappeared holdings (full sell), and quantity changes on existing holdings (partial buy or partial sell). The `repair interpolated` command re-runs this inference from a given date with the latest logic
+- **yfinance cache isolation**: Yahoo Finance data (price, sector, description, Hebrew translations, fetch timestamps) is stored in a dedicated `yfinance_cache` table rather than embedded inside holding records. This keeps holdings lean and makes cache invalidation and TTL management clean
+- **Import audit linkage**: Every buy/sell transaction created by a trade import or interpolation carries an `import_id` reference back to its originating import record, enabling full traceability from transaction to source file
+- **daily_prices deduplication**: Duplicate price records are detected by `(holding_id, date)` rather than `(ticker, date)`, preventing spurious duplicates when a holding's ticker is updated between imports
 
 ## Credits
 

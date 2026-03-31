@@ -14,10 +14,11 @@ HOLDINGS = 'holdings'
 TRANSACTIONS = 'transactions'
 DAILY_PRICES = 'daily_prices'
 PORTFOLIO_SNAPSHOTS = 'portfolio_snapshots'
-DIVIDENDS = 'dividends'
+
 IMPORTS = 'imports'
 SETTINGS = 'settings'
 TAX_LOTS = 'tax_lots'
+YFINANCE_CACHE = 'yfinance_cache'
 
 _db_instance = None
 

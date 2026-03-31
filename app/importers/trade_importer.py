@@ -12,7 +12,7 @@ from app.tax_lots import create_lot, sell_fifo, get_open_lots
 from app.utils.date_utils import parse_date_from_filename
 from app.utils.file_utils import check_duplicate
 from app.utils.holding_resolver import find_or_create_holding
-from app.imports import create_import
+from app.imports import create_import, update_import
 from app.settings import get_setting
 
 
@@ -41,8 +41,16 @@ def import_trades(filepath, data_date=None):
     df = pd.read_excel(filepath)
     df.rename(columns=TRADE_COLUMNS, inplace=True)
 
-    # Get ticker map from settings
-    ticker_map = get_setting('ticker_map', {})
+    # Create import record first so transactions can reference it
+    import_id = create_import(
+        filename=os.path.basename(filepath),
+        filepath=os.path.basename(filepath),
+        file_hash=fhash,
+        data_date=data_date,
+        import_type='trade_history',
+        rows_imported=0,
+        status='in_progress',
+    )
 
     rows_imported = 0
     rows_skipped = 0
@@ -68,7 +76,7 @@ def import_trades(filepath, data_date=None):
                 continue
 
             exec_qty = float(exec_qty)
-            exec_price = float(row.get('exec_price', 0)) / 100  # Agorot -> ILS
+            exec_price = round(float(row.get('exec_price', 0)) / 100, 4)  # Agorot -> ILS
             if exec_price == 0:
                 rows_skipped += 1
                 continue
@@ -90,7 +98,7 @@ def import_trades(filepath, data_date=None):
             from app.holdings import get_holding_by_tase_id
             holding = get_holding_by_tase_id(tase_id)
             if holding is None:
-                ticker = ticker_map.get(symbol) or ticker_map.get(name_he) or symbol or name_he
+                ticker = symbol or name_he
                 doc_id = add_holding(
                     tase_id=tase_id,
                     tase_symbol=symbol,
@@ -117,6 +125,7 @@ def import_trades(filepath, data_date=None):
                     price_per_share=exec_price,
                     currency=currency,
                     source='trade_import',
+                    import_id=import_id,
                 )
                 create_lot(
                     holding_id=holding_id,
@@ -149,6 +158,7 @@ def import_trades(filepath, data_date=None):
                     sell_lot_details=sell_details,
                     currency=currency,
                     source='trade_import',
+                    import_id=import_id,
                 )
 
                 # Check if holding fully sold
@@ -157,20 +167,17 @@ def import_trades(filepath, data_date=None):
                     deactivate_holding(holding_id, last_sold=data_date)
                 sells += 1
 
-            securities.append(ticker_for_record)
+            securities.append(tase_id)
             rows_imported += 1
 
         except Exception as e:
             errors.append(f"Row {idx}: {str(e)}")
             rows_skipped += 1
 
-    # Create import record
-    import_id = create_import(
-        filename=os.path.basename(filepath),
-        filepath=filepath,
-        file_hash=fhash,
-        data_date=data_date,
-        import_type='trade_history',
+    # Update import record with final counts
+    update_import(
+        import_id,
+        status='success' if not errors else 'partial',
         rows_imported=rows_imported,
         rows_skipped=rows_skipped,
         new_holdings=new_holdings,
