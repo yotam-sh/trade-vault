@@ -567,8 +567,9 @@ def admin_db_import():
     tmp.close()
     file.save(tmp.name)
     try:
-        import_db(tmp.name)
-        flash('Database imported successfully' if lang == 'en' else 'מסד הנתונים יובא בהצלחה', 'success')
+        _, migration = import_db(tmp.name)
+        migrated_msg = f" (migrated {migration['yfinance_cache_migrated']} holdings to yfinance cache)" if migration['yfinance_cache_migrated'] else ''
+        flash(('Database imported successfully' + migrated_msg) if lang == 'en' else ('מסד הנתונים יובא בהצלחה' + migrated_msg), 'success')
     except ValueError as e:
         flash(f'Import failed: {e}' if lang == 'en' else f'ייבוא נכשל: {e}', 'error')
     finally:

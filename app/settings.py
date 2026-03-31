@@ -28,7 +28,10 @@ def set_setting(key, value):
 
 
 def init_default_settings():
-    """Initialize default settings if not already set."""
+    """Initialize default settings and run any pending schema migrations."""
+    from app.db_backup import migrate_db
+    migrate_db()
+
     defaults = {
         'default_currency': 'ILS',
         'cost_method': 'fifo',

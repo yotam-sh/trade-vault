@@ -252,7 +252,7 @@ Flushes the TinyDB cache and copies `db/db.json` to the output file. Use this to
 ```bash
 python main.py db import path/to/backup.json --replace
 ```
-Validates the backup file, saves the current database as `db/imports/db.pre_import_<timestamp>.bak` for safety, then replaces the live database with the backup. The same export/import functionality is available in the web UI at `/admin` (Profile page, accessible from the settings dropdown).
+Validates the backup file, saves the current database as `db/imports/db.pre_import_<timestamp>.bak` for safety, replaces the live database with the backup, then automatically migrates it to the current schema. The same export/import functionality is available in the web UI at `/admin` (Profile page, accessible from the settings dropdown).
 
 ### Setting tickers
 
@@ -562,6 +562,7 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
 - **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
 - **Interpolation**: When a daily import detects position changes compared to the previous day, it automatically creates buy/sell transactions (unless a nearby real trade already exists). Three cases are handled: new holdings (full buy), disappeared holdings (full sell), and quantity changes on existing holdings (partial buy or partial sell). The `repair interpolated` command re-runs this inference from a given date with the latest logic
+- **Schema versioning and auto-migration**: `db_backup.py` maintains a `SCHEMA_VERSION` constant. On every startup (`init_default_settings()`), `migrate_db()` checks the stored `schema_version` setting and runs any pending migrations (moving `yfinance_data` to the cache table, stripping obsolete fields, dropping dead tables, etc.). After migrating it stamps the new version so subsequent startups are a no-op. The same migration runs automatically after a DB import, so restoring an old backup always yields a fully up-to-date schema.
 - **yfinance cache isolation**: Yahoo Finance data (price, sector, description, Hebrew translations, fetch timestamps) is stored in a dedicated `yfinance_cache` table rather than embedded inside holding records. This keeps holdings lean and makes cache invalidation and TTL management clean
 - **Import audit linkage**: Every buy/sell transaction created by a trade import or interpolation carries an `import_id` reference back to its originating import record, enabling full traceability from transaction to source file
 - **daily_prices deduplication**: Duplicate price records are detected by `(holding_id, date)` rather than `(ticker, date)`, preventing spurious duplicates when a holding's ticker is updated between imports
