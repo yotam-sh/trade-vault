@@ -2,6 +2,7 @@
 
 from app.utils.file_utils import file_hash, check_duplicate
 from app.utils.date_utils import parse_date_from_filename, is_tase_weekend, parse_excel_date
+from app.utils.trading_calendar import is_tase_holiday, is_non_trading_day
 from app.utils.holding_resolver import find_holding_by_name, find_or_create_holding
 from app.utils.data_enrichment import enrich_position_with_holding, enrich_positions_batch
 
@@ -11,6 +12,8 @@ __all__ = [
     'parse_date_from_filename',
     'is_tase_weekend',
     'parse_excel_date',
+    'is_tase_holiday',
+    'is_non_trading_day',
     'find_holding_by_name',
     'find_or_create_holding',
     'enrich_position_with_holding',

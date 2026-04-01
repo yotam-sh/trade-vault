@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeVault — CLI Reference</title>
+<style>
+  :root {
+    --bg:        #0f1117;
+    --surface:   #1a1d27;
+    --border:    #2a2d3e;
+    --accent:    #7c6af7;
+    --accent2:   #3ecfcf;
+    --text:      #e2e4ef;
+    --muted:     #7a7f9a;
+    --code-bg:   #12141f;
+    --code-border:#2e3150;
+    --green:     #4ade80;
+    --yellow:    #fbbf24;
+    --red:       #f87171;
+    --nav-w:     260px;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.7;
+    display: flex;
+  }
+
+  /* ── Sidebar nav ─────────────────────────────────────────── */
+  nav {
+    width: var(--nav-w);
+    min-width: var(--nav-w);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .nav-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .nav-logo span { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .nav-logo sub  { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+
+  .nav-section { padding: 6px 20px 2px; font-size: 10px; letter-spacing: .12em;
+                 text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+  nav a {
+    display: block;
+    padding: 7px 20px 7px 28px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13.5px;
+    border-left: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  nav a:hover, nav a.active {
+    color: var(--text);
+    border-left-color: var(--accent);
+    background: rgba(124,106,247,.07);
+  }
+  nav a code { font-family: var(--font-mono); font-size: 12.5px; }
+
+  /* ── Content wrapper (centers main between nav and right edge) */
+  #content-wrap {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  /* ── Main content ────────────────────────────────────────── */
+  main {
+    width: 100%;
+    max-width: 860px;
+    padding: 48px 56px 80px;
+    overflow-x: hidden;
+  }
+
+  h1 { font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 14px; }
+
+  .meta-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 40px; }
+  .chip {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .chip-blue  { background: rgba(62,207,207,.12); color: var(--accent2); border: 1px solid rgba(62,207,207,.25); }
+  .chip-purple{ background: rgba(124,106,247,.12); color: var(--accent);  border: 1px solid rgba(124,106,247,.25); }
+  .chip-green { background: rgba(74,222,128,.12);  color: var(--green);   border: 1px solid rgba(74,222,128,.25); }
+
+  /* ── Sections ────────────────────────────────────────────── */
+  section {
+    margin-bottom: 52px;
+    padding-top: 8px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .cmd-badge {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    background: rgba(124,106,247,.15);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,247,.3);
+    padding: 2px 10px;
+    border-radius: 6px;
+  }
+
+  h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin: 24px 0 10px;
+  }
+
+  p { color: var(--text); margin-bottom: 12px; opacity: .9; }
+
+  /* ── Code blocks ─────────────────────────────────────────── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 10px 0 16px;
+    position: relative;
+  }
+  pre code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+    background: none;
+    padding: 0;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: rgba(255,255,255,.06);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--accent2);
+  }
+
+  .prompt { color: var(--muted); user-select: none; }
+  .kw  { color: var(--accent);  }
+  .arg { color: var(--accent2); }
+  .opt { color: var(--green);   }
+  .cmt { color: var(--muted); font-style: italic; }
+
+  /* ── Argument table ──────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 20px;
+    font-size: 13.5px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: var(--font-mono); font-size: 13px; color: var(--accent2); white-space: nowrap; }
+  td.opt-col     { font-family: var(--font-mono); font-size: 13px; color: var(--green);   white-space: nowrap; }
+  td.req-col     { font-family: var(--font-mono); font-size: 13px; color: var(--yellow);  white-space: nowrap; }
+  td.desc        { color: var(--muted); }
+  .badge {
+    display: inline-block; padding: 1px 7px; border-radius: 4px;
+    font-size: 11px; font-weight: 600; font-family: var(--font-sans);
+    white-space: nowrap;
+  }
+  .badge-req  { background: rgba(251,191,36,.12);  color: var(--yellow); border: 1px solid rgba(251,191,36,.3);  }
+  .badge-opt  { background: rgba(74,222,128,.10);  color: var(--green);  border: 1px solid rgba(74,222,128,.25); }
+  .badge-flag { background: rgba(62,207,207,.10);  color: var(--accent2);border: 1px solid rgba(62,207,207,.25); }
+
+  /* ── Callout boxes ───────────────────────────────────────── */
+  .callout {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    border-left: 3px solid;
+  }
+  .callout-info  { background: rgba(62,207,207,.07);  border-color: var(--accent2); }
+  .callout-warn  { background: rgba(251,191,36,.07);  border-color: var(--yellow);  }
+  .callout-tip   { background: rgba(74,222,128,.07);  border-color: var(--green);   }
+  .callout strong{ display: block; margin-bottom: 4px; }
+  .callout-info  strong { color: var(--accent2); }
+  .callout-warn  strong { color: var(--yellow);  }
+  .callout-tip   strong { color: var(--green);   }
+
+  /* ── Divider ─────────────────────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* ── Scrollbar ───────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Search bar ──────────────────────────────────────────── */
+  .search-wrap {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .search-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  #search-input {
+    flex: 1;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  #search-input:focus { border-color: var(--accent); }
+  #search-input.invalid { border-color: var(--red); }
+  #regex-btn {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 9px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color .15s, color .15s, background .15s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  #regex-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124,106,247,.1);
+  }
+  .search-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 15px;
+  }
+  .search-meta.no-match { color: var(--red); }
+  mark.sh {
+    background: rgba(251,191,36,.35);
+    color: var(--text);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  mark.sh.current { background: rgba(251,191,36,.75); }
+
+  /* hide sections that have no match */
+  section.search-hidden { display: none; }
+
+  @media (max-width: 720px) {
+    body { flex-direction: column; }
+    nav  { width: 100%; height: auto; position: static; padding: 16px 0; }
+    main { padding: 28px 20px 60px; }
+    #content-wrap { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════  SIDEBAR  ═══════════════════════ -->
+<nav>
+  <div class="nav-logo">
+    <span>TradeVault</span>
+    <sub>CLI Reference</sub>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-row">
+      <input id="search-input" type="text" placeholder="Search…" autocomplete="off" spellcheck="false">
+      <button id="regex-btn" title="Toggle regex mode">.*</button>
+    </div>
+    <div class="search-meta" id="search-meta"></div>
+  </div>
+
+  <div class="nav-section">Getting started</div>
+  <a href="#overview">Overview</a>
+  <a href="#quickstart">Quick start</a>
+
+  <div class="nav-section">Commands</div>
+  <a href="#import"><code>import</code></a>
+  <a href="#add"><code>add</code></a>
+  <a href="#show"><code>show</code></a>
+  <a href="#repair"><code>repair</code></a>
+  <a href="#set-ticker"><code>set-ticker</code></a>
+  <a href="#set-yfinance"><code>set-yfinance</code></a>
+  <a href="#refresh-yfinance"><code>refresh-yfinance</code></a>
+  <a href="#sync-holdings"><code>sync-holdings</code></a>
+  <a href="#db"><code>db</code></a>
+  <a href="#check-libs"><code>check-libs</code></a>
+  <a href="#upgrade-libs"><code>upgrade-libs</code></a>
+
+  <div class="nav-section">Reference</div>
+  <a href="#data-files">Data files</a>
+  <a href="#date-format">Date format</a>
+  <a href="#workflows">Workflows</a>
+</nav>
+
+<!-- ═══════════════════════  MAIN  ══════════════════════════ -->
+<div id="content-wrap">
+<main>
+
+  <h1>TradeVault CLI Reference</h1>
+  <p class="subtitle">Personal portfolio tracker for IBI brokerage — Israeli equities, Hebrew data</p>
+  <div class="meta-chips">
+    <span class="chip chip-blue">Python 3.10+</span>
+    <span class="chip chip-purple">TinyDB</span>
+    <span class="chip chip-green">Cross-platform</span>
+  </div>
+
+  <!-- ── Overview ─────────────────────────────────────────── -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>
+      <code>main.py</code> is the command-line interface for TradeVault. It handles importing
+      Excel exports from IBI brokerage, recording manual transactions, querying portfolio data,
+      and maintaining the local TinyDB database.
+    </p>
+    <p>
+      The Flask web UI (<code>server.py</code>) runs separately on port 5000 and provides the
+      full dashboard. The CLI is primarily used for importing data and one-off maintenance tasks.
+    </p>
+    <div class="callout callout-info">
+      <strong>Encoding note</strong>
+      All data is in Hebrew. On Windows, the CLI forces UTF-8 output automatically.
+      On Linux/macOS, ensure your terminal locale is UTF-8 (usually the default).
+    </div>
+  </section>
+
+  <!-- ── Quick start ──────────────────────────────────────── -->
+  <section id="quickstart">
+    <h2>Quick start</h2>
+    <pre><code><span class="cmt"># Install dependencies</span>
+<span class="prompt">$ </span><span class="kw">pip install</span> -r requirements.txt
+
+<span class="cmt"># Start the web UI</span>
+<span class="prompt">$ </span><span class="kw">python</span> server.py
+
+<span class="cmt"># Import today's daily portfolio snapshot</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import daily <span class="arg">"data/daily_data/apr_2026/data.xlsx"</span>
+
+<span class="cmt"># Import with a specific date</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import daily <span class="arg">"data/daily_data/apr_2026/data (1).xlsx"</span> <span class="opt">--date 2026-04-03</span>
+
+<span class="cmt"># Show portfolio summary</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py show portfolio</code></pre>
+    <div class="callout callout-tip">
+      <strong>Linux / TrueNAS</strong>
+      Replace <code>python</code> with <code>python3</code> if needed. Inside a virtualenv or
+      Docker container the <code>python</code> alias is typically correct.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ══════════════  COMMANDS  ══════════════════════════════ -->
+
+  <!-- import -->
+  <section id="import">
+    <h2><span class="cmd-badge">import</span> Import Excel data</h2>
+    <p>Imports data from IBI brokerage Excel exports into the local database.
+       Duplicate imports are detected via SHA-256 file hash and silently skipped.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py import <span class="arg">&lt;type&gt;</span> <span class="arg">&lt;file&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
+
+    <h3>Type argument</h3>
+    <table>
+      <tr><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td>daily</td>
+        <td class="desc">Daily portfolio snapshot (current holdings + prices). One file per trading day.
+            Expects a single <code>.xlsx</code> file.</td>
+      </tr>
+      <tr>
+        <td>trades</td>
+        <td class="desc">Trade history file from IBI. Accepts a single <code>.xlsx</code> or a
+            folder path — folder mode imports all <code>.xlsx</code> files sorted by filename date
+            (<code>DDMMYYYY.xlsx</code>).</td>
+      </tr>
+      <tr>
+        <td>morning-balance</td>
+        <td class="desc">Folder of historic morning-balance exports (one file per day).
+            Requires a <strong>folder path</strong>, not a single file. Computes daily P&amp;L
+            per holding using FIFO logic.</td>
+      </tr>
+    </table>
+
+    <h3>Options</h3>
+    <table>
+      <tr><th>Option</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td class="opt-col">--date</td>
+        <td><span class="badge badge-opt">optional</span></td>
+        <td class="desc">Override the data date (<code>YYYY-MM-DD</code>). Defaults to today
+            for <code>daily</code> imports; parsed from filename for <code>trades</code> and
+            <code>morning-balance</code> imports.</td>
+      </tr>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="cmt"># Daily snapshot — date defaults to today</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import daily <span class="arg">"data/daily_data/apr_2026/data.xlsx"</span>
+
+<span class="cmt"># Daily snapshot — explicit date (for a file imported late)</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import daily <span class="arg">"data/daily_data/apr_2026/data (1).xlsx"</span> <span class="opt">--date 2026-04-03</span>
+
+<span class="cmt"># Single trade file</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import trades <span class="arg">"data/trades/01042026.xlsx"</span>
+
+<span class="cmt"># Bulk trade import — all files in folder, ordered by filename date</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import trades <span class="arg">"data/trades/"</span>
+
+<span class="cmt"># Morning-balance folder (historic daily P&amp;L reconstruction)</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import morning-balance <span class="arg">"data/morning_balance/feb_2026/"</span></code></pre>
+  </section>
+
+  <!-- add -->
+  <section id="add">
+    <h2><span class="cmd-badge">add</span> Add a transaction</h2>
+    <p>Manually record a buy, sell, or cash deposit. Use this when a transaction is not
+       present in the IBI export or for correcting the database.</p>
+
+    <h3>Sub-commands</h3>
+
+    <h3>add buy</h3>
+    <pre><code><span class="kw">python</span> main.py add buy <span class="arg">&lt;ticker&gt;</span> <span class="arg">&lt;shares&gt;</span> <span class="arg">&lt;price&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
+    <table>
+      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+      <tr><td>ticker</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Yahoo Finance ticker (e.g. <code>GNRS.TA</code>). The holding must already
+              exist in the database (imported via daily snapshot first).</td></tr>
+      <tr><td>shares</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Number of shares purchased (decimal allowed).</td></tr>
+      <tr><td>price</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Price per share in ILS.</td></tr>
+      <tr><td class="opt-col">--date</td><td><span class="badge badge-opt">optional</span></td>
+          <td class="desc">Transaction date. Defaults to today.</td></tr>
+    </table>
+    <div class="callout callout-info">
+      <strong>Tax lot created automatically</strong>
+      Every buy creates a FIFO tax lot. Subsequent sells will consume this lot in order.
+    </div>
+
+    <h3>add sell</h3>
+    <pre><code><span class="kw">python</span> main.py add sell <span class="arg">&lt;ticker&gt;</span> <span class="arg">&lt;shares&gt;</span> <span class="arg">&lt;price&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
+    <p>Same arguments as <code>add buy</code>. Sells are processed FIFO across all open tax lots
+       for the ticker. Realized P&amp;L is printed to console.</p>
+
+    <h3>add deposit</h3>
+    <pre><code><span class="kw">python</span> main.py add deposit <span class="arg">&lt;amount&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
+    <table>
+      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+      <tr><td>amount</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Deposit amount in ILS.</td></tr>
+      <tr><td class="opt-col">--date</td><td><span class="badge badge-opt">optional</span></td>
+          <td class="desc">Transaction date. Defaults to today.</td></tr>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py add buy GNRS.TA <span class="arg">100</span> <span class="arg">52.30</span> <span class="opt">--date 2026-03-15</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py add sell GNRS.TA <span class="arg">50</span> <span class="arg">58.00</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py add deposit <span class="arg">50000</span> <span class="opt">--date 2026-01-10</span></code></pre>
+  </section>
+
+  <!-- show -->
+  <section id="show">
+    <h2><span class="cmd-badge">show</span> Display portfolio data</h2>
+    <p>Print portfolio data to the console. These are read-only queries.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py show <span class="arg">&lt;view&gt;</span> <span class="opt">[--all]</span></code></pre>
+
+    <h3>Views</h3>
+    <table>
+      <tr><th>View</th><th>Description</th></tr>
+      <tr><td>portfolio</td>
+          <td class="desc">Current portfolio value, cost basis, unrealized P&amp;L, daily P&amp;L, and
+              per-position breakdown sorted by market value.</td></tr>
+      <tr><td>holdings</td>
+          <td class="desc">List all active holdings (TASE symbol, name, ticker, security type).
+              Use <code>--all</code> to include inactive/closed positions.</td></tr>
+      <tr><td>pnl</td>
+          <td class="desc">P&amp;L summary including unrealized, realized, and total return metrics.</td></tr>
+      <tr><td>trades</td>
+          <td class="desc">Full trade history (buys/sells) plus a closed-positions summary with
+              average buy/sell prices and realized P&amp;L per position.</td></tr>
+    </table>
+
+    <h3>Options</h3>
+    <table>
+      <tr><th>Option</th><th>Applies to</th><th>Description</th></tr>
+      <tr>
+        <td class="opt-col">--all</td>
+        <td>holdings</td>
+        <td class="desc">Include inactive holdings (positions that have been fully sold).</td>
+      </tr>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py show portfolio
+<span class="prompt">$ </span><span class="kw">python</span> main.py show holdings
+<span class="prompt">$ </span><span class="kw">python</span> main.py show holdings <span class="opt">--all</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py show pnl
+<span class="prompt">$ </span><span class="kw">python</span> main.py show trades</code></pre>
+  </section>
+
+  <!-- repair -->
+  <section id="repair">
+    <h2><span class="cmd-badge">repair</span> Repair data issues</h2>
+    <p>Utility commands to fix data inconsistencies after re-imports or schema migrations.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py repair <span class="arg">&lt;target&gt;</span> <span class="opt">[--from-date YYYY-MM-DD]</span></code></pre>
+
+    <h3>Targets</h3>
+    <table>
+      <tr><th>Target</th><th>Description</th></tr>
+      <tr><td>morning-balance</td>
+          <td class="desc">Recompute daily P&amp;L for all morning-balance records. Removes stale
+              non-trading-day entries (weekends and Israeli holidays with zero P&amp;L) and
+              recalculates each day's per-holding gain/loss accounting for quantity changes.</td></tr>
+      <tr><td>interpolated</td>
+          <td class="desc">Clear all interpolated buy/sell transactions from a given date onwards
+              and re-detect them by comparing consecutive daily snapshots. Use after bulk
+              re-imports or if interpolated trades are incorrect.</td></tr>
+    </table>
+
+    <h3>Options</h3>
+    <table>
+      <tr><th>Option</th><th>Applies to</th><th>Description</th></tr>
+      <tr>
+        <td class="opt-col">--from-date</td>
+        <td>interpolated</td>
+        <td class="desc">Only reprocess from this date onwards (<code>YYYY-MM-DD</code>).
+            Default: <code>2026-02-02</code>.</td>
+      </tr>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py repair morning-balance
+<span class="prompt">$ </span><span class="kw">python</span> main.py repair interpolated
+<span class="prompt">$ </span><span class="kw">python</span> main.py repair interpolated <span class="opt">--from-date 2026-01-01</span></code></pre>
+    <div class="callout callout-warn">
+      <strong>Destructive operation</strong>
+      <code>repair interpolated</code> deletes and re-creates interpolated transactions. Run
+      <code>python main.py db export</code> first as a precaution.
+    </div>
+  </section>
+
+  <!-- set-ticker -->
+  <section id="set-ticker">
+    <h2><span class="cmd-badge">set-ticker</span> Assign a Yahoo Finance ticker</h2>
+    <p>Assign a Yahoo Finance ticker symbol to a holding. The ticker is used by
+       <code>show portfolio</code> and other commands that display per-position data.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py set-ticker <span class="arg">&lt;search&gt;</span> <span class="arg">&lt;ticker&gt;</span></code></pre>
+
+    <h3>Arguments</h3>
+    <table>
+      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+      <tr><td>search</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">TASE paper number (numeric) or partial Hebrew name string.
+              If multiple matches are found, all are listed and the command exits.</td></tr>
+      <tr><td>ticker</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Yahoo Finance ticker to assign (e.g. <code>TLV.TA</code>, <code>AAPL</code>).</td></tr>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="cmt"># By TASE paper number</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py set-ticker <span class="arg">1156926</span> GNRS.TA
+
+<span class="cmt"># By partial name search</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py set-ticker <span class="arg">"גרנות"</span> GNRS.TA</code></pre>
+  </section>
+
+  <!-- set-yfinance -->
+  <section id="set-yfinance">
+    <h2><span class="cmd-badge">set-yfinance</span> Map TASE paper to Yahoo Finance</h2>
+    <p>Creates a mapping between a TASE paper number and a Yahoo Finance symbol, then immediately
+       fetches the English name and ticker from Yahoo Finance and stores it in the holding record.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py set-yfinance <span class="arg">&lt;tase_id&gt;</span> <span class="arg">&lt;yfinance_symbol&gt;</span></code></pre>
+
+    <h3>Arguments</h3>
+    <table>
+      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+      <tr><td>tase_id</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">TASE paper number (integer). Find it via <code>show holdings</code>.</td></tr>
+      <tr><td>yfinance_symbol</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Yahoo Finance symbol. Israeli stocks usually end in <code>.TA</code>.</td></tr>
+    </table>
+
+    <h3>Examples</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py set-yfinance <span class="arg">1156926</span> GNRS.TA
+<span class="prompt">$ </span><span class="kw">python</span> main.py set-yfinance <span class="arg">695437</span> NICE</code></pre>
+  </section>
+
+  <!-- refresh-yfinance -->
+  <section id="refresh-yfinance">
+    <h2><span class="cmd-badge">refresh-yfinance</span> Refresh Yahoo Finance data</h2>
+    <p>Re-fetches stock info (English name, sector, description) from Yahoo Finance for all
+       existing <code>set-yfinance</code> mappings. Useful after a library upgrade or when
+       data is stale.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py refresh-yfinance</code></pre>
+
+    <h3>Example</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py refresh-yfinance</code></pre>
+  </section>
+
+  <!-- sync-holdings -->
+  <section id="sync-holdings">
+    <h2><span class="cmd-badge">sync-holdings</span> Sync active-flag with portfolio</h2>
+    <p>Reads the latest portfolio snapshot and sets <code>is_active = true</code> for holdings
+       with a current position (quantity &gt; 0) and <code>is_active = false</code> for holdings
+       no longer held. Useful after a bulk import or manual DB correction.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py sync-holdings</code></pre>
+
+    <h3>Example</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py sync-holdings</code></pre>
+  </section>
+
+  <!-- db -->
+  <section id="db">
+    <h2><span class="cmd-badge">db</span> Database management</h2>
+    <p>Export and import the TinyDB JSON database. Exports create a portable backup;
+       imports replace the current database after running schema migrations.</p>
+
+    <h3>db export</h3>
+    <pre><code><span class="kw">python</span> main.py db export <span class="opt">[output_path]</span></code></pre>
+    <table>
+      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+      <tr><td class="opt-col">output_path</td><td><span class="badge badge-opt">optional</span></td>
+          <td class="desc">Destination file path. Defaults to
+              <code>db_backup_YYYY-MM-DD.json</code> in the project root.</td></tr>
+    </table>
+
+    <h3>db import</h3>
+    <pre><code><span class="kw">python</span> main.py db import <span class="arg">&lt;input_path&gt;</span> <span class="opt">--replace</span></code></pre>
+    <table>
+      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+      <tr><td>input_path</td><td><span class="badge badge-req">required</span></td>
+          <td class="desc">Path to the backup JSON file.</td></tr>
+      <tr><td class="opt-col">--replace</td><td><span class="badge badge-flag">required flag</span></td>
+          <td class="desc">Safety flag — must be provided explicitly to confirm the destructive
+              replace operation. The current DB is backed up automatically before replacing.</td></tr>
+    </table>
+    <p>On import, several schema migrations run automatically: yfinance cache migration,
+       field cleanup, dividend table removal, ticker_map removal, and import path normalisation.</p>
+
+    <h3>Examples</h3>
+    <pre><code><span class="cmt"># Export with default filename</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py db export
+
+<span class="cmt"># Export to a specific path</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py db export <span class="arg">backups/db_before_migration.json</span>
+
+<span class="cmt"># Replace DB from a backup (current DB is auto-backed-up first)</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py db import <span class="arg">backups/db_before_migration.json</span> <span class="opt">--replace</span></code></pre>
+    <div class="callout callout-warn">
+      <strong>Destructive operation</strong>
+      <code>db import --replace</code> overwrites the live database. The previous DB is saved to
+      <code>db/*.bak</code> automatically, but always verify the backup before proceeding.
+    </div>
+  </section>
+
+  <!-- check-libs -->
+  <section id="check-libs">
+    <h2><span class="cmd-badge">check-libs</span> Show outdated packages</h2>
+    <p>Runs <code>pip list --outdated</code> to list packages with newer versions available,
+       then updates the last-checked timestamp. The app also prints a reminder at startup
+       if this check is more than 60 days old.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py check-libs</code></pre>
+
+    <h3>Example output</h3>
+    <pre><code>Checking for outdated packages...
+Package    Version  Latest  Type
+---------- -------- ------- -----
+holidays   0.93     0.95    wheel
+yfinance   0.2.50   0.2.54  wheel
+
+Last-checked date updated to 2026-04-02.</code></pre>
+    <div class="callout callout-tip">
+      <strong>Last-checked file</strong>
+      The timestamp is stored in <code>data/lib_check.json</code> and is gitignored — each
+      environment (dev, production) maintains its own schedule independently.
+    </div>
+  </section>
+
+  <!-- upgrade-libs -->
+  <section id="upgrade-libs">
+    <h2><span class="cmd-badge">upgrade-libs</span> Upgrade all packages</h2>
+    <p>Runs <code>pip install --upgrade -r requirements.txt</code> using the same Python
+       interpreter that is running the app (<code>sys.executable</code>), ensuring the correct
+       virtualenv is always targeted on both Windows and Linux.</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py upgrade-libs</code></pre>
+
+    <div class="callout callout-warn">
+      <strong>Production note</strong>
+      On TrueNAS/Portainer, run this inside the container (e.g.
+      <code>docker exec -it &lt;container&gt; python main.py upgrade-libs</code>) to upgrade the
+      container's environment, not the host. Rebuild the image to make upgrades permanent.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ── Reference ────────────────────────────────────────── -->
+  <section id="data-files">
+    <h2>Data files</h2>
+    <table>
+      <tr><th>Path</th><th>Purpose</th></tr>
+      <tr><td>data/daily_data/<em>mon_YYYY</em>/</td>
+          <td class="desc">Folder per month containing IBI daily snapshot Excel files
+              (<code>data.xlsx</code>, <code>data (1).xlsx</code>, …).</td></tr>
+      <tr><td>data/IBI.xlsx</td>
+          <td class="desc">Full transaction history export from IBI with right-side summary panel.</td></tr>
+      <tr><td>data/lib_check.json</td>
+          <td class="desc">Stores the last library-check date. Not committed to git.</td></tr>
+      <tr><td>db/db.json</td>
+          <td class="desc">TinyDB database (8 tables). Do not edit manually.</td></tr>
+      <tr><td>db/*.bak</td>
+          <td class="desc">Automatic backup created before each <code>db import</code>.</td></tr>
+    </table>
+  </section>
+
+  <section id="date-format">
+    <h2>Date format</h2>
+    <p>All dates use ISO format: <code>YYYY-MM-DD</code> (e.g. <code>2026-04-02</code>).</p>
+    <p>Trade and morning-balance filenames use <code>DDMMYYYY.xlsx</code> — the CLI parses
+       the date automatically from the filename when no <code>--date</code> flag is given.</p>
+    <div class="callout callout-info">
+      <strong>TASE trading schedule</strong>
+      Before 2026-01-05 TASE traded Sun–Thu. From 2026-01-05 it switched to Mon–Fri.
+      The app handles both regimes automatically. Israeli public holidays (Passover, Rosh Hashana,
+      Yom Kippur, etc.) are also recognised as non-trading days via the
+      <code>holidays</code> library.
+    </div>
+  </section>
+
+  <section id="workflows">
+    <h2>Common workflows</h2>
+
+    <h3>Daily data import</h3>
+    <pre><code><span class="cmt"># 1. Download today's export from IBI and save to the monthly folder</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import daily <span class="arg">"data/daily_data/apr_2026/data (5).xlsx"</span> <span class="opt">--date 2026-04-08</span></code></pre>
+
+    <h3>New holding setup (first time)</h3>
+    <pre><code><span class="cmt"># 1. Import a daily snapshot (creates the holding record)</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py import daily <span class="arg">"data/daily_data/apr_2026/data.xlsx"</span>
+
+<span class="cmt"># 2. Find the TASE ID</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py show holdings
+
+<span class="cmt"># 3. Map to Yahoo Finance for English name + price data</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py set-yfinance <span class="arg">1156926</span> GNRS.TA</code></pre>
+
+    <h3>Moving DB to production (TrueNAS)</h3>
+    <pre><code><span class="cmt"># On dev machine: export</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py db export <span class="arg">db_transfer.json</span>
+
+<span class="cmt"># Copy db_transfer.json to the server, then inside the container:</span>
+<span class="prompt">$ </span>docker exec -it tradevault <span class="kw">python</span> main.py db import <span class="arg">db_transfer.json</span> <span class="opt">--replace</span></code></pre>
+
+    <h3>Checking and upgrading libraries</h3>
+    <pre><code><span class="cmt"># See what's outdated</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py check-libs
+
+<span class="cmt"># Upgrade everything</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py upgrade-libs</code></pre>
+  </section>
+
+</main>
+</div><!-- /content-wrap -->
+
+<script>
+  // ── Active nav link on scroll ───────────────────────────────
+  const sections  = document.querySelectorAll('section[id]');
+  const navLinks  = document.querySelectorAll('nav a[href^="#"]');
+  const observer  = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+
+  // ── Search with regex support ───────────────────────────────
+  const searchInput = document.getElementById('search-input');
+  const regexBtn    = document.getElementById('regex-btn');
+  const searchMeta  = document.getElementById('search-meta');
+  let useRegex      = false;
+
+  regexBtn.addEventListener('click', () => {
+    useRegex = !useRegex;
+    regexBtn.classList.toggle('active', useRegex);
+    runSearch();
+  });
+
+  searchInput.addEventListener('input', runSearch);
+
+  // Walk text nodes and wrap matches with <mark class="sh">
+  function highlightNode(node, re) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      const m    = re.exec(text);
+      if (!m || m[0].length === 0) return false;
+      const span = document.createElement('span');
+      let last = 0;
+      re.lastIndex = 0;
+      let match;
+      while ((match = re.exec(text)) !== null) {
+        if (match[0].length === 0) { re.lastIndex++; continue; }
+        span.appendChild(document.createTextNode(text.slice(last, match.index)));
+        const mark = document.createElement('mark');
+        mark.className = 'sh';
+        mark.textContent = match[0];
+        span.appendChild(mark);
+        last = match.index + match[0].length;
+      }
+      span.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(span, node);
+      return true;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
+      let found = false;
+      for (const child of Array.from(node.childNodes)) {
+        if (highlightNode(child, re)) found = true;
+      }
+      return found;
+    }
+    return false;
+  }
+
+  // Remove all existing <mark class="sh"> wrappers
+  function clearHighlights() {
+    document.querySelectorAll('mark.sh').forEach(mark => {
+      mark.replaceWith(document.createTextNode(mark.textContent));
+    });
+    // Merge adjacent text nodes to keep the DOM clean
+    document.querySelectorAll('main *').forEach(n => n.normalize());
+    document.querySelector('main').normalize();
+  }
+
+  function runSearch() {
+    clearHighlights();
+    sections.forEach(s => s.classList.remove('search-hidden'));
+    searchInput.classList.remove('invalid');
+    searchMeta.textContent = '';
+    searchMeta.className   = 'search-meta';
+
+    const raw = searchInput.value;
+    if (!raw) return;
+
+    let re;
+    try {
+      re = useRegex ? new RegExp(raw, 'gi') : new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    } catch(e) {
+      searchInput.classList.add('invalid');
+      searchMeta.textContent = 'Invalid regex: ' + e.message;
+      searchMeta.className   = 'search-meta no-match';
+      return;
+    }
+
+    let totalMatches = 0;
+    let visibleSections = 0;
+
+    sections.forEach(sec => {
+      re.lastIndex = 0;
+      const clone = sec.cloneNode(true); // test without mutating yet
+      const hasMatch = re.test(clone.textContent);
+      if (!hasMatch) {
+        sec.classList.add('search-hidden');
+      } else {
+        visibleSections++;
+        re.lastIndex = 0;
+        highlightNode(sec, new RegExp(re.source, re.flags));
+        totalMatches += sec.querySelectorAll('mark.sh').length;
+      }
+    });
+
+    if (totalMatches === 0) {
+      searchMeta.textContent = 'No matches';
+      searchMeta.className   = 'search-meta no-match';
+    } else {
+      searchMeta.textContent = `${totalMatches} match${totalMatches !== 1 ? 'es' : ''} in ${visibleSections} section${visibleSections !== 1 ? 's' : ''}`;
+    }
+  }
+</script>
+</body>
+</html>

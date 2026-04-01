@@ -7,7 +7,8 @@ from app.column_map import MORNING_BALANCE_COLUMNS, MORNING_BALANCE_SKIP_NAMES, 
 from app.daily_prices import add_daily_price, get_prices_by_date
 from app.snapshots import generate_snapshot_from_prices
 
-from app.utils.date_utils import parse_date_from_filename, is_tase_weekend
+from app.utils.date_utils import parse_date_from_filename
+from app.utils.trading_calendar import is_non_trading_day
 from app.utils.file_utils import check_duplicate
 from app.utils.holding_resolver import find_holding_by_name
 from app.imports import create_import
@@ -160,7 +161,7 @@ def import_morning_balance_folder(folder_path):
                 rows_skipped += 1
 
         # Skip non-trading days: all P&L zero, TASE weekend, and not the first day
-        if prev_prices_map is not None and daily_prices_list and is_tase_weekend(data_date):
+        if prev_prices_map is not None and daily_prices_list and is_non_trading_day(data_date):
             all_zero = all(abs(dp.get('daily_pnl', 0)) < 0.01 for dp in daily_prices_list)
             if all_zero:
                 # Still record the import for dedup, but don't create price/snapshot records

@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
+from app.lib_check import startup_check, run_check_libs, run_upgrade_libs
 from app.importers import import_daily_portfolio, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl, repair_interpolated_trades
 from app.holdings import list_holdings, get_holding_by_ticker, set_ticker
 from app.transactions import add_buy, add_sell, add_deposit
@@ -442,6 +443,16 @@ def cmd_db(args):
         print('Usage: main.py db export [path] | db import <path> --replace')
 
 
+def cmd_check_libs(args):
+    """Show outdated packages and update the last-checked timestamp."""
+    run_check_libs()
+
+
+def cmd_upgrade_libs(args):
+    """Upgrade all packages in requirements.txt to their latest versions."""
+    run_upgrade_libs()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='TradeVault: Personal portfolio tracker',
@@ -533,11 +544,24 @@ def main():
 
     p_db.set_defaults(func=cmd_db)
 
+    # check-libs command
+    p_check = subparsers.add_parser('check-libs',
+                                    help='Show outdated Python packages')
+    p_check.set_defaults(func=cmd_check_libs)
+
+    # upgrade-libs command
+    p_upgrade = subparsers.add_parser('upgrade-libs',
+                                      help='Upgrade all packages in requirements.txt')
+    p_upgrade.set_defaults(func=cmd_upgrade_libs)
+
     args = parser.parse_args()
 
     if not args.command:
         parser.print_help()
         return
+
+    # Show library reminder on every invocation (silent when check is recent)
+    startup_check()
 
     args.func(args)
 

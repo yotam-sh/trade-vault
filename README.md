@@ -16,6 +16,9 @@ Created with Claude Code.
 - **Morning balance import** — Bulk import historic morning balance files (DDMMYYYY.xlsx), computing daily P&L from consecutive-day comparisons with quantity-aware logic
 - **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions; handles new positions, closed positions, and quantity changes on existing positions (partial buys/sells)
 - **Data repair** — CLI repair commands fix P&L miscalculations, backfill missing percentages, remove non-trading days, and re-run trade interpolation from a given date
+- **Israeli holiday calendar** — Full TASE trading-day awareness via the `holidays` library: all Israeli public holidays (Passover, Rosh Hashana, Yom Kippur, Sukkot, Independence Day, etc.), holiday eves, and selected optional holidays (Purim, Memorial Day, Tisha B'Av) are treated as non-trading days. Monthly trading-day counts used for partial-month detection are computed from this calendar, not just weekday arithmetic
+- **Library update reminders** — A bimonthly console reminder prompts you to check for outdated packages. `check-libs` shows what's outdated; `upgrade-libs` upgrades everything in `requirements.txt` using the correct Python interpreter (safe across virtualenvs and Docker containers)
+- **CLI documentation** — `docs/cli.html`: a standalone dark-themed reference page with sticky sidebar navigation and a regex-capable search bar
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
 - **Web dashboard** — Seven views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, and positions — plus Profile and Accessibility pages accessible from the settings menu
@@ -124,11 +127,13 @@ TradeVault/
 │   │   ├── position_tracker.py         # Position change detection
 │   │   ├── repair_tools.py             # Data repair and validation
 │   │   └── trade_importer.py           # Trade file imports
+│   ├── lib_check.py            # Bimonthly library update reminder + check/upgrade commands
 │   └── utils/              # Shared utilities
 │       ├── data_enrichment.py      # Centralized name/ticker enrichment
-│       ├── date_utils.py           # TASE calendar and date helpers
+│       ├── date_utils.py           # TASE weekend schedule helpers
 │       ├── file_utils.py           # File path and hash utilities
 │       ├── holding_resolver.py     # Name-based holding matching
+│       ├── trading_calendar.py     # Israeli holiday calendar (is_non_trading_day)
 │       └── translation_service.py  # Yahoo Finance API integration
 ├── templates/
 │   ├── index.html          # Dashboard
@@ -141,6 +146,8 @@ TradeVault/
 │   ├── graphs.html         # Graphs & charts
 │   ├── admin.html          # Profile (backup/restore)
 │   └── accessibility.html  # IS 5568 accessibility statement
+├── docs/
+│   └── cli.html            # Standalone CLI reference (dark theme, regex search)
 ├── static/
 │   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
 │   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
@@ -179,14 +186,14 @@ Parses individual trade order files (format: `DDMMYYYY.xlsx`). Creates buy/sell 
 ```bash
 python main.py import morning-balance <folderpath>
 ```
-Bulk imports historic morning balance Excel files (`DDMMYYYY.xlsx`) from a folder recursively. Processes files chronologically, computing daily P&L from consecutive-day comparisons. Quantity changes between days (buys/sells) are handled correctly — only price movement on shares held across both days counts as P&L. Non-trading days (detected by zero P&L on TASE weekend days) are automatically skipped.
+Bulk imports historic morning balance Excel files (`DDMMYYYY.xlsx`) from a folder recursively. Processes files chronologically, computing daily P&L from consecutive-day comparisons. Quantity changes between days (buys/sells) are handled correctly — only price movement on shares held across both days counts as P&L. Non-trading days (TASE weekends and Israeli public holidays) are automatically skipped.
 
 ### Repairing data
 
 ```bash
 python main.py repair morning-balance
 ```
-Recomputes daily P&L and price change percentages for all morning balance imports, regenerates snapshots, and removes non-trading days. Safe to run multiple times (idempotent). Handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05).
+Recomputes daily P&L and price change percentages for all morning balance imports, regenerates snapshots, and removes non-trading days (weekends and Israeli public holidays). Safe to run multiple times (idempotent). Handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05).
 
 ```bash
 python main.py repair interpolated [--from-date YYYY-MM-DD]
@@ -280,6 +287,26 @@ python main.py refresh-yfinance
 ```
 Re-fetches English names and tickers for all securities that have been mapped to Yahoo Finance symbols. Useful for updating stock information after yfinance data changes.
 
+### Checking and upgrading libraries
+
+**Show outdated packages:**
+```bash
+python main.py check-libs
+```
+Runs `pip list --outdated` and prints a table of packages with newer versions available. Updates the last-checked timestamp in `data/lib_check.json`. The app prints a reminder at startup (CLI and server) if more than 60 days have passed since the last check.
+
+**Upgrade all packages:**
+```bash
+python main.py upgrade-libs
+```
+Runs `pip install --upgrade -r requirements.txt` using the same Python interpreter as the running app (`sys.executable`), so the correct virtualenv or container environment is always targeted. On TrueNAS/Portainer, run this inside the container: `docker exec -it <container> python main.py upgrade-libs`.
+
+> The last-checked timestamp (`data/lib_check.json`) is gitignored — each environment (dev, production) maintains its own independent schedule.
+
+### Full CLI reference
+
+A detailed HTML reference with argument tables, examples, and a regex-capable search bar is available at [`docs/cli.html`](docs/cli.html) — open it directly in any browser, or access it from the settings (⚙) dropdown in the web UI at `/docs/cli`.
+
 ## Web Dashboard
 
 Start the server:
@@ -311,6 +338,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 **Pages:**
 - **Profile** — Database backup and restore (formerly "Admin")
 - **Accessibility** — IS 5568 accessibility statement
+- **CLI Docs** — Full CLI reference (`docs/cli.html`), also served at `/docs/cli`
 
 ### Pages
 
@@ -326,6 +354,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Graphs** | `/graphs` | Seven interactive charts: portfolio value vs net invested, monthly return %, historical performance, drawdown from peak, daily P&L heatmap, asset allocation over time, and P&L by position — with drag-and-drop layout, resizable cards, show/hide per chart, and a reset-layout button |
 | **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database) — accessible from the settings (⚙) dropdown |
 | **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
+| **CLI Docs** | `/docs/cli` | Full CLI reference page (dark theme, regex search) — accessible from the settings (⚙) dropdown |
 
 ### Uploading daily files via the web
 
@@ -552,9 +581,9 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
 - **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie. Chart.js charts use a `MutationObserver` on the `data-theme` attribute to read updated CSS variable values and re-render with the new palette immediately.
-- **TASE schedule awareness**: The codebase handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05). Non-trading day detection, morning balance import skipping, and the repair command all use `_is_tase_weekend()` which checks the date against the correct schedule.
+- **TASE trading calendar**: `app/utils/trading_calendar.py` provides `is_non_trading_day()`, which combines weekend detection (`date_utils.is_tase_weekend()`, handling the Sun-Thu→Mon-Fri switch on 2026-01-05) with Israeli public holiday detection via the `holidays` library (PUBLIC holidays + eves + selected OPTIONAL holidays: Purim, Memorial Day, Tisha B'Av). All non-trading-day checks throughout the codebase (morning balance import skipping, repair cleanup, daily analytics filtering) use this single function.
 - **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
-- **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months using a TASE trading-day heuristic.
+- **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months by comparing actual snapshot count to expected TASE trading days (computed via `trading_calendar.is_non_trading_day()`, accounting for weekends and Israeli holidays).
 - **No brokerage dependency**: The Summary panel (`get_transaction_summary()`) computes all metrics — total deposits, net invested, cost change — from live transaction and snapshot data. Deposits and withdrawals are entered via the web UI or CLI; no brokerage-specific file import is needed.
 - **Date sorting**: Table sort uses an ISO date regex guard (`/^\d{4}-\d{2}-\d{2}$/`) before falling back to `parseFloat`, so YYYY-MM-DD dates sort correctly instead of all comparing equal within the same year
 - **Windows DB import**: `NamedTemporaryFile` on Windows keeps an exclusive file handle open; the import route explicitly calls `tmp.close()` before writing the uploaded file so `os.unlink` can succeed after import

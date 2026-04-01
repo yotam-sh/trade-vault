@@ -2,7 +2,7 @@
 
 from app.connection import get_table, DAILY_PRICES, IMPORTS, PORTFOLIO_SNAPSHOTS, TRANSACTIONS, TAX_LOTS
 from app.snapshots import generate_snapshot_from_prices
-from app.utils.date_utils import is_tase_weekend
+from app.utils.trading_calendar import is_non_trading_day
 from tinydb import Query
 
 
@@ -125,7 +125,7 @@ def _remove_zero_change_days(prices_table, by_date, dates):
     removed_count = 0
 
     for date in dates:
-        if not is_tase_weekend(date):
+        if not is_non_trading_day(date):
             continue
 
         records = by_date.get(date, [])

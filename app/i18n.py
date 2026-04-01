@@ -14,6 +14,7 @@ TRANSLATIONS = {
     'nav_positions':      {'he': 'פוזיציות',      'en': 'Positions'},
     'nav_admin':          {'he': 'פרופיל',         'en': 'Profile'},
     'nav_accessibility':  {'he': 'נגישות',         'en': 'Accessibility'},
+    'nav_cli_docs':       {'he': 'תיעוד CLI',      'en': 'CLI Docs'},
     'accessibility_title': {'he': 'הצהרת נגישות', 'en': 'Accessibility Statement'},
 
     # ── Common controls ──

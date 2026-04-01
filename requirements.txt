@@ -5,3 +5,4 @@ openpyxl>=3.1,<4.0
 yfinance>=0.2.50
 deep-translator>=1.11,<2.0
 gunicorn>=22.0,<24.0
+holidays>=0.93

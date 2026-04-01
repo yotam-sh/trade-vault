@@ -32,6 +32,9 @@ from app.analytics import (
     get_top_positions_pnl,
 )
 
+from app.lib_check import startup_check
+startup_check()
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'tradevault-dev-key-change-in-production')
 app.jinja_env.auto_reload = True
@@ -580,6 +583,11 @@ def admin_db_import():
 @app.route('/accessibility')
 def accessibility_view():
     return render_template('accessibility.html')
+
+
+@app.route('/docs/cli')
+def cli_docs():
+    return send_file(os.path.join(os.path.dirname(__file__), 'docs', 'cli.html'))
 
 
 @app.route('/health')

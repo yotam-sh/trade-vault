@@ -4,18 +4,16 @@ import calendar
 from datetime import date
 from app.snapshots import list_snapshots, get_latest_snapshot
 from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
+from app.utils.trading_calendar import is_non_trading_day
 
 
-def _count_sun_thu_days(year, month):
-    """Count Sunday-Thursday weekdays in a given month (TASE trading days)."""
+def _count_trading_days(year, month):
+    """Count TASE trading days in a given month (excludes weekends and Israeli holidays)."""
     _, num_days = calendar.monthrange(year, month)
-    count = 0
-    for day in range(1, num_days + 1):
-        # weekday(): Mon=0 .. Sun=6.  TASE trades Sun(6)-Thu(3)
-        wd = calendar.weekday(year, month, day)
-        if wd == 6 or wd <= 3:  # Sun, Mon, Tue, Wed, Thu
-            count += 1
-    return count
+    return sum(
+        1 for day in range(1, num_days + 1)
+        if not is_non_trading_day(f'{year}-{month:02d}-{day:02d}')
+    )
 
 
 def _compute_monthly_summaries():
@@ -74,7 +72,7 @@ def _compute_monthly_summaries():
 
         # Trading day completeness
         year, month = int(month_key[:4]), int(month_key[5:7])
-        expected = _count_sun_thu_days(year, month)
+        expected = _count_trading_days(year, month)
         actual = len(month_snaps)
 
         today = date.today()
