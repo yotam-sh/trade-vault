@@ -20,6 +20,7 @@ def enrich_position_with_holding(position, holding_id=None):
     enriched['name_he'] = holding['name_he'] if holding else position.get('ticker', '')
     enriched['name_en'] = holding.get('name_en') if holding else None
     enriched['symbol'] = holding['tase_symbol'] if holding else position.get('ticker', '')
+    enriched['symbol_en'] = holding.get('tase_symbol_en') if holding else None  # English TASE symbol
     enriched['ticker'] = holding.get('ticker') if holding else None  # Yahoo Finance ticker
     enriched['security_type'] = holding.get('security_type', 'other') if holding else 'other'
 

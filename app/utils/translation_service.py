@@ -9,6 +9,74 @@ from app.settings import get_setting, set_setting
 from app.yfinance_cache import get_yfinance_cache, upsert_yfinance_cache
 
 
+def fetch_data_from_tase(tase_id):
+    """Fetch English name and Yahoo Finance ticker from the TASE API.
+
+    Uses the public TASE market data API (lang=1 returns English names).
+    No authentication required — standard browser headers are sufficient.
+
+    The TASE Symbol field (e.g. "STRK-M", "IBI.F35") is converted to a
+    Yahoo Finance ticker by replacing dots with hyphens and appending ".TA"
+    (e.g. "STRK-M.TA", "IBI-F35.TA").
+
+    Args:
+        tase_id: TASE security ID (int or str)
+
+    Returns:
+        {'name': str, 'ticker': str} on success, or None on failure
+
+    Example:
+        >>> fetch_data_from_tase(1169895)
+        {'name': 'STARK POWER-M', 'ticker': 'STRK-M.TA'}
+    """
+    import requests
+    try:
+        r = requests.get(
+            f'https://api.tase.co.il/api/company/securitydata?securityId={tase_id}&lang=1',
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+                'Referer': 'https://market.tase.co.il/',
+                'Origin': 'https://market.tase.co.il',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-site',
+            },
+            timeout=8,
+        )
+        if r.status_code == 200:
+            d = r.json()
+            # 'Name' is the specific security name (correct for ETFs/funds).
+            # 'CompanyName' is the fund-manager name shared across all funds
+            # from the same issuer — do not use it as the primary field.
+            name = d.get('Name') or d.get('CompanyName') or None
+            # Derive Yahoo Finance ticker from TASE Symbol:
+            # dots become hyphens and ".TA" is appended (e.g. IBI.F35 → IBI-F35.TA)
+            tase_symbol = d.get('Symbol') or ''
+            ticker = (tase_symbol.replace('.', '-') + '.TA') if tase_symbol else None
+            if name:
+                return {
+                    'name': name,
+                    'tase_symbol_en': tase_symbol,   # raw English symbol, e.g. "STRK-M", "IBI.F35"
+                    'ticker': ticker,                 # derived Yahoo Finance ticker, e.g. "STRK-M.TA"
+                }
+        return None
+    except Exception:
+        return None
+
+
+def fetch_name_from_tase(tase_id):
+    """Fetch the English company name from the TASE API.
+
+    Thin wrapper around fetch_data_from_tase for callers that only need the name.
+
+    Returns:
+        English company name string, or None on failure
+    """
+    data = fetch_data_from_tase(tase_id)
+    return data['name'] if data else None
+
+
 def fetch_info_from_yfinance(yfinance_symbol):
     """Fetch stock information from Yahoo Finance.
 

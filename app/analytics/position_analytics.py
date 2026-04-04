@@ -31,6 +31,7 @@ def get_positions_list():
                 'name_he': pos.get('name_he', ''),
                 'name_en': pos.get('name_en'),
                 'symbol': pos.get('symbol', ''),
+                'symbol_en': pos.get('symbol_en'),
                 'ticker': pos.get('ticker'),
                 'security_type': pos.get('security_type', ''),
                 'quantity': pos.get('quantity', 0),
@@ -76,6 +77,7 @@ def get_top_positions_pnl():
                 'name_he': pos.get('name_he', ''),
                 'name_en': pos.get('name_en'),
                 'symbol': pos.get('symbol', ''),
+                'symbol_en': pos.get('symbol_en'),
                 'total_pnl': unrealized,
                 'cost_basis': pos.get('cost_basis', 0),
             }

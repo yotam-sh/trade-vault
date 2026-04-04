@@ -7,6 +7,8 @@
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body>
@@ -121,6 +123,7 @@
             <div class="card-header">
                 <span>{{ t.chart_portfolio_value }}</span>
                 <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn zoom-reset-btn" style="display:none; font-size:0.72rem; padding:0 6px;" title="Reset zoom">↺</button>
                     <button class="chart-ctrl-btn lock-btn">🔓</button>
                     <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
                     <button class="chart-ctrl-btn hide-btn">×</button>
@@ -173,6 +176,7 @@
             <div class="card-header">
                 <span>{{ t.chart_drawdown }}</span>
                 <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn zoom-reset-btn" style="display:none; font-size:0.72rem; padding:0 6px;" title="Reset zoom">↺</button>
                     <button class="chart-ctrl-btn lock-btn">🔓</button>
                     <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
                     <button class="chart-ctrl-btn hide-btn">×</button>
@@ -206,6 +210,7 @@
             <div class="card-header">
                 <span>{{ t.chart_allocation_history }}</span>
                 <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn zoom-reset-btn" style="display:none; font-size:0.72rem; padding:0 6px;" title="Reset zoom">↺</button>
                     <button class="chart-ctrl-btn lock-btn">🔓</button>
                     <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
                     <button class="chart-ctrl-btn hide-btn">×</button>
@@ -323,6 +328,18 @@
                                 return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         }
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                            onZoom: function() {
+                                document.querySelector('[data-chart-id="A"] .zoom-reset-btn').style.display = '';
+                            }
+                        },
+                        pan: { enabled: true, mode: 'x' },
+                        limits: { x: { minRange: 2 } },
                     }
                 },
                 scales: {
@@ -343,6 +360,9 @@
                     }
                 }
             }
+        });
+        document.querySelector('[data-chart-id="A"] .zoom-reset-btn').addEventListener('click', function() {
+            chartA.resetZoom(); this.style.display = 'none';
         });
 
         CHART_INSTANCES['A'] = chartA;
@@ -537,6 +557,18 @@
                         callbacks: {
                             label: function(ctx) { return ctx.parsed.y.toFixed(2) + '%'; }
                         }
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                            onZoom: function() {
+                                document.querySelector('[data-chart-id="D"] .zoom-reset-btn').style.display = '';
+                            }
+                        },
+                        pan: { enabled: true, mode: 'x' },
+                        limits: { x: { minRange: 2 } },
                     }
                 },
                 scales: {
@@ -550,6 +582,9 @@
                     }
                 }
             }
+        });
+        document.querySelector('[data-chart-id="D"] .zoom-reset-btn').addEventListener('click', function() {
+            chartD.resetZoom(); this.style.display = 'none';
         });
 
         CHART_INSTANCES['D'] = chartD;
@@ -962,6 +997,18 @@
                                 return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', { maximumFractionDigits: 0 });
                             }
                         }
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                            onZoom: function() {
+                                document.querySelector('[data-chart-id="F"] .zoom-reset-btn').style.display = '';
+                            }
+                        },
+                        pan: { enabled: true, mode: 'x' },
+                        limits: { x: { minRange: 2 } },
                     }
                 },
                 scales: {
@@ -973,6 +1020,9 @@
                     }
                 }
             }
+        });
+        document.querySelector('[data-chart-id="F"] .zoom-reset-btn').addEventListener('click', function() {
+            chartF.resetZoom(); this.style.display = 'none';
         });
 
         CHART_INSTANCES['F'] = chartF;
@@ -987,7 +1037,11 @@
             });
         }
         function labelsFor(sorted) {
-            return sorted.map(function(d) { return d.symbol || d.name_he; });
+            return sorted.map(function(d) {
+                return lang === 'he'
+                    ? (d.symbol || d.name_he)
+                    : (d.symbol_en || d.symbol || d.name_he);
+            });
         }
         function fullNameFor(d) {
             return lang === 'he' ? d.name_he : (d.name_en || d.name_he);

@@ -204,7 +204,7 @@
                         {% if pos.quantity and pos.quantity > 0 %}
                         <tr data-pnl="{{ pos.market_value - pos.cost_basis }}">
                             <td><a href="/position/{{ pos.holding_id }}" class="position-link">{{ (pos.name_en if lang == 'en' and pos.name_en else pos.name_he) }}</a></td>
-                            <td>{{ (pos.ticker if lang == 'en' and pos.ticker else pos.symbol) }}</td>
+                            <td>{{ (pos.symbol_en if lang == 'en' and pos.symbol_en else pos.symbol) }}</td>
                             <td class="num">{{ '{:,.2f}'.format(pos.market_value) }}</td>
                             <td class="num">{{ '{:,.2f}'.format(pos.cost_basis) }}</td>
                             <td class="num pnl">{{ '{:,.2f}'.format(pos.market_value - pos.cost_basis) }}</td>
@@ -276,7 +276,7 @@
             var g = pos.security_type || 'other';
             if (!groupMap[g]) groupMap[g] = { name: T['type_' + g] || g, pnl: 0, mv: 0, leaves: [] };
             var pct = pos.market_value > 0 ? (pos.daily_pnl || 0) / pos.market_value * 100 : 0;
-            var sym = (lang === 'en' && pos.ticker) ? pos.ticker : pos.symbol;
+            var sym = (lang === 'en' && pos.symbol_en) ? pos.symbol_en : pos.symbol;
             groupMap[g].leaves.push({ name: sym, value: pos.market_value, pct: pct, holding_id: pos.holding_id });
             groupMap[g].pnl += (pos.daily_pnl || 0);
             groupMap[g].mv  += pos.market_value;

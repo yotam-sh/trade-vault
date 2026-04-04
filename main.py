@@ -432,12 +432,15 @@ def cmd_db(args):
         from app.db_backup import import_db
         backup, migration = import_db(args.input)
         print(f'Database replaced. Previous DB backed up to: {backup}')
-        print(f'Migration: yfinance_cache={migration["yfinance_cache_migrated"]} holdings, '
-              f'{migration["holdings_fields_cleaned"]} holdings cleaned, '
-              f'{migration["daily_prices_fields_cleaned"]} price records cleaned, '
-              f'dividends dropped={migration["dividends_table_dropped"]}, '
-              f'ticker_map removed={migration["ticker_map_removed"]}, '
-              f'{migration["import_paths_fixed"]} import paths fixed')
+        if migration:
+            print(f'Migration: yfinance_cache={migration["yfinance_cache_migrated"]} holdings, '
+                  f'{migration["holdings_fields_cleaned"]} holdings cleaned, '
+                  f'{migration["daily_prices_fields_cleaned"]} price records cleaned, '
+                  f'dividends dropped={migration["dividends_table_dropped"]}, '
+                  f'ticker_map removed={migration["ticker_map_removed"]}, '
+                  f'{migration["import_paths_fixed"]} import paths fixed')
+        else:
+            print('Schema already up to date, no migration needed.')
 
     else:
         print('Usage: main.py db export [path] | db import <path> --replace')

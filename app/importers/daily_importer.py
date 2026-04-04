@@ -76,6 +76,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
                 currency=currency,
                 quantity=quantity,
                 update_active=True,
+                data_date=data_date,
             )
             if is_new:
                 new_holdings += 1

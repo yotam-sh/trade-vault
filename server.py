@@ -471,6 +471,19 @@ def api_update_holding_name(holding_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/holdings/<int:holding_id>/fetch-tase-name')
+def api_fetch_tase_name(holding_id):
+    from app.holdings import get_holding
+    from app.utils.translation_service import fetch_data_from_tase
+    holding = get_holding(holding_id)
+    if not holding:
+        return jsonify({'error': 'Not found'}), 404
+    data = fetch_data_from_tase(holding['tase_id'])
+    if data:
+        return jsonify({'name': data['name'], 'ticker': data.get('ticker'), 'tase_symbol_en': data.get('tase_symbol_en')})
+    return jsonify({'error': 'not_found'}), 404
+
+
 # ── Export routes ──
 from app.export import build_dataframe, make_excel_response, make_csv_response, build_tax_report
 
@@ -571,12 +584,40 @@ def admin_db_import():
     file.save(tmp.name)
     try:
         _, migration = import_db(tmp.name)
-        migrated_msg = f" (migrated {migration['yfinance_cache_migrated']} holdings to yfinance cache)" if migration['yfinance_cache_migrated'] else ''
+        migrated_msg = f" (migrated {migration['yfinance_cache_migrated']} holdings to yfinance cache)" if migration.get('yfinance_cache_migrated') else ''
         flash(('Database imported successfully' + migrated_msg) if lang == 'en' else ('מסד הנתונים יובא בהצלחה' + migrated_msg), 'success')
     except ValueError as e:
         flash(f'Import failed: {e}' if lang == 'en' else f'ייבוא נכשל: {e}', 'error')
     finally:
         os.unlink(tmp.name)
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/refresh-tase-names', methods=['POST'])
+def admin_refresh_tase_names():
+    from app.holdings import list_holdings, update_holding
+    from app.settings import get_setting, set_setting
+    from app.utils.translation_service import fetch_data_from_tase
+    updated, failed = 0, 0
+    yf_map = get_setting('yfinance_map', {})
+    for h in list_holdings(active_only=False):
+        data = fetch_data_from_tase(h['tase_id'])
+        if data:
+            field_updates = {'name_en': data['name']}
+            if data.get('tase_symbol_en'):
+                field_updates['tase_symbol_en'] = data['tase_symbol_en']
+            if data.get('ticker'):
+                field_updates['ticker'] = data['ticker']
+                yf_map[str(h['tase_id'])] = data['ticker']
+            update_holding(h.doc_id, **field_updates)
+            updated += 1
+        else:
+            failed += 1
+    set_setting('yfinance_map', yf_map)
+    lang = request.cookies.get('lang', 'he')
+    msg = f'עודכנו {updated} ניירות מ-TASE ({failed} נכשלו)' if lang == 'he' \
+          else f'Updated {updated} holdings from TASE ({failed} failed)'
+    flash(msg, 'success' if updated else 'error')
     return redirect(url_for('admin'))
 
 

@@ -7,6 +7,7 @@ HOLDING_SCHEMA = {
     'ticker': (str, False),
     'tase_id': (int, True),
     'tase_symbol': (str, True),
+    'tase_symbol_en': (str, False),
     'name_he': (str, True),
     'name_en': (str, False),
     'security_type': (str, True),

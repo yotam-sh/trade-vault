@@ -28,8 +28,9 @@ Created with Claude Code.
 - **Best/worst performers** — Daily summary highlights top and bottom movers
 - **Closed position tracking** — P&L summary for fully sold positions
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
-- **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the English name is re-fetched from Yahoo Finance and the holding is updated silently; name changes are printed in the import log
-- **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
+- **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the Hebrew TASE symbol is also updated; English name and symbol are re-fetched from the TASE public API and the holding is updated silently; name changes are printed in the import log
+- **TASE API integration** — Fetches authoritative English names and symbols directly from the TASE public API (`api.tase.co.il`). Returns the English security name (e.g. `STRK-M`, `IBI.INDEX BANK`), the English TASE symbol (e.g. `STRK-M`, `IBI.F35`), and the derived Yahoo Finance ticker (e.g. `STRK-M.TA`, `IBI-F35.TA`). Triggered automatically on name change and available as a one-click "Fetch from TASE" button on each position page or bulk "Refresh All from TASE" on the Profile page
+- **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. A "Fetch from TASE" button pre-fills English name and symbol from the TASE API. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
 - **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
 - **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L. Each cell is clickable (and keyboard-navigable) and navigates directly to that position's detail page
@@ -37,7 +38,7 @@ Created with Claude Code.
 - **IS 5568 / WCAG 2.1 AA accessibility** — Full keyboard navigation throughout; skip-to-main-content link; ARIA landmarks, roles, and live regions; calendar picker arrow-key navigation with focus management; sortable table headers keyboard-activated; `aria-current`, `aria-expanded`, `aria-sort`, `aria-pressed` on all interactive elements; visible focus ring; screen-reader announcements for flash messages and date changes
 - **Accessibility statement** — Dedicated `/accessibility` page (Hebrew and English) declaring IS 5568 conformance, listing implemented features, known limitations, and a feedback link to the GitHub repository
 - **Position type badges** — Trade Log marks each trade as opening / increase / closing / reduction with a color-coded badge (blue / green / red / amber)
-- **Individual position pages** — Drill into any holding from the positions list to see a full position breakdown: current price, 52-week range, market stats (from Yahoo Finance), avg cost, unrealized P&L, open FIFO lots, trade history, a price chart with buy/sell markers, and a daily P&L bar chart. Closed positions show realized P&L, avg buy/sell prices, and a "what-if kept" hypothetical current value
+- **Individual position pages** — Drill into any holding from the positions list to see a full position breakdown: current price, 52-week range, market stats (from Yahoo Finance), avg cost, unrealized P&L, open FIFO lots, trade history, a price chart with buy/sell markers, and a daily P&L bar chart. Closed positions show realized P&L, avg buy/sell prices, and a "what-if kept" hypothetical current value. An identity grid at the top of each page shows all name and symbol variants: Hebrew TASE name + symbol, English TASE name + symbol, Yahoo Finance ticker (linked), and TASE ID
 - **Price chart with trade markers** — Each position page includes an interactive Chart.js price chart sourced from Yahoo Finance history, with time-range filters (1W / 1M / 3M / 6M / YTD / 1Y / From Purchase / All) and buy/sell triangle markers snapped to the nearest trading day. Hovering shows a price tooltip with thousands-separated Agorot values
 - **Hebrew translation of company info** — When the UI is in Hebrew, the Company Info card on each position page automatically translates sector, industry, and description to Hebrew using Google Translate (cached 30 days per holding; re-translates if a prior attempt produced empty results)
 - **Agorot price display** — All per-share prices throughout the app (trade table, avg cost, open lots, positions list) are displayed in Israeli Agorot (as quoted on TASE) rather than Shekel, consistent with Yahoo Finance data and IBI raw price data
@@ -352,7 +353,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle; click any date row to jump to Daily Details for that date |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
 | **Graphs** | `/graphs` | Seven interactive charts: portfolio value vs net invested, monthly return %, historical performance, drawdown from peak, daily P&L heatmap, asset allocation over time, and P&L by position — with drag-and-drop layout, resizable cards, show/hide per chart, and a reset-layout button |
-| **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database) — accessible from the settings (⚙) dropdown |
+| **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database); bulk "Refresh All from TASE" to fetch English names and symbols for all holdings — accessible from the settings (⚙) dropdown |
 | **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
 | **CLI Docs** | `/docs/cli` | Full CLI reference page (dark theme, regex search) — accessible from the settings (⚙) dropdown |
 
@@ -371,7 +372,7 @@ The Dashboard home page shows a **Portfolio Map** — a squarified treemap below
 
 - Positions are grouped by security type (stocks, funds, other); each group has a visible header showing the group name and its aggregate daily P&L.
 - Cell colour shifts from neutral grey toward green (daily gain) or red (daily loss), capped at ±3 %.
-- Labels show the TASE symbol (or Yahoo Finance ticker in English mode) and the position's daily change percentage.
+- Labels show the English TASE symbol in English mode (or Hebrew TASE symbol in Hebrew mode) and the position's daily change percentage.
 - The chart is responsive — it re-renders automatically when the browser window is resized.
 
 ### Charts
@@ -387,13 +388,13 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Trades** | Closed positions P&L % ranked | Horizontal bar |
 | **Position detail** | Price history with buy/sell markers — 8 range filter buttons | Line + markers |
 | **Position detail** | Daily P&L over time for the position | Bar (green/red) |
-| **Graphs** | Portfolio value vs net invested over time | Line |
+| **Graphs** | Portfolio value vs net invested over time — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
 | **Graphs** | Historical performance — daily P&L bar with daily/weekly/monthly granularity toggle | Bar |
-| **Graphs** | Drawdown from peak | Line |
+| **Graphs** | Drawdown from peak — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
-| **Graphs** | Asset allocation over time | Stacked area |
-| **Graphs** | P&L by position — ranked by ILS or % toggle; TASE ticker labels, full name on hover | Horizontal bar |
+| **Graphs** | Asset allocation over time — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
+| **Graphs** | P&L by position — ranked by ILS or % toggle; English TASE symbol labels in English mode, Hebrew symbol in Hebrew mode; full name on hover | Horizontal bar |
 
 The **Graphs** page (`/graphs`) is the dedicated chart hub with seven configurable panels. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
 
@@ -543,7 +544,7 @@ Uses TinyDB (a lightweight JSON document database). The database file is created
 
 | Table | Purpose |
 |-------|---------|
-| `holdings` | Security master registry (name, TASE ID, type, ticker) |
+| `holdings` | Security master registry (name, TASE ID, type, Hebrew/English TASE symbols, Yahoo Finance ticker) |
 | `transactions` | All financial events (buys, sells, deposits, summaries) |
 | `daily_prices` | Per-security per-day price and value snapshots |
 | `portfolio_snapshots` | End-of-day portfolio totals |
@@ -577,7 +578,8 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 ## Technical Notes
 
 - **Modular architecture**: The codebase uses a three-layer architecture with facades for backward compatibility. `app/importers/` contains specialized import modules (daily, trades, morning balance, repair tools). `app/analytics/` contains query modules (portfolio, daily, monthly, trades, tax). `app/utils/` provides shared utilities (data enrichment, holding resolution, Yahoo Finance integration). The top-level `excel_importer.py` and `queries.py` are facades that import from these modules.
-- **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding English names and tickers to query results. When language is set to English, all analytics functions automatically enrich their output with `name_en` and `ticker` fields from the holdings table, falling back to Hebrew names when English data is unavailable.
+- **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding English names and symbols to query results. Enriched position dicts carry `symbol` (Hebrew TASE symbol), `symbol_en` (English TASE symbol from `tase_symbol_en`), and `ticker` (Yahoo Finance symbol). All analytics functions automatically populate these fields; templates and charts use `symbol_en` in English mode.
+- **TASE symbol fields**: Holdings store three separate symbol fields: `tase_symbol` (Hebrew TASE symbol, required), `tase_symbol_en` (English TASE symbol, e.g. `STRK-M`, `IBI.F35` — populated on TASE refresh), and `ticker` (Yahoo Finance symbol derived from `tase_symbol_en`, e.g. `STRK-M.TA`, `IBI-F35.TA`). Ticker derivation replaces dots with hyphens and appends `.TA`.
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
 - **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie. Chart.js charts use a `MutationObserver` on the `data-theme` attribute to read updated CSS variable values and re-render with the new palette immediately.

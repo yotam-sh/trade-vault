@@ -114,31 +114,57 @@
 
         <!-- ── Header ───────────────────────────────────────────────────────── -->
         <div class="card" style="margin-bottom: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                <h2 style="margin: 0;">
-                    {{ (data.holding.name_en if lang == 'en' and data.holding.name_en else data.holding.name_he) }}
-                </h2>
-                <span style="color: var(--text-secondary); font-size: 0.95rem;">
-                    {{ (data.holding.ticker if lang == 'en' and data.holding.ticker else data.holding.tase_symbol) }}
-                </span>
-                {% if data.holding.security_type %}
-                <span class="badge badge-{{ data.holding.security_type }}">
-                    {% if data.holding.security_type == 'stock' %}{{ t.type_stock }}
-                    {% elif data.holding.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
-                    {% elif data.holding.security_type == 'etf' %}{{ t.type_etf }}
-                    {% elif data.holding.security_type == 'bond' %}{{ t.type_bond }}
-                    {% else %}{{ data.holding.security_type }}{% endif %}
-                </span>
-                {% endif %}
-                {% if data.is_open %}
-                <span class="badge badge-buy">{{ t.position_status_open }}</span>
-                {% else %}
-                <span class="badge badge-sell">{{ t.position_status_closed }}</span>
-                {% endif %}
-                <span style="color: var(--text-secondary); font-size: 0.8rem; margin-inline-start: auto;">
-                    {{ t.position_tase_id }}: {{ data.holding.tase_id }}
-                </span>
-                <button id="editNameBtn" onclick="toggleNameEdit()" style="background: none; border: 1px solid var(--border); border-radius: 5px; padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;" title="{{ t.position_edit_name }}">✏ {{ t.position_edit_name }}</button>
+            <!-- Title row -->
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem;">
+                <div>
+                    <h2 style="margin: 0 0 0.35rem;">
+                        {{ (data.holding.name_en if lang == 'en' and data.holding.name_en else data.holding.name_he) }}
+                    </h2>
+                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                        {% if data.holding.security_type %}
+                        <span class="badge badge-{{ data.holding.security_type }}">
+                            {% if data.holding.security_type == 'stock' %}{{ t.type_stock }}
+                            {% elif data.holding.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
+                            {% elif data.holding.security_type == 'etf' %}{{ t.type_etf }}
+                            {% elif data.holding.security_type == 'bond' %}{{ t.type_bond }}
+                            {% else %}{{ data.holding.security_type }}{% endif %}
+                        </span>
+                        {% endif %}
+                        {% if data.is_open %}
+                        <span class="badge badge-buy">{{ t.position_status_open }}</span>
+                        {% else %}
+                        <span class="badge badge-sell">{{ t.position_status_closed }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <button id="editNameBtn" onclick="toggleNameEdit()" style="background: none; border: 1px solid var(--border); border-radius: 5px; padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;" title="{{ t.position_edit_name }}">✏ {{ t.position_edit_name }}</button>
+            </div>
+            <!-- Identity grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_name_he }}</div>
+                    <div style="font-size: 0.9rem; font-weight: 500;" dir="rtl">{{ data.holding.name_he }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem;" dir="rtl">{{ data.holding.tase_symbol }}</div>
+                </div>
+                <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_name_en }}</div>
+                    <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.name_en or '—' }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem;">{{ data.holding.tase_symbol_en or '—' }}</div>
+                </div>
+                <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_yfinance_symbol }}</div>
+                    {% if data.holding.ticker %}
+                    <div style="font-size: 0.9rem; font-weight: 500;">
+                        <a href="https://finance.yahoo.com/quote/{{ data.holding.ticker }}" target="_blank" class="position-link" style="color: var(--accent);">{{ data.holding.ticker }} ↗</a>
+                    </div>
+                    {% else %}
+                    <div style="font-size: 0.9rem; font-weight: 500;">—</div>
+                    {% endif %}
+                </div>
+                <div style="padding: 0.1rem 0;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_tase_id }}</div>
+                    <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.tase_id }}</div>
+                </div>
             </div>
 
             <!-- ── Inline name edit panel ── -->
@@ -157,6 +183,13 @@
                             style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box;">
                         <input id="editTicker" type="hidden" value="{{ data.holding.ticker or '' }}">
                         <div id="yfDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 5px; z-index: 100; max-height: 220px; overflow-y: auto; margin-top: 2px;"></div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <button type="button" id="fetchTaseBtn" onclick="fetchFromTase()"
+                            style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;">
+                            {{ t.position_fetch_tase }}
+                        </button>
+                        <span id="fetchTaseStatus" style="font-size: 0.78rem; color: var(--text-secondary);"></span>
                     </div>
                     <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                         <button onclick="toggleNameEdit()" style="padding: 0.4rem 1rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary);">{{ t.position_name_cancel }}</button>
@@ -835,6 +868,33 @@
 
     function hideDropdown() {
         document.getElementById('yfDropdown').style.display = 'none';
+    }
+
+    function fetchFromTase() {
+        var btn = document.getElementById('fetchTaseBtn');
+        var status = document.getElementById('fetchTaseStatus');
+        btn.disabled = true;
+        status.textContent = '...';
+        fetch('/api/holdings/{{ data.holding_id }}/fetch-tase-name')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.name) {
+                    document.getElementById('editNameEn').value = d.name;
+                    if (d.ticker) {
+                        document.getElementById('editTicker').value = d.ticker;
+                    }
+                    status.textContent = '{{ t.position_fetch_tase_ok }}';
+                    status.style.color = 'var(--positive, #3fb950)';
+                } else {
+                    status.textContent = '{{ t.position_fetch_tase_fail }}';
+                    status.style.color = 'var(--negative, #f85149)';
+                }
+            })
+            .catch(function() {
+                status.textContent = '{{ t.position_fetch_tase_fail }}';
+                status.style.color = 'var(--negative, #f85149)';
+            })
+            .finally(function() { btn.disabled = false; });
     }
 
     function openConfirmModal() {

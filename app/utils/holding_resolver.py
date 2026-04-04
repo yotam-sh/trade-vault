@@ -49,7 +49,8 @@ def find_holding_by_name(name_he):
 
 
 def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
-                           currency, quantity=0, update_active=True):
+                           currency, quantity=0, update_active=True,
+                           data_date=None):
     """Find holding by TASE ID or create if doesn't exist.
 
     Consolidates the repeated pattern of:
@@ -103,29 +104,58 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                 from app.holdings import get_holding
                 holding = get_holding(holding_id)
 
-        # Detect name change
+        # Detect name/symbol change
+        name_changed = holding['name_he'] != name_he
+        symbol_changed = tase_symbol and holding.get('tase_symbol') != tase_symbol
         name_change = None
-        if holding['name_he'] != name_he:
-            name_change = {
-                'tase_id': tase_id,
-                'old_name_he': holding['name_he'],
-                'new_name_he': name_he,
-                'old_name_en': holding.get('name_en'),
-                'new_name_en': None,
-            }
-            update_holding(holding_id, name_he=name_he)
-            # Try to refresh English name from yfinance
-            ticker = holding.get('ticker')
-            if ticker:
-                try:
-                    from app.utils.translation_service import fetch_info_from_yfinance
-                    info = fetch_info_from_yfinance(ticker)
-                    if info and info.get('name'):
-                        update_holding(holding_id, name_en=info['name'])
-                        name_change['new_name_en'] = info['name']
-                except Exception:
-                    pass
-            from app.holdings import get_holding
-            holding = get_holding(holding_id)
+        if name_changed or symbol_changed:
+            holding_updated = holding.get('updated_at', '')[:10]
+            if data_date and holding_updated and data_date < holding_updated:
+                # Import data is older than the holding's last update — skip update
+                pass
+            else:
+                field_updates = {}
+                if name_changed:
+                    field_updates['name_he'] = name_he
+                if symbol_changed:
+                    field_updates['tase_symbol'] = tase_symbol
+                if name_changed:
+                    name_change = {
+                        'tase_id': tase_id,
+                        'old_name_he': holding['name_he'],
+                        'new_name_he': name_he,
+                        'old_name_en': holding.get('name_en'),
+                        'new_name_en': None,
+                    }
+                update_holding(holding_id, **field_updates)
+                if name_changed:
+                    # Try to refresh English name + ticker: TASE first, yfinance fallback
+                    try:
+                        from app.utils.translation_service import fetch_data_from_tase, fetch_info_from_yfinance
+                        tase_data = fetch_data_from_tase(tase_id)
+                        if tase_data:
+                            en_updates = {'name_en': tase_data['name']}
+                            if tase_data.get('tase_symbol_en'):
+                                en_updates['tase_symbol_en'] = tase_data['tase_symbol_en']
+                            if tase_data.get('ticker'):
+                                en_updates['ticker'] = tase_data['ticker']
+                                # Keep yfinance_map in sync
+                                from app.settings import get_setting, set_setting
+                                yf_map = get_setting('yfinance_map', {})
+                                yf_map[str(tase_id)] = tase_data['ticker']
+                                set_setting('yfinance_map', yf_map)
+                            update_holding(holding_id, **en_updates)
+                            name_change['new_name_en'] = tase_data['name']
+                        else:
+                            old_ticker = holding.get('ticker')
+                            if old_ticker:
+                                info = fetch_info_from_yfinance(old_ticker)
+                                if info and info.get('name'):
+                                    update_holding(holding_id, name_en=info['name'])
+                                    name_change['new_name_en'] = info['name']
+                    except Exception:
+                        pass
+                from app.holdings import get_holding
+                holding = get_holding(holding_id)
 
         return holding_id, False, holding, name_change
