@@ -21,8 +21,8 @@ Created with Claude Code.
 - **CLI documentation** — `docs/cli.html`: a standalone dark-themed reference page with sticky sidebar navigation and a regex-capable search bar
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
-- **Web dashboard** — Seven views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, and positions — plus Profile and Accessibility pages accessible from the settings menu
-- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (switchable between daily, weekly, and monthly granularity), security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, and portfolio value vs net invested + monthly return charts (switchable between cumulative total return and standalone monthly return) on the graphs page. All charts re-render instantly when you switch color themes
+- **Web dashboard** — Eight views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, positions, and portfolio rebalancing — plus Profile and Accessibility pages accessible from the settings menu
+- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (switchable between daily, weekly, and monthly granularity), security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, portfolio value vs net invested + monthly return charts on the graphs page, and a benchmark comparison chart showing cumulative % return for the portfolio vs TA-125 and TA-35 indices (sourced via yfinance). All charts re-render instantly when you switch color themes
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
 - **Best/worst performers** — Daily summary highlights top and bottom movers
@@ -42,6 +42,7 @@ Created with Claude Code.
 - **Price chart with trade markers** — Each position page includes an interactive Chart.js price chart sourced from Yahoo Finance history, with time-range filters (1W / 1M / 3M / 6M / YTD / 1Y / From Purchase / All) and buy/sell triangle markers snapped to the nearest trading day. Hovering shows a price tooltip with thousands-separated Agorot values
 - **Hebrew translation of company info** — When the UI is in Hebrew, the Company Info card on each position page automatically translates sector, industry, and description to Hebrew using Google Translate (cached 30 days per holding; re-translates if a prior attempt produced empty results)
 - **Agorot price display** — All per-share prices throughout the app (trade table, avg cost, open lots, positions list) are displayed in Israeli Agorot (as quoted on TASE) rather than Shekel, consistent with Yahoo Finance data and IBI raw price data
+- **Portfolio rebalancing tool** — Two-level target allocation editor at `/rebalance`. Set a target % of total portfolio per security type (stocks, funds, ETFs, bonds), then set a target % within each group per holding. Deltas and Buy/Sell/Hold actions in ILS update live as you type. Targets are capped at 100% per level and auto-saved to settings
 
 ## Prerequisites
 
@@ -145,6 +146,7 @@ TradeVault/
 │   ├── daily_details.html  # Detailed daily breakdown
 │   ├── trades.html         # Activity / trade history
 │   ├── graphs.html         # Graphs & charts
+│   ├── rebalance.html      # Portfolio rebalancing tool
 │   ├── admin.html          # Profile (backup/restore)
 │   └── accessibility.html  # IS 5568 accessibility statement
 ├── docs/

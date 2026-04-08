@@ -6,6 +6,39 @@ from app.analytics.daily_analytics import get_daily_details
 from app.utils.data_enrichment import enrich_trade_with_holding
 
 
+def _realized_pnl_from_lots(sell_lot_details):
+    """Compute realized P&L for a sell transaction.
+
+    Uses the embedded per-transaction snapshot value as the primary source —
+    this is the P&L computed at the time of the sell and stored inside the
+    transaction record.  The tax_lots table is only consulted as a fallback
+    for legacy records that pre-date the embedded snapshot (i.e. where the
+    embedded value is absent/None).
+
+    Note: tax_lots.realized_pnl is an *accumulator* (sums P&L across all sells
+    of that lot), so it must NOT be used as the primary source here — doing so
+    would double-count partial-sell P&L and show stale zeros for lots whose
+    state was reset by a DB import.
+    """
+    total = 0.0
+    for detail in sell_lot_details:
+        embedded = detail.get('realized_pnl')
+        if embedded is not None:
+            total += embedded
+        else:
+            # Legacy fallback: lot_id present but no embedded P&L snapshot
+            from app.connection import get_table, TAX_LOTS
+            from tinydb import Query
+            table = get_table(TAX_LOTS)
+            L = Query()
+            lot_id = detail.get('lot_id')
+            if lot_id:
+                rows = table.search(L.lot_id == lot_id)
+                if rows:
+                    total += rows[0].get('realized_pnl', 0) or 0
+    return total
+
+
 def get_trade_history(start_date=None, end_date=None):
     """Get all buy/sell transactions enriched with holding names and P&L.
 
@@ -48,7 +81,7 @@ def get_trade_history(start_date=None, end_date=None):
 
         realized_pnl = 0
         if txn.get('sell_lot_details'):
-            realized_pnl = sum(d.get('realized_pnl', 0) for d in txn['sell_lot_details'])
+            realized_pnl = _realized_pnl_from_lots(txn['sell_lot_details'])
 
         # Determine position type from running balance
         current_shares = positions.get(hid, 0)
@@ -79,6 +112,7 @@ def get_trade_history(start_date=None, end_date=None):
             'name_he': enriched.get('name_he', ''),
             'name_en': enriched.get('name_en'),
             'symbol': enriched.get('symbol', ''),
+            'symbol_en': enriched.get('symbol_en'),
             'shares': shares,
             'price_per_share': txn.get('price_per_share', 0),
             'total_amount': txn.get('total_amount', 0),

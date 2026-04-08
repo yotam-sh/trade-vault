@@ -77,7 +77,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -91,6 +91,7 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -125,6 +126,7 @@
             <div class="card-header">{{ t.admin_import_title }}</div>
             <p style="color: var(--text-secondary); margin: 0 0 14px;">{{ t.admin_import_desc }}</p>
             <form method="POST" action="/admin/db-import" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                     <label for="backup_file" style="cursor: pointer;">
                         <span class="admin-file-btn">{{ t.admin_import_label }}</span>
@@ -143,8 +145,12 @@
         <div class="card">
             <div class="card-header">{{ t.admin_tase_refresh_title }}</div>
             <p style="color: var(--text-secondary); margin: 0 0 14px;">{{ t.admin_tase_refresh_desc }}</p>
-            <form method="POST" action="/admin/refresh-tase-names">
-                <button type="submit" class="admin-action-btn"
+            <div id="tase-status" style="display:none; margin-bottom:10px;" role="status" aria-live="polite">
+                <span id="tase-status-text" style="color: var(--text-secondary);"></span>
+            </div>
+            <form method="POST" action="/admin/refresh-tase-names" id="tase-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="admin-action-btn" id="tase-btn"
                         onclick="return confirm('{{ t.admin_tase_refresh_desc }}')">
                     {{ t.admin_tase_refresh_btn }}
                 </button>
@@ -153,5 +159,45 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script>
+    (function () {
+        const statusBox = document.getElementById('tase-status');
+        const statusText = document.getElementById('tase-status-text');
+        const taseBtn = document.getElementById('tase-btn');
+        let pollTimer = null;
+
+        function stopPolling() {
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        }
+
+        function pollStatus() {
+            fetch('/admin/refresh-status', { credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.running) {
+                        statusBox.style.display = 'block';
+                        statusText.textContent = '⏳ ' + (data.updated + data.failed) + ' / …';
+                        taseBtn.disabled = true;
+                    } else if (data.done) {
+                        stopPolling();
+                        statusBox.style.display = 'block';
+                        statusText.textContent = '✓ ' + data.updated + ' updated, ' + data.failed + ' failed';
+                        taseBtn.disabled = false;
+                    }
+                })
+                .catch(stopPolling);
+        }
+
+        // Start polling when the page loads if a refresh is already running
+        pollStatus();
+
+        document.getElementById('tase-form').addEventListener('submit', function () {
+            // Brief delay to let the server start the thread before we poll
+            setTimeout(function () {
+                pollTimer = setInterval(pollStatus, 2000);
+            }, 500);
+        });
+    })();
+    </script>
 </body>
 </html>

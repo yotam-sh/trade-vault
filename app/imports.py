@@ -47,3 +47,19 @@ def find_by_hash(file_hash):
     return results[0] if results else None
 
 
+def find_by_date_and_type(data_date, import_type):
+    """Return a successful import record for the given data_date + import_type, if any.
+
+    Excludes 'duplicate' status records so that a re-uploaded file for the same
+    date is caught even when the file hash changed (different Excel metadata).
+    """
+    table = get_table(IMPORTS)
+    I = Query()
+    results = table.search(
+        (I.data_date == data_date)
+        & (I.import_type == import_type)
+        & (I.status != 'duplicate')
+    )
+    return results[0] if results else None
+
+

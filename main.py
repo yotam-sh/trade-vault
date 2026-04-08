@@ -12,6 +12,9 @@ if sys.stdout.encoding != 'utf-8':
 # Ensure project root is on path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from app.connection import get_db, close_db
 from app.settings import init_default_settings
 from app.lib_check import startup_check, run_check_libs, run_upgrade_libs

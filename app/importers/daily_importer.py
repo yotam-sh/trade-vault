@@ -9,7 +9,7 @@ from app.settings import set_setting
 from app.schemas import today_iso
 from app.utils.holding_resolver import find_or_create_holding
 from app.utils.file_utils import check_duplicate
-from app.imports import create_import
+from app.imports import create_import, find_by_date_and_type
 from app.importers.position_tracker import interpolate_position_changes
 
 
@@ -27,7 +27,7 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
     filepath = os.path.abspath(filepath)
     data_date = data_date or today_iso()
 
-    # Duplicate check
+    # Hash-based duplicate check (same exact file bytes)
     is_dup, existing, fhash = check_duplicate(filepath)
     if is_dup:
         print(f"File already imported on {existing['import_date']} (status: {existing['status']})")
@@ -41,6 +41,22 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
             rows_imported=0,
         )
         return {'status': 'duplicate', 'import_id': existing.doc_id}
+
+    # Content-level duplicate check: same trading date already imported successfully
+    existing_date = find_by_date_and_type(data_date, 'daily_portfolio')
+    if existing_date:
+        print(f"Data for {data_date} already imported on {existing_date['import_date']} "
+              f"(import #{existing_date.doc_id}). Use --force to overwrite.")
+        create_import(
+            filename=os.path.basename(filepath),
+            filepath=os.path.basename(filepath),
+            file_hash=fhash,
+            data_date=data_date,
+            import_type='daily_portfolio',
+            status='duplicate',
+            rows_imported=0,
+        )
+        return {'status': 'duplicate', 'import_id': existing_date.doc_id}
 
     # Read Excel
     df = pd.read_excel(filepath)

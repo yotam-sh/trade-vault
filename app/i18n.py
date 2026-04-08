@@ -15,6 +15,7 @@ TRANSLATIONS = {
     'nav_admin':          {'he': 'פרופיל',         'en': 'Profile'},
     'nav_accessibility':  {'he': 'נגישות',         'en': 'Accessibility'},
     'nav_cli_docs':       {'he': 'תיעוד CLI',      'en': 'CLI Docs'},
+    'opens_new_tab':      {'he': '(נפתח בלשונית חדשה)', 'en': '(opens in new tab)'},
     'accessibility_title': {'he': 'הצהרת נגישות', 'en': 'Accessibility Statement'},
 
     # ── Common controls ──
@@ -68,6 +69,29 @@ TRANSLATIONS = {
     'chart_type_by_day':        {'he': 'שינוי יומי לפי סוג נייר',   'en': 'Daily Change by Security Type'},
     'label_net_invested':       {'he': 'השקעה נטו',                 'en': 'Net Invested'},
     'label_portfolio_value':    {'he': 'שווי תיק',                  'en': 'Portfolio Value'},
+    'label_ta125':              {'he': 'מדד ת"א 125',               'en': 'TA-125'},
+    'label_ta35':               {'he': 'מדד ת"א 35',                'en': 'TA-35'},
+    'btn_benchmark_ta125':      {'he': 'ת"א 125',                   'en': 'TA-125'},
+    'btn_benchmark_ta35':       {'he': 'ת"א 35',                    'en': 'TA-35'},
+    'chart_h_title':            {'he': 'תשואה מצטברת השוואתית',     'en': 'Cumulative Return Comparison'},
+    'label_portfolio_return':   {'he': 'תשואת התיק',                'en': 'Portfolio Return'},
+    'nav_rebalance':            {'he': 'איזון תיק',                 'en': 'Rebalance'},
+    'page_title_rebalance':     {'he': 'איזון תיק',                 'en': 'Portfolio Rebalancing'},
+    'col_current_weight':       {'he': 'משקל נוכחי',               'en': 'Current %'},
+    'col_target_weight':        {'he': 'יעד',                      'en': 'Target %'},
+    'col_delta':                {'he': 'סטייה',                    'en': 'Delta'},
+    'col_action':               {'he': 'פעולה נדרשת',              'en': 'Required Action'},
+    'label_unallocated':        {'he': 'לא מוקצה',                 'en': 'unallocated'},
+    'label_total_targeted':     {'he': 'סה"כ יעד',                 'en': 'Total target'},
+    'action_buy':               {'he': 'קנה',                      'en': 'Buy'},
+    'action_sell':              {'he': 'מכור',                     'en': 'Sell'},
+    'rebalance_saved':          {'he': 'נשמר',                     'en': 'Saved'},
+    'rebalance_targets_over100':{'he': 'סכום היעדים עולה על 100%', 'en': 'Target sum exceeds 100%'},
+    'rebalance_group_target':   {'he': 'יעד קבוצה',               'en': 'Group target'},
+    'rebalance_within_group':   {'he': '% בתוך הקבוצה',           'en': '% within group'},
+    'rebalance_group_value':    {'he': 'שווי קבוצה',              'en': 'Group value'},
+    'rebalance_collapse':       {'he': 'כווץ',                    'en': 'Collapse'},
+    'rebalance_expand':         {'he': 'הרחב',                    'en': 'Expand'},
     'label_partial_month':      {'he': 'חודש חלקי',                 'en': 'Partial month'},
     'label_gross_gains':        {'he': 'רווחי מכירות',              'en': 'Gross Gains'},
     'label_loss_offset':        {'he': 'קיזוז הפסדים',              'en': 'Loss Offset'},
@@ -128,9 +152,14 @@ TRANSLATIONS = {
     'page_transactions':       {'he': 'כללי - יומן פעולות',    'en': 'Account Overview'},
     'add_deposit_title':       {'he': 'הוספת הפקדה',           'en': 'Add Deposit'},
     'add_withdrawal_title':    {'he': 'הוספת משיכה',           'en': 'Add Withdrawal'},
+    'add_dividend_title':      {'he': 'הוספת דיבידנד',         'en': 'Add Dividend'},
     'label_amount':            {'he': 'סכום:',                 'en': 'Amount:'},
+    'label_ticker_optional':   {'he': 'נייר (אופציונלי):',     'en': 'Security (optional):'},
+    'label_tax_withheld':      {'he': 'מס במקור (אופציונלי):', 'en': 'Withholding tax (optional):'},
+    'label_notes_optional':    {'he': 'הערות (אופציונלי):',    'en': 'Notes (optional):'},
     'btn_add_deposit':         {'he': 'הוסף הפקדה',            'en': 'Add Deposit'},
     'btn_add_withdrawal':      {'he': 'הוסף משיכה',            'en': 'Add Withdrawal'},
+    'btn_add_dividend':        {'he': 'הוסף דיבידנד',          'en': 'Add Dividend'},
     'transactions_title':      {'he': 'פעולות',                'en': 'Transactions'},
     'th_date':                 {'he': 'תאריך',                 'en': 'Date'},
     'th_action':               {'he': 'פעולה',                 'en': 'Action'},
@@ -141,6 +170,7 @@ TRANSLATIONS = {
     'th_notes':                {'he': 'הערות',                 'en': 'Notes'},
     'summary_title':           {'he': 'סיכום',                 'en': 'Summary'},
     'summary_total_deposits':  {'he': 'סך הפקדות',             'en': 'Total Deposits'},
+    'summary_total_dividends': {'he': 'סך דיבידנדים',          'en': 'Total Dividends'},
     'summary_net_invested':    {'he': 'השקעה נטו (הפקדות − משיכות)', 'en': 'Net Invested (Deposits − Withdrawals)'},
     'summary_cost_change_ils': {'he': 'שינוי מעלות (₪)',       'en': 'Cost Change (₪)'},
     'summary_cost_change_pct': {'he': 'שינוי מעלות (%)',       'en': 'Cost Change (%)'},
@@ -238,6 +268,7 @@ TRANSLATIONS = {
     # ── Transaction action labels (queries.py) ──
     'action_deposit':          {'he': 'הפקדה',          'en': 'Deposit'},
     'action_withdrawal':       {'he': 'משיכה',           'en': 'Withdrawal'},
+    'action_dividend':         {'he': 'דיבידנד',         'en': 'Dividend'},
     'action_initial_transfer': {'he': 'העברה ראשונית',   'en': 'Initial Transfer'},
     'action_month_summary':    {'he': 'סיכום חודש',      'en': 'Monthly Summary'},
     'badge_partial':           {'he': 'חלקי',            'en': 'Partial'},
@@ -254,7 +285,10 @@ TRANSLATIONS = {
                              'en': 'Imported {rows} rows ({new} new holdings) for date {date}'},
     'flash_deposit_success': {'he': 'הפקדה בסך {amount} ₪ נוספה בהצלחה לתאריך {date}',
                               'en': 'Deposit of ₪{amount} was successfully added for date {date}'},
-    'flash_deposit_error':  {'he': 'שגיאה בהוספת הפקדה',  'en': 'Error adding deposit'},
+    'flash_deposit_error':   {'he': 'שגיאה בהוספת הפקדה',  'en': 'Error adding deposit'},
+    'flash_dividend_success': {'he': 'דיבידנד בסך {amount} ₪ נוסף בהצלחה לתאריך {date}',
+                               'en': 'Dividend of ₪{amount} was successfully added for date {date}'},
+    'flash_dividend_error':   {'he': 'שגיאה בהוספת דיבידנד', 'en': 'Error adding dividend'},
     'flash_withdrawal_success': {'he': 'משיכה בסך {amount} ₪ נוספה בהצלחה לתאריך {date}',
                                   'en': 'Withdrawal of ₪{amount} was successfully added for date {date}'},
     'flash_withdrawal_error': {'he': 'שגיאה בהוספת משיכה', 'en': 'Error adding withdrawal'},
@@ -370,7 +404,42 @@ TRANSLATIONS = {
     'admin_tase_refresh_desc':  {'he': 'עדכון שם אנגלי לכל הניירות מה-API הציבורי של TASE',
                                  'en': 'Update name_en for all holdings from the TASE public API'},
     'admin_tase_refresh_btn':   {'he': 'רענן הכל מ-TASE',               'en': 'Refresh All from TASE'},
+    'admin_tase_refresh_result': {'he': 'עודכנו {updated} ניירות מ-TASE ({failed} נכשלו)',
+                                  'en': 'Updated {updated} holdings from TASE ({failed} failed)'},
+    'admin_tase_refresh_started': {'he': 'רענון TASE התחיל ברקע — הדף יתעדכן בסיום',
+                                   'en': 'TASE refresh started in background — the page will update when done'},
+    'admin_tase_refresh_running': {'he': 'רענון TASE כבר פועל ברקע',
+                                   'en': 'TASE refresh is already running in the background'},
+    'admin_no_file':            {'he': 'לא הועלה קובץ',                  'en': 'No file uploaded'},
+    'admin_import_invalid_type':{'he': 'סוג קובץ לא חוקי — נדרש קובץ JSON',
+                                 'en': 'Invalid file type — a .json backup file is required'},
+    'admin_import_success':     {'he': 'מסד הנתונים יובא בהצלחה',        'en': 'Database imported successfully'},
+    # (migrated kwarg is accepted but not shown — kept for future expansion)
+    'admin_import_error':       {'he': 'ייבוא נכשל — ראה לוג שגיאות',    'en': 'Import failed — see error log'},
+    'flash_invalid_file_type':  {'he': 'סוג קובץ לא חוקי — נדרש קובץ Excel',
+                                 'en': 'Invalid file type — an Excel file (.xlsx/.xls) is required'},
+    'flash_date_filename_mismatch': {
+        'he': 'שים לב: תאריך הקובץ ({filename_date}) שונה מהתאריך שנבחר ({form_date})',
+        'en': 'Note: filename date ({filename_date}) differs from selected date ({form_date})',
+    },
 }
+
+
+def format_date(date_str, lang='he'):
+    """Format an ISO date string (YYYY-MM-DD) for locale-aware display.
+
+    Hebrew (he): DD/MM/YYYY  e.g. 02/02/2026
+    English (en): YYYY-MM-DD (ISO — unambiguous for financial data)
+    Returns the original value unchanged on parse failure.
+    """
+    if not date_str:
+        return ''
+    try:
+        from datetime import datetime as _dt
+        d = _dt.strptime(str(date_str)[:10], '%Y-%m-%d')
+        return d.strftime('%d/%m/%Y') if lang == 'he' else d.strftime('%Y-%m-%d')
+    except ValueError:
+        return str(date_str)
 
 
 def get_translations(lang='he'):

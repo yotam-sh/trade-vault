@@ -395,14 +395,10 @@ thead th:hover {
     background: var(--border);
 }
 
-thead th.sorted-asc::after {
-    content: ' ▲';
+.sort-indicator {
     font-size: 10px;
-}
-
-thead th.sorted-desc::after {
-    content: ' ▼';
-    font-size: 10px;
+    opacity: 0.75;
+    white-space: nowrap;
 }
 
 tbody td {

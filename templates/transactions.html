@@ -77,7 +77,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -91,6 +91,7 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -112,11 +113,12 @@
 
         <h1>{{ t.page_transactions }}</h1>
 
-        <!-- Add deposit / withdrawal forms -->
+        <!-- Add deposit / withdrawal / dividend forms -->
         <div class="two-col">
             <div class="card upload-card">
                 <div class="card-header">{{ t.add_deposit_title }}</div>
                 <form action="/add-deposit" method="post" class="upload-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="upload-row">
                         <label>{{ t.label_amount }}</label>
                         <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
@@ -153,6 +155,7 @@
             <div class="card upload-card">
                 <div class="card-header">{{ t.add_withdrawal_title }}</div>
                 <form action="/add-withdrawal" method="post" class="upload-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="upload-row">
                         <label>{{ t.label_amount }}</label>
                         <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
@@ -185,6 +188,50 @@
                     </div>
                 </form>
             </div>
+        </div>
+
+        <!-- Dividend form (full-width) -->
+        <div class="card upload-card" style="margin-bottom: 16px;">
+            <div class="card-header">{{ t.add_dividend_title }}</div>
+            <form action="/add-dividend" method="post" class="upload-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="upload-row">
+                    <label>{{ t.label_amount }}</label>
+                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                    <label>{{ t.label_date }}</label>
+                    <input type="hidden" name="date" id="dividend-date" required>
+                    <div class="calendar-picker" data-input="dividend-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
+                            </div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <label>{{ t.label_ticker_optional }}</label>
+                    <input type="text" name="ticker" dir="ltr" placeholder="e.g. TEVA.TA" style="width:120px;">
+                    <label>{{ t.label_tax_withheld }}</label>
+                    <input type="number" name="tax" step="0.01" min="0" dir="ltr" style="width:100px;">
+                    <label>{{ t.label_notes_optional }}</label>
+                    <input type="text" name="notes" style="width:180px;">
+                    <button type="submit">{{ t.btn_add_dividend }}</button>
+                </div>
+            </form>
         </div>
 
         <div class="filters">
@@ -246,7 +293,7 @@
                         <tbody>
                             {% for entry in log %}
                             <tr>
-                                <td>{{ entry.date }}</td>
+                                <td>{{ entry.date | format_date(lang) }}</td>
                                 <td>
                                     {{ t[entry.action_key] if entry.action_key in t else entry.action_key }}
                                     {% if entry.is_partial %}
@@ -277,7 +324,15 @@
                                         {{ '{:,.2f}'.format(entry.cost_change_ils) }}
                                     {% endif %}
                                 </td>
-                                <td>{{ entry.notes or '' }}</td>
+                                <td>
+                                    {% if entry.action == 'dividend' and entry.ticker %}
+                                        <span class="badge" style="background:var(--accent-secondary,#3fb950);color:#000;margin-inline-end:4px;">{{ entry.ticker }}</span>
+                                    {% endif %}
+                                    {{ entry.notes or '' }}
+                                    {% if entry.action == 'dividend' and entry.tax %}
+                                        <span style="color:var(--text-secondary);font-size:0.85em;"> ({{ t.label_tax_withheld }} {{ '{:,.0f}'.format(entry.tax) }} ₪)</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -293,6 +348,12 @@
                         <span class="summary-label">{{ t.summary_total_deposits }}</span>
                         <span class="summary-value">₪{{ '{:,.2f}'.format(summary.total_deposits) }}</span>
                     </div>
+                    {% if summary.total_dividends %}
+                    <div class="summary-row">
+                        <span class="summary-label">{{ t.summary_total_dividends }}</span>
+                        <span class="summary-value positive">₪{{ '{:,.2f}'.format(summary.total_dividends) }}</span>
+                    </div>
+                    {% endif %}
                     <div class="summary-row">
                         <span class="summary-label">{{ t.summary_net_invested }}</span>
                         <span class="summary-value">₪{{ '{:,.2f}'.format(summary.net_invested) }}</span>

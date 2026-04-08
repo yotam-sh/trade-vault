@@ -2,7 +2,7 @@
 
 from app.holdings import get_holding
 from app.snapshots import get_latest_snapshot, list_snapshots
-from app.transactions import get_total_deposits, get_total_withdrawals
+from app.transactions import get_total_deposits, get_total_withdrawals, get_total_dividends
 
 from app.utils.data_enrichment import enrich_position_with_holding
 
@@ -40,7 +40,7 @@ def get_pnl_summary():
         return {
             'total_deposits': deposits,
             'total_withdrawals': withdrawals,
-            'total_dividends': 0,
+            'total_dividends': get_total_dividends(),
         }
 
     return {
@@ -52,7 +52,7 @@ def get_pnl_summary():
         'total_deposits': deposits,
         'total_withdrawals': withdrawals,
         'net_invested': deposits - withdrawals,
-        'total_dividends': 0,
+        'total_dividends': get_total_dividends(),
         'total_return': snap['total_market_value'] - (deposits - withdrawals),
     }
 

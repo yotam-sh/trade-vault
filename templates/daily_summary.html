@@ -78,7 +78,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -92,6 +92,7 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -179,7 +180,7 @@
                     <tbody>
                         {% for day in data %}
                         <tr data-pnl="{{ day.daily_pnl }}">
-                            <td><a href="/daily-details?start={{ day.date }}&end={{ day.date }}" class="position-link">{{ day.date }}</a></td>
+                            <td><a href="/daily-details?start={{ day.date }}&end={{ day.date }}" class="position-link">{{ day.date | format_date(lang) }}</a></td>
                             <td class="num">{{ '{:,.2f}'.format(day.morning_value) }}</td>
                             <td class="num">{{ '{:,.2f}'.format(day.current_value) }}</td>
                             <td class="num">
@@ -194,7 +195,7 @@
                             {% if day.best %}
                             <td>
                                 {% if day.best.holding_id %}<a href="/position/{{ day.best.holding_id }}" class="position-link">{% endif %}
-                                {{ (day.best.ticker_en if lang == 'en' and day.best.ticker_en else day.best.symbol) }}
+                                {{ (day.best.symbol_en if lang == 'en' and day.best.symbol_en else day.best.symbol) }}
                                 {% if day.best.holding_id %}</a>{% endif %}
                             </td>
                             <td class="num positive">{{ '{:,.2f}'.format(day.best.daily_pnl) }}</td>
@@ -207,7 +208,7 @@
                             {% if day.worst %}
                             <td>
                                 {% if day.worst.holding_id %}<a href="/position/{{ day.worst.holding_id }}" class="position-link">{% endif %}
-                                {{ (day.worst.ticker_en if lang == 'en' and day.worst.ticker_en else day.worst.symbol) }}
+                                {{ (day.worst.symbol_en if lang == 'en' and day.worst.symbol_en else day.worst.symbol) }}
                                 {% if day.worst.holding_id %}</a>{% endif %}
                             </td>
                             <td class="num negative">{{ '{:,.2f}'.format(day.worst.daily_pnl) }}</td>

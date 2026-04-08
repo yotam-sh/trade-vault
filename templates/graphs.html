@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ t.page_graphs }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
@@ -81,7 +82,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -95,6 +96,7 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs" class="active" aria-current="page">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -238,6 +240,20 @@
             <div class="chart-canvas-wrap"><canvas id="topPositionsChart" role="img" aria-label="{{ t.chart_top_positions }}"></canvas></div>
         </div>
 
+        <!-- Chart H: Cumulative Return Comparison -->
+        <div class="card" data-chart-id="H" data-width="100" data-locked="false">
+            <div class="card-header">
+                <span>{{ t.chart_h_title }}</span>
+                <div class="chart-edit-controls">
+                    <button class="chart-ctrl-btn zoom-reset-btn" style="display:none; font-size:0.72rem; padding:0 6px;" title="Reset zoom">↺</button>
+                    <button class="chart-ctrl-btn lock-btn">🔓</button>
+                    <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                    <button class="chart-ctrl-btn hide-btn">×</button>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="returnComparisonChart" role="img" aria-label="{{ t.chart_h_title }}"></canvas></div>
+        </div>
+
         </div><!-- /graphsGrid -->
 
         <!-- Hidden charts tray (visible only in edit mode) -->
@@ -274,7 +290,8 @@
             D: T.chart_drawdown,
             E: T.chart_heatmap,
             F: T.chart_allocation_history,
-            G: T.chart_top_positions
+            G: T.chart_top_positions,
+            H: T.chart_h_title
         };
 
         function css(v) {
@@ -282,9 +299,32 @@
         }
 
         // ── Chart A: Portfolio Value vs Net Invested ──────────────────────────
-        var snapLabels  = snapshots.map(function(s) { return s.date; });
-        var snapValues  = snapshots.map(function(s) { return s.total_market_value; });
+        var snapLabels   = snapshots.map(function(s) { return s.date; });
+        var snapValues   = snapshots.map(function(s) { return s.total_market_value; });
         var snapInvested = snapshots.map(function(s) { return s.net_invested; });
+
+        // Benchmark data from server (raw index closing prices aligned to snapshot dates)
+        var benchmarkRaw = {{ benchmark|tojson }};
+
+        // % return series: each value is cumulative return since the first valid price (0% at start)
+        function returnPct(rawSeries) {
+            var base = null;
+            return rawSeries.map(function(v) {
+                if (v === null || v === undefined) return null;
+                if (base === null) base = v;
+                return base > 0 ? +((v / base - 1) * 100).toFixed(4) : null;
+            });
+        }
+
+        // P&L return: (market_value - net_invested) / net_invested × 100
+        // Excludes deposit-driven value jumps — shows pure gain/loss on invested capital.
+        function portfolioReturnPct(values, invested) {
+            return values.map(function(v, i) {
+                var ni = invested[i];
+                if (v === null || v === undefined || !ni || ni === 0) return null;
+                return +((v / ni - 1) * 100).toFixed(4);
+            });
+        }
 
         var ctxA = document.getElementById('portfolioValueChart').getContext('2d');
         var chartA = new Chart(ctxA, { // chart A
@@ -311,7 +351,7 @@
                         borderDash: [5, 4],
                         pointRadius: 0,
                         tension: 0,
-                    }
+                    },
                 ]
             },
             options: {
@@ -1145,6 +1185,120 @@
 
         CHART_INSTANCES['G'] = chartG;
 
+        // ── Chart H: Cumulative Return Comparison ─────────────────────────────
+        var portfolioPct = portfolioReturnPct(snapValues, snapInvested);
+        var ta125Pct     = returnPct(benchmarkRaw.ta125 || []);
+        var ta35Pct      = returnPct(benchmarkRaw.ta35  || []);
+
+        // Fixed colors — independent of theme accent so they stay distinguishable
+        // across all four themes (default blue accent, crimson, teal, slate orange).
+        var H_COLOR_PORTFOLIO = '#4c9be8'; // clear blue
+        var H_COLOR_TA125     = '#f0a500'; // amber
+        var H_COLOR_TA35      = '#e05c5c'; // coral red
+
+        var ctxH = document.getElementById('returnComparisonChart').getContext('2d');
+        var chartH = new Chart(ctxH, {
+            type: 'line',
+            data: {
+                labels: snapLabels,
+                datasets: [
+                    {
+                        label: T.label_portfolio_return,
+                        data: portfolioPct,
+                        borderColor: H_COLOR_PORTFOLIO,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: snapLabels.length > 60 ? 0 : 3,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                    {
+                        label: T.label_ta125,
+                        data: ta125Pct,
+                        borderColor: H_COLOR_TA125,
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                    {
+                        label: T.label_ta35,
+                        data: ta35Pct,
+                        borderColor: H_COLOR_TA35,
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { color: css('--text-primary') },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if (ctx.parsed.y === null || ctx.parsed.y === undefined) return null;
+                                var sign = ctx.parsed.y >= 0 ? '+' : '';
+                                return ctx.dataset.label + ': ' + sign + ctx.parsed.y.toFixed(2) + '%';
+                            }
+                        }
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                            onZoom: function() {
+                                document.querySelector('[data-chart-id="H"] .zoom-reset-btn').style.display = '';
+                            }
+                        },
+                        pan: { enabled: true, mode: 'x' },
+                        limits: { x: { minRange: 2 } },
+                    },
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: css('--text-secondary'),
+                            maxTicksLimit: 12,
+                            maxRotation: 0,
+                        },
+                        grid: { color: css('--bg-tertiary') },
+                    },
+                    y: {
+                        min: undefined,
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+                        },
+                        grid: {
+                            color: function(ctx) {
+                                // Highlight the zero baseline
+                                return ctx.tick.value === 0
+                                    ? 'rgba(128,128,128,0.5)'
+                                    : css('--bg-tertiary');
+                            }
+                        },
+                    }
+                }
+            }
+        });
+        document.querySelector('[data-chart-id="H"] .zoom-reset-btn').addEventListener('click', function() {
+            chartH.resetZoom(); this.style.display = 'none';
+        });
+
+        CHART_INSTANCES['H'] = chartH;
+
         // ── Live theme re-render ──────────────────────────────────────────────
         function applyTheme() {
             // Chart A colors
@@ -1208,6 +1362,14 @@
             chartG.options.scales.y.ticks.color = css('--text-secondary');
             chartG.options.scales.y.grid.color  = css('--bg-tertiary');
             chartG.update();
+
+            // Chart H (dataset colors are fixed; only text/grid adapt to theme)
+            chartH.options.plugins.legend.labels.color = css('--text-primary');
+            chartH.options.scales.x.ticks.color = css('--text-secondary');
+            chartH.options.scales.x.grid.color  = css('--bg-tertiary');
+            chartH.options.scales.y.ticks.color = css('--text-secondary');
+            chartH.options.scales.y.grid.color  = css('--bg-tertiary');
+            chartH.update();
         }
 
         new MutationObserver(applyTheme)
@@ -1234,7 +1396,10 @@
                 .map(function(el) { return el.getAttribute('data-chart-id'); });
             fetch('/api/graph-layout', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
+                },
                 body: JSON.stringify({ order: order, widths: widths, hidden: hidden, locked: locked })
             });
         }
@@ -1465,7 +1630,7 @@
         }
 
         function resetLayout() {
-            var DEFAULT_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            var DEFAULT_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
             // Restore any hidden charts first
             Array.from(document.querySelectorAll('#hiddenChartsPills [data-chart-id]')).forEach(function(pill) {
                 showChart(pill.getAttribute('data-chart-id'));

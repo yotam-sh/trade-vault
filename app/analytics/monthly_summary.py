@@ -3,7 +3,7 @@
 import calendar
 from datetime import date
 from app.snapshots import list_snapshots, get_latest_snapshot
-from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
+from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals, get_total_dividends
 from app.utils.trading_calendar import is_non_trading_day
 
 
@@ -124,6 +124,10 @@ def get_transaction_log():
                 entry['action_key'] = 'action_initial_transfer'
         elif txn['type'] == 'withdrawal':
             entry['action_key'] = 'action_withdrawal'
+        elif txn['type'] == 'dividend':
+            entry['action_key'] = 'action_dividend'
+            entry['ticker'] = txn.get('ticker') or ''
+            entry['tax'] = txn.get('tax') or 0
         else:
             entry['action_key'] = txn['type']
 
@@ -171,6 +175,7 @@ def get_transaction_summary():
 
     return {
         'total_deposits': total_deposits,
+        'total_dividends': get_total_dividends(),
         'net_invested': net_invested,
         'cost_change_ils': cost_change_ils,
         'cost_change_pct': cost_change_pct,

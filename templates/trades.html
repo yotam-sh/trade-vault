@@ -78,7 +78,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -92,6 +92,7 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -217,7 +218,7 @@
                     <tbody>
                         {% for tr in trades %}
                         <tr data-pnl="{{ tr.realized_pnl or 0 }}">
-                            <td>{{ tr.date }}</td>
+                            <td>{{ tr.date | format_date(lang) }}</td>
                             <td>
                                 {% if tr.type == 'buy' %}
                                     <span class="badge badge-buy">{{ t.badge_buy }}</span>
@@ -227,7 +228,7 @@
                             </td>
                             <td><span class="badge badge-{{ tr.position_type }}">{{ t[tr.position_type] if tr.position_type in t else tr.position_type }}</span></td>
                             <td><a href="/position/{{ tr.holding_id }}" class="position-link">{{ (tr.name_en if lang == 'en' and tr.name_en else tr.name_he) }}</a></td>
-                            <td>{{ (tr.ticker if lang == 'en' and tr.ticker else tr.symbol) }}</td>
+                            <td>{{ (tr.symbol_en if lang == 'en' and tr.symbol_en else tr.symbol) }}</td>
                             <td class="num">{{ '{:,.0f}'.format(tr.shares or 0) }}</td>
                             <td class="num">{{ '{:,.1f}'.format((tr.price_per_share or 0) * 100) }}</td>
                             <td class="num">₪{{ '{:,.2f}'.format(tr.total_amount or 0) }}</td>

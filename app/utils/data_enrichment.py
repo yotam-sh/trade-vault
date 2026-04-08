@@ -58,6 +58,7 @@ def enrich_positions_batch(positions, holding_id_key='holding_id'):
         enriched['name_he'] = holding.get('name_he', pos.get('ticker', ''))
         enriched['name_en'] = holding.get('name_en')
         enriched['symbol'] = holding.get('tase_symbol', pos.get('ticker', ''))
+        enriched['symbol_en'] = holding.get('tase_symbol_en')  # English TASE symbol
         enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
         enriched['security_type'] = holding.get('security_type', 'other')
 
@@ -88,6 +89,7 @@ def enrich_trade_with_holding(trade, holding_id=None):
         enriched['name_he'] = holding['name_he']
         enriched['name_en'] = holding.get('name_en')
         enriched['symbol'] = holding.get('tase_symbol', '')
+        enriched['symbol_en'] = holding.get('tase_symbol_en')  # English TASE symbol
         enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
         enriched['security_type'] = holding.get('security_type', '')
     else:
@@ -95,6 +97,7 @@ def enrich_trade_with_holding(trade, holding_id=None):
         enriched['name_he'] = trade.get('name_he', trade.get('ticker', ''))
         enriched['name_en'] = None
         enriched['symbol'] = trade.get('symbol', trade.get('ticker', ''))
+        enriched['symbol_en'] = None
         enriched['ticker'] = None
         enriched['security_type'] = trade.get('security_type', '')
 

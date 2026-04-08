@@ -80,7 +80,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -94,6 +94,7 @@
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -119,6 +120,7 @@
         <div class="card upload-card">
             <div class="card-header">{{ t.upload_title }}</div>
             <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="upload-row">
                     <label>{{ t.label_file }}</label>
                     <input type="file" name="file" id="file-input" accept=".xlsx,.xls" required hidden>

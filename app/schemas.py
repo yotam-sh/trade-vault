@@ -2,6 +2,31 @@
 
 from datetime import datetime
 
+# ── Validation constants ──────────────────────────────────────────────────────
+
+# Fields that must be >= 0 when present
+_NON_NEGATIVE_FIELDS = {
+    'shares', 'price_per_share', 'market_value', 'quantity',
+    'original_shares', 'remaining_shares', 'cost_per_share', 'total_cost',
+    'price', 'commission', 'tax', 'fees_other',
+    'total_deposits', 'total_withdrawals',
+    'rows_imported', 'rows_skipped', 'new_holdings',
+    'num_positions',
+}
+
+# Allowed enum values per field
+_ENUM_FIELDS = {
+    'type': {'buy', 'sell', 'deposit', 'withdrawal', 'dividend'},
+    'import_type': {'daily_portfolio', 'trade_import', 'morning_balance'},
+    'status': {'success', 'partial', 'duplicate', 'error'},
+}
+
+# Date fields that must be ISO YYYY-MM-DD or ISO datetime
+_DATE_FIELDS = {
+    'date', 'data_date', 'import_date', 'buy_date', 'closed_date',
+    'first_bought', 'last_sold',
+}
+
 # Schema definitions: field -> (type, required)
 HOLDING_SCHEMA = {
     'ticker': (str, False),
@@ -150,6 +175,13 @@ def validate_record(table_name, record):
     """Validate a record against its schema.
 
     Returns (is_valid, errors) tuple.
+
+    Checks:
+    - Required field presence
+    - Type correctness (int accepted where float is expected)
+    - ISO date format for known date fields
+    - Non-negative values for financial/quantity fields
+    - Enum membership for type/status/import_type fields
     """
     schema = SCHEMAS.get(table_name)
     if schema is None:
@@ -160,12 +192,45 @@ def validate_record(table_name, record):
         if required and field not in record:
             errors.append(f"Missing required field: {field}")
             continue
-        if field in record and expected_type is not None:
-            value = record[field]
-            if value is not None and not isinstance(value, expected_type):
-                # Allow int where float is expected
-                if expected_type is float and isinstance(value, int):
-                    continue
-                errors.append(f"Field '{field}' expected {expected_type.__name__}, got {type(value).__name__}")
+
+        if field not in record:
+            continue
+
+        value = record[field]
+        if value is None:
+            continue
+
+        # Type check
+        if expected_type is not None and not isinstance(value, expected_type):
+            if expected_type is float and isinstance(value, int):
+                pass  # int is acceptable where float is expected
+            else:
+                errors.append(
+                    f"Field '{field}' expected {expected_type.__name__}, "
+                    f"got {type(value).__name__}"
+                )
+                continue
+
+        # ISO date format check (YYYY-MM-DD)
+        if field in _DATE_FIELDS and isinstance(value, str):
+            try:
+                datetime.strptime(value[:10], '%Y-%m-%d')
+            except ValueError:
+                errors.append(
+                    f"Field '{field}' must be a valid ISO date (YYYY-MM-DD), got '{value}'"
+                )
+
+        # Non-negative numeric check
+        if field in _NON_NEGATIVE_FIELDS and isinstance(value, (int, float)):
+            if value < 0:
+                errors.append(f"Field '{field}' must be >= 0, got {value}")
+
+        # Enum membership check
+        if field in _ENUM_FIELDS:
+            allowed = _ENUM_FIELDS[field]
+            if value not in allowed:
+                errors.append(
+                    f"Field '{field}' must be one of {sorted(allowed)}, got '{value}'"
+                )
 
     return len(errors) == 0, errors

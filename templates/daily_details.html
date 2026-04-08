@@ -78,7 +78,7 @@
                     <div class="settings-links">
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link">{{ t.nav_cli_docs }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
             </div>
@@ -92,6 +92,7 @@
             <a href="/daily-details" class="active" aria-current="page">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
             <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
         <div class="nav-right">
@@ -178,7 +179,7 @@
                             <tbody>
                                 {% for d in details %}
                                 <tr data-type="{{ d.security_type }}" data-pnl="{{ d.change_ils or 0 }}">
-                                    <td>{{ d.date }}</td>
+                                    <td>{{ d.date | format_date(lang) }}</td>
                                     <td>
                                         {% if d.security_type == 'stock' %}{{ t.type_stock }}
                                         {% elif d.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
@@ -188,7 +189,7 @@
                                     </td>
                                     <td><a href="/position/{{ d.holding_id }}" class="position-link">{{ (d.name_en if lang == 'en' and d.name_en else d.name) }}</a></td>
                                     <td>{{ d.tase_id }}</td>
-                                    <td>{{ (d.ticker if lang == 'en' and d.ticker else d.symbol) }}</td>
+                                    <td>{{ (d.symbol_en if lang == 'en' and d.symbol_en else d.symbol) }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(d.change_ils or 0) }}</td>
                                     <td class="num pnl">
                                         {% if d.change_pct is not none %}
@@ -279,7 +280,7 @@
                             <tbody>
                                 {% for day in pivot_date.days %}
                                 <tr data-pnl="{{ day.total_change_ils }}">
-                                    <td>{{ day.date }}</td>
+                                    <td>{{ day.date | format_date(lang) }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(day.total_change_ils) }}</td>
                                     <td class="num pnl">{{ '{:.2f}'.format(day.total_change_pct) }}%</td>
                                     <td class="num">{{ day.count }}</td>

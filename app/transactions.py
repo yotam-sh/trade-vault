@@ -84,6 +84,21 @@ def add_withdrawal(date, amount, currency='ILS', source='manual', **kwargs):
     )
 
 
+def add_dividend(date, amount, currency='ILS', source='manual', **kwargs):
+    """Add a dividend income transaction.
+
+    Optional kwargs:
+        holding_id: int — linked holding
+        ticker: str    — security that paid the dividend
+        tax: float     — withholding tax deducted at source
+        notes: str     — free-text description
+    """
+    return add_transaction(
+        type_='dividend', date=date, total_amount=amount, currency=currency,
+        source=source, **kwargs
+    )
+
+
 def list_transactions(type_=None, ticker=None, start_date=None, end_date=None):
     """List transactions with optional filters."""
     table = get_table(TRANSACTIONS)
@@ -120,5 +135,11 @@ def get_total_withdrawals():
     """Sum of all withdrawal transactions."""
     withdrawals = list_transactions(type_='withdrawal')
     return sum(w['total_amount'] for w in withdrawals)
+
+
+def get_total_dividends():
+    """Sum of all dividend income transactions (gross, before withholding tax)."""
+    dividends = list_transactions(type_='dividend')
+    return sum(d['total_amount'] for d in dividends)
 
 

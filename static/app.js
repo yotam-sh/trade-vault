@@ -4,96 +4,154 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ─── Table sorting ───
+    // ─── Table sorting (multi-column) ───
+    //
+    // Regular click : single-column sort; toggles asc/desc if already the sole sort column.
+    // Shift+click   : adds/toggles a secondary (or further) sort key.
+    // Visual        : ▲/▼ appended to each active header; rank superscript shown when >1 column.
+    //
+    // Per-table sort state is stored on the element as _sortCols: [{idx, dir}, ...]
+    // dir: 1 = ascending, -1 = descending
+
+    function _getCellValue(cell) {
+        if (!cell) return '';
+        // Cells that contain an <input> (e.g. rebalance target column) — read the value
+        var input = cell.querySelector('input[type="number"], input[type="text"]');
+        if (input) return input.value.trim();
+        return cell.textContent.trim();
+    }
+
+    function _compareValues(aVal, bVal) {
+        var dateRe = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateRe.test(aVal) && dateRe.test(bVal))
+            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        var aNum = parseFloat(aVal.replace(/[,%₪+]/g, ''));
+        var bNum = parseFloat(bVal.replace(/[,%₪+]/g, ''));
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return aVal.localeCompare(bVal, 'he');
+    }
+
+    function _multiCompare(a, b, sortCols) {
+        for (var i = 0; i < sortCols.length; i++) {
+            var col = sortCols[i];
+            var cmp = _compareValues(
+                _getCellValue(a.children[col.idx]),
+                _getCellValue(b.children[col.idx])
+            );
+            if (cmp !== 0) return cmp * col.dir;
+        }
+        return 0;
+    }
+
+    function _updateSortIndicators(table, sortCols) {
+        table.querySelectorAll('thead th').forEach(function (th) {
+            var old = th.querySelector('.sort-indicator');
+            if (old) old.remove();
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            th.setAttribute('aria-sort', 'none');
+        });
+        var ths = Array.from(table.querySelectorAll('thead th'));
+        sortCols.forEach(function (col, rank) {
+            var th = ths[col.idx];
+            if (!th) return;
+            var isAsc = col.dir === 1;
+            th.classList.add(isAsc ? 'sorted-asc' : 'sorted-desc');
+            th.setAttribute('aria-sort', isAsc ? 'ascending' : 'descending');
+            var span = document.createElement('span');
+            span.className = 'sort-indicator';
+            span.setAttribute('aria-hidden', 'true');
+            // Show rank superscript only when more than one sort column is active
+            var rankStr = sortCols.length > 1 ? '\u2070\u2071\u2072\u2073\u2074\u2075\u2076\u2077\u2078\u2079'.split('')[rank + 1] || (rank + 1) : '';
+            span.textContent = (isAsc ? ' \u25b2' : ' \u25bc') + rankStr;
+            th.appendChild(span);
+        });
+    }
+
+    function _applySort(table) {
+        var sortCols = table._sortCols || [];
+        if (!sortCols.length) return;
+        var tbody = table.querySelector('tbody');
+        var isGroupSortable = table.classList.contains('group-sortable');
+
+        if (isGroupSortable) {
+            var allRows = Array.from(tbody.querySelectorAll('tr'));
+            var groups = [];
+            var currentGroup = null;
+            allRows.forEach(function (row) {
+                if (row.classList.contains('group-header')) {
+                    if (currentGroup) groups.push(currentGroup);
+                    currentGroup = { header: row, rows: [], subtotal: null };
+                } else if (row.classList.contains('subtotal')) {
+                    if (currentGroup) currentGroup.subtotal = row;
+                } else if (row.classList.contains('grand-total')) {
+                    if (currentGroup) { groups.push(currentGroup); currentGroup = null; }
+                    groups.grandTotal = row;
+                } else if (currentGroup) {
+                    currentGroup.rows.push(row);
+                }
+            });
+            if (currentGroup) groups.push(currentGroup);
+
+            groups.forEach(function (group) {
+                group.rows.sort(function (a, b) { return _multiCompare(a, b, sortCols); });
+            });
+
+            tbody.innerHTML = '';
+            groups.forEach(function (group) {
+                tbody.appendChild(group.header);
+                group.rows.forEach(function (row) { tbody.appendChild(row); });
+                if (group.subtotal) tbody.appendChild(group.subtotal);
+            });
+            if (groups.grandTotal) tbody.appendChild(groups.grandTotal);
+        } else {
+            var rows = Array.from(tbody.querySelectorAll('tr:not(.subtotal):not(.grand-total):not(.group-header)'));
+            rows.sort(function (a, b) { return _multiCompare(a, b, sortCols); });
+            rows.forEach(function (row) { tbody.appendChild(row); });
+        }
+    }
+
     document.querySelectorAll('table.sortable thead th').forEach(function (th) {
-        // Make headers keyboard-focusable and announce sort capability
         th.setAttribute('tabindex', '0');
         th.setAttribute('aria-sort', 'none');
 
-        function doSort() {
+        function doSort(e) {
             var table = th.closest('table');
-            var tbody = table.querySelector('tbody');
             var colIdx = Array.from(th.parentNode.children).indexOf(th);
-            var isGroupSortable = table.classList.contains('group-sortable');
+            if (!table._sortCols) table._sortCols = [];
+            var sortCols = table._sortCols;
+            var shiftHeld = e && e.shiftKey;
 
-            var isAsc = th.classList.contains('sorted-asc');
-            table.querySelectorAll('th').forEach(function (h) {
-                h.classList.remove('sorted-asc', 'sorted-desc');
-                h.setAttribute('aria-sort', 'none');
-            });
-            th.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
-            th.setAttribute('aria-sort', isAsc ? 'descending' : 'ascending');
-            var direction = isAsc ? -1 : 1;
-
-            if (isGroupSortable) {
-                // Group-aware sorting: sort within each group
-                var allRows = Array.from(tbody.querySelectorAll('tr'));
-                var groups = [];
-                var currentGroup = null;
-
-                allRows.forEach(function (row) {
-                    if (row.classList.contains('group-header')) {
-                        if (currentGroup) groups.push(currentGroup);
-                        currentGroup = { header: row, rows: [], subtotal: null, grandTotal: null };
-                    } else if (row.classList.contains('subtotal')) {
-                        if (currentGroup) currentGroup.subtotal = row;
-                    } else if (row.classList.contains('grand-total')) {
-                        if (currentGroup) {
-                            groups.push(currentGroup);
-                            currentGroup = null;
-                        }
-                        // Store grand total separately
-                        groups.grandTotal = row;
-                    } else if (currentGroup) {
-                        currentGroup.rows.push(row);
-                    }
-                });
-                if (currentGroup) groups.push(currentGroup);
-
-                // Sort rows within each group
-                groups.forEach(function (group) {
-                    group.rows.sort(function (a, b) {
-                        var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
-                        var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
-                        var dateRe = /^\d{4}-\d{2}-\d{2}$/;
-                        if (dateRe.test(aVal) && dateRe.test(bVal)) return (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) * direction;
-                        var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
-                        var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
-                        if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
-                        return aVal.localeCompare(bVal, 'he') * direction;
-                    });
-                });
-
-                // Rebuild table with sorted groups
-                tbody.innerHTML = '';
-                groups.forEach(function (group) {
-                    tbody.appendChild(group.header);
-                    group.rows.forEach(function (row) { tbody.appendChild(row); });
-                    if (group.subtotal) tbody.appendChild(group.subtotal);
-                });
-                if (groups.grandTotal) tbody.appendChild(groups.grandTotal);
-            } else {
-                // Standard sorting: sort all rows together
-                var rows = Array.from(tbody.querySelectorAll('tr:not(.subtotal):not(.grand-total):not(.group-header)'));
-                rows.sort(function (a, b) {
-                    var aVal = a.children[colIdx] ? a.children[colIdx].textContent.trim() : '';
-                    var bVal = b.children[colIdx] ? b.children[colIdx].textContent.trim() : '';
-                    var dateRe = /^\d{4}-\d{2}-\d{2}$/;
-                    if (dateRe.test(aVal) && dateRe.test(bVal)) return (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) * direction;
-                    var aNum = parseFloat(aVal.replace(/[,%₪]/g, ''));
-                    var bNum = parseFloat(bVal.replace(/[,%₪]/g, ''));
-                    if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
-                    return aVal.localeCompare(bVal, 'he') * direction;
-                });
-                rows.forEach(function (row) { tbody.appendChild(row); });
+            // Find if this column is already in the sort list
+            var existingPos = -1;
+            for (var i = 0; i < sortCols.length; i++) {
+                if (sortCols[i].idx === colIdx) { existingPos = i; break; }
             }
+
+            if (shiftHeld) {
+                if (existingPos >= 0) {
+                    // Already a sort key — toggle its direction
+                    sortCols[existingPos].dir *= -1;
+                } else {
+                    // Add as the next sort key (starts ascending)
+                    sortCols.push({ idx: colIdx, dir: 1 });
+                }
+            } else {
+                // Regular click: single-column sort
+                // If this column is already the sole sort key, toggle direction; otherwise start asc
+                var newDir = (sortCols.length === 1 && sortCols[0].idx === colIdx) ? sortCols[0].dir * -1 : 1;
+                sortCols.length = 0;
+                sortCols.push({ idx: colIdx, dir: newDir });
+            }
+
+            _updateSortIndicators(table, sortCols);
+            _applySort(table);
         }
 
         th.addEventListener('click', doSort);
         th.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                doSort();
+                doSort(e);
             }
         });
     });

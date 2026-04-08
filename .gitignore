@@ -40,3 +40,6 @@ env/
 
 # Gunicorn
 gunicorn.pid
+
+# Local notes, prompts, and audit docs
+notes/

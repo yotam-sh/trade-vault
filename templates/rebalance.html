@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ t.page_title_rebalance }} - TradeVault</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* ── Group header row ── */
+        .rebalance-group-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        .group-title {
+            font-weight: 700;
+            font-size: 1rem;
+            flex: 1 1 auto;
+        }
+        .group-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .group-stat {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .group-stat strong { color: var(--text-primary); }
+
+        /* ── Group target input ── */
+        .group-target-input,
+        .holding-target-input {
+            width: 5.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            padding: 3px 6px;
+            text-align: center;
+        }
+        .group-target-input:focus,
+        .holding-target-input:focus {
+            outline: 2px solid var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* ── Toggle button ── */
+        .group-toggle-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 2px 6px;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+        .rebalance-group.collapsed .group-toggle-btn { transform: rotate(-90deg); }
+
+        /* ── Holdings table ── */
+        .group-holdings { overflow: hidden; transition: max-height 0.25s ease; }
+        .rebalance-group.collapsed .group-holdings { display: none; }
+
+        .rebalance-table { width: 100%; }
+        .rebalance-table td, .rebalance-table th { padding: 6px 10px; }
+
+        /* ── Delta / action colours ── */
+        .action-buy  { color: var(--positive); font-weight: 600; }
+        .action-sell { color: var(--negative); font-weight: 600; }
+        .action-hold { color: var(--text-secondary); }
+        .delta-pos   { color: var(--negative); }
+        .delta-neg   { color: var(--positive); }
+        .delta-zero  { color: var(--text-secondary); }
+        .over100     { color: var(--negative); font-weight: 600; }
+
+        /* ── Group-level delta badge in header ── */
+        .group-delta { font-size: 0.85rem; font-weight: 600; }
+
+        /* ── Summary card ── */
+        #rebalance-summary {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 10px 16px;
+        }
+        #save-feedback {
+            font-size: 0.8rem;
+            color: var(--positive);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #save-feedback.visible { opacity: 1; }
+
+        /* ── Within-group sub-label ── */
+        .sub-label {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
+        <div class="nav-left">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
+                {{ t.settings }}
+            </button>
+            <div class="settings-dropdown" id="settings-dropdown">
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_language }}</div>
+                    <div class="lang-options">
+                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">עברית</button>
+                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">English</button>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background:#0d1117"></span>
+                                <span class="color-sample" style="background:#161b22"></span>
+                                <span class="color-sample" style="background:#58a6ff"></span>
+                                <span class="color-sample" style="background:#3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background:#280905"></span>
+                                <span class="color-sample" style="background:#740A03"></span>
+                                <span class="color-sample" style="background:#C3110C"></span>
+                                <span class="color-sample" style="background:#E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background:#432323"></span>
+                                <span class="color-sample" style="background:#2F5755"></span>
+                                <span class="color-sample" style="background:#5A9690"></span>
+                                <span class="color-sample" style="background:#E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background:#37353E"></span>
+                                <span class="color-sample" style="background:#44444E"></span>
+                                <span class="color-sample" style="background:#715A5A"></span>
+                                <span class="color-sample" style="background:#D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer">{{ t.nav_cli_docs }}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <a href="/">{{ t.nav_home }}</a>
+            <a href="/transactions">{{ t.nav_transactions }}</a>
+            <a href="/trades">{{ t.nav_trades }}</a>
+            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+            <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance" class="active" aria-current="page">{{ t.nav_rebalance }}</a>
+        </div>
+
+        <div class="nav-right">
+            <a href="/" class="brand">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
+            </a>
+        </div>
+    </nav>
+
+    <div class="container" id="main-content" role="main">
+        <h1>{{ t.page_title_rebalance }}</h1>
+
+        {% if group_data %}
+
+        {# ── One card per security type group ── #}
+        {% for grp in group_data %}
+        {% set gtype = grp.type %}
+        <div class="card rebalance-group" data-group-type="{{ gtype }}">
+            <div class="card-header rebalance-group-header" role="button" tabindex="0"
+                 aria-expanded="true" aria-controls="holdings-{{ gtype }}">
+
+                {# Group name #}
+                <span class="group-title">
+                    {% if gtype == 'stock' %}{{ t.type_stock }}
+                    {% elif gtype == 'mutual_fund' %}{{ t.type_mutual_fund_long }}
+                    {% elif gtype == 'etf' %}{{ t.type_etf_long }}
+                    {% elif gtype == 'bond' %}{{ t.type_bond }}
+                    {% else %}{{ gtype }}{% endif %}
+                </span>
+
+                <div class="group-meta">
+                    {# Current allocation #}
+                    <span class="group-stat">
+                        {{ t.col_current_weight }}: <strong>{{ '{:.1f}'.format(grp.current_pct) }}%</strong>
+                        (₪{{ '{:,.0f}'.format(grp.group_value) }})
+                    </span>
+
+                    {# Group target input #}
+                    <label style="display:flex;align-items:center;gap:4px;font-size:0.82rem;color:var(--text-secondary);">
+                        {{ t.rebalance_group_target }}:
+                        <input type="number"
+                               class="group-target-input"
+                               data-group-type="{{ gtype }}"
+                               value="{{ '{:.1f}'.format(grp.target_pct) if grp.target_pct else '' }}"
+                               placeholder="0"
+                               min="0" max="100" step="0.5"
+                               aria-label="{{ t.rebalance_group_target }}">%
+                    </label>
+
+                    {# Group delta #}
+                    <span class="group-delta group-delta-cell
+                        {% if grp.delta_pct > 0.1 %}delta-pos
+                        {% elif grp.delta_pct < -0.1 %}delta-neg
+                        {% else %}delta-zero{% endif %}">
+                        {{ ('+' if grp.delta_pct > 0 else '') }}{{ '{:.1f}'.format(grp.delta_pct) }}%
+                    </span>
+
+                    {# Group action #}
+                    <span class="group-action-cell">
+                        {% if grp.group_action == 'buy' %}
+                            <span class="action-buy">{{ t.action_buy }} ₪{{ '{:,.0f}'.format(grp.group_action_ils) }}</span>
+                        {% elif grp.group_action == 'sell' %}
+                            <span class="action-sell">{{ t.action_sell }} ₪{{ '{:,.0f}'.format(grp.group_action_ils) }}</span>
+                        {% else %}
+                            <span class="action-hold">✓</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <button class="group-toggle-btn" aria-label="{{ t.rebalance_collapse }}" tabindex="-1">▾</button>
+            </div>
+
+            {# ── Holdings table ── #}
+            <div class="group-holdings" id="holdings-{{ gtype }}">
+                <table class="rebalance-table sortable">
+                    <caption class="visually-hidden">{{ t.page_title_rebalance }} — {{ gtype }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ t.th_name }}</th>
+                            <th scope="col" class="num">
+                                {{ t.col_current_weight }}
+                                <span class="sub-label">{{ t.rebalance_within_group }}</span>
+                            </th>
+                            <th scope="col" class="num">
+                                {{ t.col_target_weight }}
+                                <span class="sub-label">{{ t.rebalance_within_group }}</span>
+                            </th>
+                            <th scope="col" class="num">{{ t.col_delta }}</th>
+                            <th scope="col" class="num">{{ t.col_action }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in grp.holdings %}
+                        <tr data-holding-id="{{ row.holding_id }}" data-group-type="{{ gtype }}">
+                            <td>
+                                <a href="/position/{{ row.holding_id }}" class="position-link">
+                                    {{ (row.name_en if lang == 'en' and row.name_en else row.name_he) }}
+                                </a>
+                                <span class="sub-label">₪{{ '{:,.0f}'.format(row.market_value) }}</span>
+                            </td>
+                            <td class="num">{{ '{:.1f}'.format(row.current_in_group) }}%</td>
+                            <td class="num">
+                                <input type="number"
+                                       class="holding-target-input"
+                                       data-holding-id="{{ row.holding_id }}"
+                                       data-group-type="{{ gtype }}"
+                                       value="{{ '{:.1f}'.format(row.target_in_group) if row.target_in_group else '' }}"
+                                       placeholder="0"
+                                       min="0" max="100" step="0.5"
+                                       aria-label="{{ t.col_target_weight }}">
+                            </td>
+                            <td class="num delta-cell">
+                                {% set d = row.delta_in_group %}
+                                <span class="{% if d > 0.1 %}delta-pos{% elif d < -0.1 %}delta-neg{% else %}delta-zero{% endif %}">
+                                    {{ ('+' if d > 0 else '') }}{{ '{:.1f}'.format(d) }}%
+                                </span>
+                            </td>
+                            <td class="num action-cell">
+                                {% if row.action == 'buy' %}
+                                    <span class="action-buy">{{ t.action_buy }} ₪{{ '{:,.0f}'.format(row.action_ils) }}</span>
+                                {% elif row.action == 'sell' %}
+                                    <span class="action-sell">{{ t.action_sell }} ₪{{ '{:,.0f}'.format(row.action_ils) }}</span>
+                                {% else %}
+                                    <span class="action-hold">✓</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        {# ── Global summary card ── #}
+        <div class="card" id="rebalance-summary">
+            <span>
+                {{ t.label_total_targeted }}:
+                <strong id="total-group-targeted"
+                        class="{% if total_group_targeted > 100 %}over100{% endif %}">
+                    {{ '{:.1f}'.format(total_group_targeted) }}%
+                </strong>
+                {% if total_group_targeted > 100 %}
+                    <span class="over100"> — {{ t.rebalance_targets_over100 }}</span>
+                {% elif total_group_targeted < 100 %}
+                    <span style="color:var(--text-secondary);font-size:0.85rem;">
+                        ({{ '{:.1f}'.format(100 - total_group_targeted) }}% {{ t.label_unallocated }})
+                    </span>
+                {% endif %}
+            </span>
+            <span>
+                {% if lang == 'he' %}שווי תיק:{% else %}Portfolio value:{% endif %}
+                <strong>₪{{ '{:,.0f}'.format(total_value) }}</strong>
+            </span>
+            <span id="save-feedback">{{ t.rebalance_saved }}</span>
+        </div>
+
+        {% else %}
+        <div class="card">
+            <p class="empty-state">{{ t.positions_no_open }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>var T = {{ t_json | safe }};</script>
+    <script src="/static/app.js"></script>
+    <script>
+    (function() {
+        var saveTimer = null;
+        var feedback = document.getElementById('save-feedback');
+        var TOTAL_VALUE = {{ total_value | tojson }};
+
+        // ── Collect current state of all inputs ──
+        function collectTargets() {
+            var groups = {}, holdings = {};
+            document.querySelectorAll('.group-target-input').forEach(function(inp) {
+                var gtype = inp.getAttribute('data-group-type');
+                var val = parseFloat(inp.value);
+                if (gtype && !isNaN(val) && val > 0) groups[gtype] = val;
+            });
+            document.querySelectorAll('.holding-target-input').forEach(function(inp) {
+                var hid = inp.getAttribute('data-holding-id');
+                var val = parseFloat(inp.value);
+                if (hid && !isNaN(val) && val > 0) holdings[hid] = val;
+            });
+            return { groups: groups, holdings: holdings };
+        }
+
+        // ── Recompute and update group header deltas + action ──
+        function updateGroupHeader(groupCard, groupTargetPct) {
+            var currentPctText = groupCard.querySelector('.group-meta .group-stat strong');
+            if (!currentPctText) return;
+            var currentPct = parseFloat(currentPctText.textContent) || 0;
+            var delta = Math.round((currentPct - groupTargetPct) * 10) / 10;
+
+            var deltaEl = groupCard.querySelector('.group-delta-cell');
+            if (deltaEl) {
+                deltaEl.textContent = (delta > 0 ? '+' : '') + delta.toFixed(1) + '%';
+                deltaEl.className = 'group-delta group-delta-cell ' +
+                    (delta > 0.1 ? 'delta-pos' : delta < -0.1 ? 'delta-neg' : 'delta-zero');
+            }
+
+            var actionIls = Math.round(Math.abs(delta / 100 * TOTAL_VALUE));
+            var actionEl = groupCard.querySelector('.group-action-cell');
+            if (actionEl) {
+                if (delta > 0.1) {
+                    actionEl.innerHTML = '<span class="action-sell">' + T.action_sell + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                } else if (delta < -0.1) {
+                    actionEl.innerHTML = '<span class="action-buy">' + T.action_buy + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                } else {
+                    actionEl.innerHTML = '<span class="action-hold">✓</span>';
+                }
+            }
+        }
+
+        // ── Recompute per-holding deltas within a group ──
+        function updateHoldingDeltas(groupCard, groupTargetPct) {
+            var targetGroupValue = groupTargetPct / 100 * TOTAL_VALUE;
+            groupCard.querySelectorAll('tr[data-holding-id]').forEach(function(row) {
+                var currentCell = row.querySelector('td.num');
+                if (!currentCell) return;
+                var currentPct = parseFloat(currentCell.textContent) || 0;
+
+                var inp = row.querySelector('.holding-target-input');
+                var targetPct = inp ? (parseFloat(inp.value) || 0) : 0;
+
+                var delta = Math.round((currentPct - targetPct) * 10) / 10;
+                var deltaCell = row.querySelector('.delta-cell span');
+                if (deltaCell) {
+                    deltaCell.textContent = (delta > 0 ? '+' : '') + delta.toFixed(1) + '%';
+                    deltaCell.className = delta > 0.1 ? 'delta-pos' : (delta < -0.1 ? 'delta-neg' : 'delta-zero');
+                }
+
+                // Market value from sub-label
+                var mvText = row.querySelector('.sub-label');
+                var mv = mvText ? parseFloat(mvText.textContent.replace(/[₪,]/g, '')) || 0 : 0;
+                var targetHoldingValue = targetPct / 100 * targetGroupValue;
+                var actionIls = Math.round(Math.abs(mv - targetHoldingValue));
+
+                var actionCell = row.querySelector('.action-cell');
+                if (actionCell) {
+                    if (delta > 0.1) {
+                        actionCell.innerHTML = '<span class="action-sell">' + T.action_sell + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                    } else if (delta < -0.1) {
+                        actionCell.innerHTML = '<span class="action-buy">' + T.action_buy + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                    } else {
+                        actionCell.innerHTML = '<span class="action-hold">✓</span>';
+                    }
+                }
+            });
+        }
+
+        // ── Update global summary ──
+        function updateSummary(groups) {
+            var total = Object.values(groups).reduce(function(s, v) { return s + v; }, 0);
+            total = Math.round(total * 10) / 10;
+            var el = document.getElementById('total-group-targeted');
+            if (el) {
+                el.textContent = total.toFixed(1) + '%';
+                el.className = total > 100 ? 'over100' : '';
+            }
+        }
+
+        // ── Save to server ──
+        function saveTargets() {
+            var payload = collectTargets();
+            updateSummary(payload.groups);
+
+            // Update each group's deltas live
+            document.querySelectorAll('.rebalance-group').forEach(function(card) {
+                var gtype = card.getAttribute('data-group-type');
+                var groupPct = parseFloat((payload.groups[gtype] || 0));
+                updateGroupHeader(card, groupPct);
+                updateHoldingDeltas(card, groupPct);
+            });
+
+            fetch('/api/rebalance-targets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function(r) {
+                if (r.ok && feedback) {
+                    feedback.classList.add('visible');
+                    setTimeout(function() { feedback.classList.remove('visible'); }, 1800);
+                }
+            });
+        }
+
+        // ── Clamp helpers — prevent totals from exceeding 100% ──
+        function clampGroupInput(inp) {
+            var others = 0;
+            document.querySelectorAll('.group-target-input').forEach(function(el) {
+                if (el !== inp) others += parseFloat(el.value) || 0;
+            });
+            var max = Math.max(0, Math.round((100 - others) * 10) / 10);
+            if ((parseFloat(inp.value) || 0) > max) inp.value = max.toFixed(1);
+        }
+
+        function clampHoldingInput(inp) {
+            var gtype = inp.getAttribute('data-group-type');
+            var others = 0;
+            document.querySelectorAll('.holding-target-input[data-group-type="' + gtype + '"]').forEach(function(el) {
+                if (el !== inp) others += parseFloat(el.value) || 0;
+            });
+            var max = Math.max(0, Math.round((100 - others) * 10) / 10);
+            if ((parseFloat(inp.value) || 0) > max) inp.value = max.toFixed(1);
+        }
+
+        // ── Debounced auto-save on all inputs ──
+        document.querySelectorAll('.group-target-input').forEach(function(inp) {
+            inp.addEventListener('input', function() {
+                clampGroupInput(inp);
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(saveTargets, 600);
+            });
+            inp.addEventListener('blur', function() {
+                clampGroupInput(inp);
+                clearTimeout(saveTimer);
+                saveTargets();
+            });
+        });
+        document.querySelectorAll('.holding-target-input').forEach(function(inp) {
+            inp.addEventListener('input', function() {
+                clampHoldingInput(inp);
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(saveTargets, 600);
+            });
+            inp.addEventListener('blur', function() {
+                clampHoldingInput(inp);
+                clearTimeout(saveTimer);
+                saveTargets();
+            });
+        });
+
+        // ── Group collapse / expand ──
+        document.querySelectorAll('.rebalance-group-header').forEach(function(header) {
+            function toggle(e) {
+                // Don't toggle when clicking an input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+                var card = header.closest('.rebalance-group');
+                var btn = header.querySelector('.group-toggle-btn');
+                var isCollapsed = card.classList.toggle('collapsed');
+                header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                if (btn) btn.setAttribute('aria-label', isCollapsed ? T.rebalance_expand : T.rebalance_collapse);
+            }
+            header.addEventListener('click', toggle);
+            header.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); }
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

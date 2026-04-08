@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from app.transactions import list_transactions, add_buy, add_sell
 from app.tax_lots import create_lot, sell_fifo, get_open_lots
 from app.holdings import get_holding, deactivate_holding
+from app.utils.trading_calendar import is_non_trading_day
 
 
 def has_nearby_trade(holding_id, date, action_type, days=2):
@@ -43,6 +44,12 @@ def interpolate_position_changes(data_date, today_prices, import_id=None):
     Returns:
         Tuple of (interpolated_buys: int, interpolated_sells: int)
     """
+    # Skip interpolation on non-trading days (weekends, Israeli holidays).
+    # Importing a file for a non-trading day is unusual but should not create
+    # fictitious transactions from the quantity delta.
+    if is_non_trading_day(data_date):
+        return 0, 0
+
     from app.daily_prices import get_prices_by_date, list_dates
 
     # Find the most recent prior date
