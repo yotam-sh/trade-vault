@@ -949,7 +949,7 @@ def admin_db_import():
         if _lots_repaired:
             app.logger.info('lot state repaired on %d tax lot(s) after DB import', _lots_repaired)
         flash(_t('admin_import_success', lang, migrated=migrated_count), 'success')
-    except ValueError:
+    except (ValueError, PermissionError):
         app.logger.exception('DB import failed')
         flash(_t('admin_import_error', lang), 'error')
     finally:

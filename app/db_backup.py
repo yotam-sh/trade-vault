@@ -22,7 +22,13 @@ def export_db(output_path=None):
     """Flush cache and copy db.json to output_path. Returns the output path."""
     flush_db()
     if output_path is None:
-        os.makedirs(IMPORTS_DIR, exist_ok=True)
+        try:
+            os.makedirs(IMPORTS_DIR, exist_ok=True)
+        except PermissionError as e:
+            raise PermissionError(
+                f'Cannot create exports directory {IMPORTS_DIR}: {e}. '
+                'Check volume mount permissions or provide an explicit output path.'
+            ) from e
         date_str = datetime.now().strftime('%Y-%m-%d')
         output_path = os.path.join(IMPORTS_DIR, f'db_backup_{date_str}.json')
     shutil.copy2(DB_PATH, output_path)
@@ -155,10 +161,15 @@ def import_db(source_path):
         raise ValueError(msg)
 
     # Backup current db before replacing
-    os.makedirs(IMPORTS_DIR, exist_ok=True)
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = os.path.join(IMPORTS_DIR, f'db.pre_import_{ts}.bak')
+    backup_path = None
     if os.path.exists(DB_PATH):
+        try:
+            os.makedirs(IMPORTS_DIR, exist_ok=True)
+            backup_path = os.path.join(IMPORTS_DIR, f'db.pre_import_{ts}.bak')
+        except PermissionError:
+            import tempfile
+            backup_path = os.path.join(tempfile.gettempdir(), f'db.pre_import_{ts}.bak')
         shutil.copy2(DB_PATH, backup_path)
 
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
