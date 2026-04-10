@@ -192,15 +192,19 @@ def require_admin(f):
     return decorated
 
 
+APP_VERSION = '0.8.5'
+
+
 @app.context_processor
 def inject_translations():
-    """Make t, lang, dir, and t_json available in every template."""
+    """Make t, lang, dir, t_json, and app_version available in every template."""
     lang = _get_lang()
     return {
         't': get_translations(lang),
         't_json': get_translations_json(lang),
         'lang': lang,
         'dir': 'ltr' if lang == 'en' else 'rtl',
+        'app_version': APP_VERSION,
     }
 
 
@@ -515,6 +519,35 @@ def api_daily_details():
         'pivot_security': pivot_security,
         'pivot_date': pivot_date,
     })
+
+
+@app.route('/api/transactions/<int:doc_id>/update-price', methods=['POST'])
+def update_transaction_price_route(doc_id):
+    """Update the price_per_share of a transaction (typically interpolated)."""
+    from app.transactions import update_transaction_price
+    data = request.get_json(silent=True) or {}
+    try:
+        price = float(data.get('price_per_share', ''))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid price'}), 400
+    if price <= 0:
+        return jsonify({'error': 'price must be positive'}), 400
+    ok = update_transaction_price(doc_id, price)
+    if not ok:
+        return jsonify({'error': 'transaction not found'}), 404
+    flush_db()
+    return jsonify({'success': True})
+
+
+@app.route('/api/transactions/<int:doc_id>/delete', methods=['POST'])
+def delete_transaction_route(doc_id):
+    """Delete a transaction (and its linked tax lot if it was an interpolated buy)."""
+    from app.transactions import delete_transaction
+    ok = delete_transaction(doc_id)
+    if not ok:
+        return jsonify({'error': 'transaction not found'}), 404
+    flush_db()
+    return jsonify({'success': True})
 
 
 @app.route('/trades')
@@ -948,6 +981,7 @@ def admin_db_import():
         _lots_repaired = _repair_lots()
         if _lots_repaired:
             app.logger.info('lot state repaired on %d tax lot(s) after DB import', _lots_repaired)
+        flush_db()  # persist repairs to disk so CLI imports don't clobber them
         flash(_t('admin_import_success', lang, migrated=migrated_count), 'success')
     except (ValueError, PermissionError):
         app.logger.exception('DB import failed')

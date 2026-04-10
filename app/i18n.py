@@ -101,7 +101,7 @@ TRANSLATIONS = {
     'chart_mode_weeks':         {'he': 'שבועות',                    'en': 'Weeks'},
     'chart_mode_months':        {'he': 'חודשים',                    'en': 'Months'},
     'chart_drawdown':           {'he': 'ירידה מהשיא',               'en': 'Drawdown from Peak'},
-    'chart_heatmap':            {'he': 'מפת חום יומית',             'en': 'Daily P&L Heatmap'},
+    'chart_heatmap':            {'he': 'מפת חום לוחית',             'en': 'Calendar Heatmap'},
     'chart_allocation_history': {'he': 'פיזור תיק לאורך זמן',       'en': 'Asset Allocation Over Time'},
     'chart_top_positions':      {'he': 'רווח/הפסד לפי נייר',        'en': 'P&L by Position'},
     'label_avg_daily_return':   {'he': 'תשואה יומית ממוצעת',        'en': 'Avg Daily Return'},

@@ -120,6 +120,8 @@ def get_trade_history(start_date=None, end_date=None):
             'realized_pnl': realized_pnl,
             'position_type': position_type,
             'holding_id': hid,
+            'source': txn.get('source', 'manual'),
+            'edited': txn.get('edited', False),
         })
 
     return trades

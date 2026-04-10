@@ -99,6 +99,59 @@ def add_dividend(date, amount, currency='ILS', source='manual', **kwargs):
     )
 
 
+def update_transaction_price(doc_id, new_price):
+    """Update price_per_share on a transaction and recalculate total_amount.
+
+    Promotes source from 'interpolated' to 'manual' so repair tools won't delete it.
+    For buy transactions, also syncs the linked tax lot's cost_per_share.
+    Returns True on success, False if transaction not found.
+    """
+    table = get_table(TRANSACTIONS)
+    existing = table.get(doc_id=doc_id)
+    if not existing:
+        return False
+    shares = existing.get('shares', 0)
+    updates = {
+        'price_per_share': new_price,
+        'total_amount': round(new_price * shares, 2) if shares else existing.get('total_amount', 0),
+        'source': 'manual',
+        'edited': True,
+        'updated_at': now_iso(),
+    }
+    table.update(updates, doc_ids=[doc_id])
+    if existing.get('type') == 'buy':
+        from app.connection import get_table as _gt, TAX_LOTS
+        from tinydb import Query as _Q
+        lt = _gt(TAX_LOTS)
+        lots = lt.search(_Q().buy_transaction_id == doc_id)
+        for lot in lots:
+            orig = lot.get('original_shares') or shares
+            lt.update({
+                'cost_per_share': new_price,
+                'total_cost': round(new_price * orig, 2),
+            }, doc_ids=[lot.doc_id])
+    return True
+
+
+def delete_transaction(doc_id):
+    """Delete a transaction by doc_id.
+
+    For interpolated buy transactions, also removes the linked tax lot.
+    Returns True on success, False if transaction not found.
+    """
+    table = get_table(TRANSACTIONS)
+    existing = table.get(doc_id=doc_id)
+    if not existing:
+        return False
+    if existing.get('type') == 'buy' and existing.get('source') == 'interpolated':
+        from app.connection import get_table as _gt, TAX_LOTS
+        from tinydb import Query as _Q
+        lt = _gt(TAX_LOTS)
+        lt.remove(_Q().buy_transaction_id == doc_id)
+    table.remove(doc_ids=[doc_id])
+    return True
+
+
 def list_transactions(type_=None, ticker=None, start_date=None, end_date=None):
     """List transactions with optional filters."""
     table = get_table(TRANSACTIONS)

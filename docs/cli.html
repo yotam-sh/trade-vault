@@ -345,6 +345,10 @@
   <a href="#data-files">Data files</a>
   <a href="#date-format">Date format</a>
   <a href="#workflows">Workflows</a>
+
+  <div class="nav-section">Web UI</div>
+  <a href="#web-trade-log">Trade Log editing</a>
+  <a href="#web-calendar-heatmap">Calendar Heatmap</a>
 </nav>
 
 <!-- ═══════════════════════  MAIN  ══════════════════════════ -->
@@ -829,6 +833,97 @@ Last-checked date updated to 2026-04-02.</code></pre>
 
 <span class="cmt"># Upgrade everything</span>
 <span class="prompt">$ </span><span class="kw">python</span> main.py upgrade-libs</code></pre>
+  </section>
+
+  <hr>
+
+  <!-- ══════════════  WEB UI  ═══════════════════════════════════ -->
+
+  <section id="web-trade-log">
+    <h2>Web UI — Trade Log editing</h2>
+    <p>
+      The <strong>Trade Log</strong> page (<code>/trades</code>) now supports inline editing and
+      deletion of buy/sell transactions directly from the browser. Every buy and sell row has an
+      edit (✏) and delete (✕) button in its actions column.
+    </p>
+
+    <h3>Source badges</h3>
+    <table>
+      <thead><tr><th>Badge</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><strong>AUTO</strong></td><td>Transaction was inferred from daily quantity deltas by the position tracker. May need correction if the daily summary was ambiguous.</td></tr>
+        <tr><td><strong>EDIT</strong></td><td>Transaction was manually edited via the web UI. The original inferred or imported price has been overridden.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Editing price per share</h3>
+    <p>
+      Click the ✏ button on any buy or sell row. Enter the corrected price in <strong>Agorot</strong>
+      (the input is pre-filled with the current value × 100). The server recalculates
+      <code>total_amount</code>, promotes <code>source</code> to <code>'manual'</code> (so repair
+      tools will not overwrite it), and sets an <code>edited: true</code> flag. For buy
+      transactions the linked FIFO tax lot's <code>cost_per_share</code> is also updated.
+    </p>
+
+    <h3>Deleting a transaction</h3>
+    <p>
+      Click the ✕ button and confirm the dialog. The transaction is removed from the database.
+      If the transaction was an interpolated buy (<code>source='interpolated'</code>), its linked
+      tax lot is also removed. Use <code>repair interpolated</code> from the CLI afterward if you
+      want to re-run trade inference from a clean state.
+    </p>
+
+    <div class="callout callout-info">
+      <strong>All buy/sell rows are editable</strong> — not just AUTO-badged ones.
+      Trades imported from IBI trade files (<code>source='trade_import'</code>) can also have
+      their price corrected.
+    </div>
+  </section>
+
+  <section id="web-calendar-heatmap">
+    <h2>Web UI — Calendar Heatmap</h2>
+    <p>
+      The <strong>Calendar Heatmap</strong> (chart E on the Graphs page) visualises daily P&amp;L
+      across a selected period. Cells are colour-coded green (gain) or red (loss) relative to the
+      maximum absolute value in the current view.
+    </p>
+
+    <h3>Period filter</h3>
+    <p>
+      Two dropdown buttons in the card header — <strong>Year</strong> and <strong>Month</strong> —
+      let you select any combination of years and months. The filter is a true cross-product:
+      selecting years <em>[2025, 2026]</em> and month <em>[April]</em> shows April 2025 and
+      April 2026 only — not all months between them. The <em>Clear</em> item at the top of each
+      dropdown resets that dimension back to the current year / current month.
+    </p>
+
+    <h3>View modes</h3>
+    <table>
+      <thead><tr><th>Mode</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Days</strong></td><td>Calendar grid — one column per week, one row per day of week. Non-selected days are transparent.</td></tr>
+        <tr><td><strong>Weeks</strong></td><td>One bar per ISO week; only weeks that contain a selected (year, month) date are shown.</td></tr>
+        <tr><td><strong>Months</strong></td><td>One bar per selected (year, month) pair in chronological order.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Separators (Days mode)</h3>
+    <table>
+      <thead><tr><th>Situation</th><th>Separator</th></tr></thead>
+      <tbody>
+        <tr><td>Single month selected — between week columns</td><td>Thin line (1 px, low opacity)</td></tr>
+        <tr><td>Multiple months, adjacent (e.g. Mar → Apr same year)</td><td>Medium line (2 px)</td></tr>
+        <tr><td>Multiple months, non-adjacent (e.g. Apr 2025 → Apr 2026)</td><td>Thick line (3 px, high opacity)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Navigation</h3>
+    <p>
+      Hover over the grid to see a tooltip with the exact date and P&amp;L value.
+      The entire row (day of week) is highlighted as you move across the grid, helping you
+      track the same weekday across multiple weeks or months. The hovered cell itself gets a
+      2 px accent-colour outline for precise identification.
+    </p>
   </section>
 
 </main>

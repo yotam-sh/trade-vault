@@ -85,6 +85,7 @@
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
+                <div class="settings-version">v{{ app_version }}</div>
             </div>
         </div>
 
@@ -187,11 +188,25 @@
             <div class="chart-canvas-wrap"><canvas id="drawdownChart" role="img" aria-label="{{ t.chart_drawdown }}"></canvas></div>
         </div>
 
-        <!-- Chart E: Daily P&L Heatmap -->
+        <!-- Chart E: Calendar Heatmap -->
         <div class="card" data-chart-id="E" data-width="100" data-locked="false">
             <div class="card-header">
                 <span>{{ t.chart_heatmap }}</span>
                 <div style="display:flex;gap:8px;align-items:center;">
+                    <div class="hm-dd" id="hmYearDd">
+                        <button class="hm-dd-btn" id="hmYearBtn" type="button">
+                            <span id="hmYearLabel">{% if lang == 'he' %}שנה{% else %}Year{% endif %}</span>
+                            <span class="hm-dd-arrow">▾</span>
+                        </button>
+                        <div class="hm-dd-panel" id="hmYearPanel"></div>
+                    </div>
+                    <div class="hm-dd" id="hmMonthDd">
+                        <button class="hm-dd-btn" id="hmMonthBtn" type="button">
+                            <span id="hmMonthLabel">{% if lang == 'he' %}חודש{% else %}Month{% endif %}</span>
+                            <span class="hm-dd-arrow">▾</span>
+                        </button>
+                        <div class="hm-dd-panel" id="hmMonthPanel"></div>
+                    </div>
                     <div class="lang-options" id="heatmapModeToggle">
                         <button class="lang-option active" data-mode="daily" aria-pressed="true">{{ t.chart_mode_days }}</button>
                         <button class="lang-option" data-mode="weekly" aria-pressed="false">{{ t.chart_mode_weeks }}</button>
@@ -630,350 +645,469 @@
         CHART_INSTANCES['D'] = chartD;
 
         // ── Chart E: Daily P&L Heatmap ────────────────────────────────────────
-        var heatmapRebuild = null; // exposed to outer scope for resizeAllCharts
+        var heatmapRebuild = null;
         (function() {
             var heatmapEl = document.getElementById('pnlHeatmap');
             if (!heatmapEl || !snapshots.length) return;
 
-            // Build date→ILS map (daily absolute P&L in shekels)
+            // Full date→ILS map
             var dateIls = {};
-            snapshots.forEach(function(s) {
-                dateIls[s.date] = s.total_daily_pnl || 0;
-            });
-
+            snapshots.forEach(function(s) { dateIls[s.date] = s.total_daily_pnl || 0; });
             var allDates = Object.keys(dateIls).sort();
             if (!allDates.length) return;
-            var startDate = new Date(allDates[0]);
-            var endDate   = new Date(allDates[allDates.length - 1]);
 
-            function toDateStr(d) { return d.toISOString().slice(0, 10); }
+            // Local-time date string — avoids UTC-offset shift in toISOString()
+            function toDateStr(d) {
+                var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+                return y + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+            }
 
-            // ── Floating tooltip ──────────────────────────────────────────────
+            // ── Filter state (default: current month) ─────────────────────────
+            var _now = new Date();
+
+            // ── Tooltip ───────────────────────────────────────────────────────
             var heatTip = document.createElement('div');
             heatTip.style.cssText = 'position:fixed;z-index:9999;background:var(--bg-secondary,#1c2128);' +
                 'color:var(--text-primary,#e6edf3);padding:5px 10px;border-radius:6px;font-size:0.75rem;' +
                 'pointer-events:none;display:none;border:1px solid var(--bg-tertiary,#30363d);white-space:nowrap;';
             document.body.appendChild(heatTip);
-
             heatmapEl.addEventListener('mouseover', function(e) {
                 var cell = e.target.closest('[data-tip]');
-                if (cell && cell.getAttribute('data-tip')) {
-                    heatTip.textContent = cell.getAttribute('data-tip');
-                    heatTip.style.display = 'block';
-                } else {
-                    heatTip.style.display = 'none';
-                }
+                if (cell && cell.getAttribute('data-tip')) { heatTip.textContent = cell.getAttribute('data-tip'); heatTip.style.display = 'block'; }
+                else heatTip.style.display = 'none';
             });
             heatmapEl.addEventListener('mousemove', function(e) {
-                heatTip.style.left = (e.clientX + 14) + 'px';
-                heatTip.style.top  = (e.clientY + 14) + 'px';
+                heatTip.style.left = (e.clientX + 14) + 'px'; heatTip.style.top = (e.clientY + 14) + 'px';
             });
             heatmapEl.addEventListener('mouseout', function(e) {
-                if (!e.relatedTarget || !e.relatedTarget.closest('#pnlHeatmap')) {
-                    heatTip.style.display = 'none';
+                if (!e.relatedTarget || !e.relatedTarget.closest('#pnlHeatmap')) heatTip.style.display = 'none';
+            });
+
+            // ── Row-hover highlight (daily mode only — cells carry data-dow) ──
+            var _lastHighDow = null;
+            heatmapEl.addEventListener('mouseover', function(e) {
+                var cell = e.target.closest('[data-dow]');
+                var dow = cell ? cell.dataset.dow : null;
+                if (dow === _lastHighDow) return;
+                _lastHighDow = dow;
+                heatmapEl.querySelectorAll('.hm-row-hi').forEach(function(c) { c.classList.remove('hm-row-hi'); });
+                if (dow !== null) {
+                    heatmapEl.querySelectorAll('[data-dow="' + dow + '"]').forEach(function(c) { c.classList.add('hm-row-hi'); });
                 }
+            });
+            heatmapEl.addEventListener('mouseleave', function() {
+                _lastHighDow = null;
+                heatmapEl.querySelectorAll('.hm-row-hi').forEach(function(c) { c.classList.remove('hm-row-hi'); });
             });
 
             // ── Color helpers ─────────────────────────────────────────────────
             function makeColorFn(maxAbsVal) {
                 var m = maxAbsVal || 1;
-                return function pctToColor(pct) {
-                    var intensity = Math.min(Math.abs(pct) / m, 1);
-                    if (pct > 0) {
-                        var g = Math.round(80 + 120 * intensity);
-                        return 'rgba(0,' + g + ',60,' + (0.3 + 0.7 * intensity) + ')';
-                    } else if (pct < 0) {
-                        var r = Math.round(80 + 120 * intensity);
-                        return 'rgba(' + r + ',0,20,' + (0.3 + 0.7 * intensity) + ')';
-                    }
+                return function(v) {
+                    var i = Math.min(Math.abs(v) / m, 1);
+                    if (v > 0) return 'rgba(0,' + Math.round(80 + 120 * i) + ',60,' + (0.3 + 0.7 * i) + ')';
+                    if (v < 0) return 'rgba(' + Math.round(80 + 120 * i) + ',0,20,' + (0.3 + 0.7 * i) + ')';
                     return 'var(--bg-tertiary)';
                 };
             }
-
-            function legend(pctToColor, maxAbsVal) {
+            function legend(fn, maxAbs) {
                 var html = '<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--text-secondary);margin-top:6px;">';
                 html += '<span>' + (lang === 'he' ? 'הפסד' : 'Loss') + '</span>';
-                [-1, -0.5, 0, 0.5, 1].forEach(function(v) {
-                    html += '<div style="width:11px;height:11px;border-radius:2px;background:' + pctToColor(v * maxAbsVal) + ';"></div>';
-                });
+                [-1, -0.5, 0, 0.5, 1].forEach(function(v) { html += '<div style="width:11px;height:11px;border-radius:2px;background:' + fn(v * maxAbs) + ';"></div>'; });
                 html += '<span>' + (lang === 'he' ? 'רווח' : 'Gain') + '</span></div>';
                 return html;
             }
 
-            // ── Build functions per mode ──────────────────────────────────────
-            // Cell sizes are constrained by both the container width AND height so the
-            // data always fits without scrolling inside the fixed-height heatmap-wrap.
-            //
-            // Layout constants (must match CSS / inline styles below):
-            //   yearLabelH = 18px label + 4px margin-bottom = 22px per year block header
-            //   yearGap    = 16px  (gap:1rem between year <div>s)
-            //   legendH    = 28px  (legend row at the bottom)
-            //   padding    = 16px  (0.5rem top + 0.5rem bottom on .heatmap-wrap)
+            var _HM_PAD    = 16;  // heatmap-wrap top+bottom padding
+            var _HM_LEGEND = 28;  // legend row height
 
-            var _HM_LABEL  = 22;  // year label height incl. margin-bottom
-            var _HM_YGAP   = 16;  // gap between year blocks
-            var _HM_LEGEND = 28;  // legend row
-            var _HM_PAD    = 16;  // top + bottom padding of .heatmap-wrap
-
-            function _hmAvailH(numYears) {
-                // Height available for the cell rows across all year blocks
-                var containerH = (heatmapEl.clientHeight || 300) - _HM_PAD;
-                return containerH - _HM_LEGEND
-                     - numYears * _HM_LABEL
-                     - Math.max(0, numYears - 1) * _HM_YGAP;
+            // ── Cross-product filter helpers ──────────────────────────────────
+            // (selYears / selMonths defined below in filter UI section)
+            function inFilter(ds) {
+                return selYears.indexOf(+ds.slice(0,4)) !== -1
+                    && selMonths.indexOf(+ds.slice(5,7)) !== -1;
             }
 
+            // Sorted list of selected (yr, mo) pairs — year asc, month asc within year
+            function getSelYMPairs() {
+                var pairs = [];
+                selYears.slice().sort(function(a,b){return a-b;}).forEach(function(yr) {
+                    selMonths.slice().sort(function(a,b){return a-b;}).forEach(function(mo) {
+                        pairs.push({yr: yr, mo: mo});
+                    });
+                });
+                return pairs;
+            }
+
+            // ── buildDaily ────────────────────────────────────────────────────
             function buildDaily() {
-                var maxAbs = 0;
-                Object.values(dateIls).forEach(function(v) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); });
-                var pctToColor = makeColorFn(maxAbs);
+                var filt = {}, maxAbs = 0;
+                allDates.forEach(function(ds) {
+                    if (inFilter(ds)) { filt[ds] = dateIls[ds]; if (Math.abs(filt[ds]) > maxAbs) maxAbs = Math.abs(filt[ds]); }
+                });
+                var fn = makeColorFn(maxAbs);
+                var pairs = getSelYMPairs();
+                var multiYear = selYears.length > 1;
 
-                var years = [];
-                for (var y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) { years.push(y); }
+                var gapW = 3, gapH = 2, labelW = 20, monthLH = 14;
+                var cW = Math.max(100, heatmapEl.clientWidth);
+                var cH = heatmapEl.clientHeight || 300;
 
-                var gapW = 3;      // gap between week columns (px)
-                var gapH = 2;      // gap between day rows (px)
-                var dayLabelW = 18; // width of day-of-week guide column
-                var monthLH   = 14; // height of month-name guide row
+                // Build week list across all (yr,mo) blocks
+                var weeks = [];
+                pairs.forEach(function(pair, pi) {
+                    var moStart = new Date(pair.yr, pair.mo - 1, 1);
+                    var moEnd   = new Date(pair.yr, pair.mo, 0);  // last day of month
 
-                var containerW = Math.max(100, heatmapEl.clientWidth);
-                // Width available for week columns after reserving day-label column
-                var weeksW = containerW - dayLabelW - gapW;
+                    // Is this pair immediately after the previous one?
+                    var isAdjacentToPrev = false;
+                    if (pi > 0) {
+                        var prev = pairs[pi - 1];
+                        var nextMo = prev.mo === 12 ? 1 : prev.mo + 1;
+                        var nextYr = prev.mo === 12 ? prev.yr + 1 : prev.yr;
+                        isAdjacentToPrev = (nextYr === pair.yr && nextMo === pair.mo);
+                    }
 
-                // Height-based cell size (same for all years so rows are consistent)
-                // Each year block = monthLH + 7*cell + 6*gapH
-                var availH    = _hmAvailH(years.length) - years.length * monthLH;
-                var cellFromH = Math.max(4, Math.floor((availH / years.length - gapH * 6) / 7));
-
-                // Day-of-week guide labels — Sunday-start (index 0=Sun … 6=Sat)
-                // Israeli week is Sun–Sat; old TASE schedule was Sun–Thu, new is Mon–Fri
-                var dayLabels = lang === 'he'
-                    ? ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
-                    : ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-                var monthNames = lang === 'he'
-                    ? ['', 'ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ']
-                    : ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-                // Always LTR so calendar flows Jan→Dec left→right regardless of app language
-                var html = '<div style="display:flex;flex-direction:column;gap:1rem;direction:ltr;">';
-
-                years.forEach(function(yr) {
-                    // Use Date.UTC so year boundaries are at UTC midnight, consistent
-                    // with how all data dates (ISO strings) are stored as UTC midnight.
-                    // new Date(yr, 0, 1) creates LOCAL midnight which in Israel (UTC+2)
-                    // becomes Dec 31 22:00 UTC — shifting every week-start by 1 day.
-                    var yrStart = new Date(Math.max(Date.UTC(yr, 0, 1), startDate));
-                    var yrEnd   = new Date(Math.min(Date.UTC(yr, 11, 31), endDate));
-                    // Align to Sunday of the first week (Israeli week starts Sunday)
-                    var sunday = new Date(yrStart);
-                    sunday.setDate(sunday.getDate() - sunday.getDay()); // getDay()==0 for Sunday
-
-                    // Build week list, noting which week a new month starts in
-                    var weeks = [];
+                    var sunday = new Date(moStart);
+                    sunday.setDate(sunday.getDate() - sunday.getDay());
                     var tmp = new Date(sunday);
-                    while (tmp <= yrEnd) {
+                    var firstOfBlock = true;
+                    while (tmp <= moEnd) {
                         var mStart = null;
                         for (var d = 0; d < 7; d++) {
                             var chk = new Date(tmp); chk.setDate(chk.getDate() + d);
-                            if (chk.getDate() === 1 && chk >= yrStart && chk <= yrEnd) {
-                                mStart = chk.getMonth() + 1; break;
+                            if (chk.getDate() === 1 && chk >= moStart && chk <= moEnd) {
+                                mStart = {mo: chk.getMonth() + 1, yr: chk.getFullYear()};
+                                break;
                             }
                         }
-                        weeks.push({ start: new Date(tmp), mStart: mStart });
+                        weeks.push({
+                            start:         new Date(tmp),
+                            mStart:        mStart,
+                            moStartStr:    toDateStr(moStart),
+                            moEndStr:      toDateStr(moEnd),
+                            blockSep:      pi > 0 && firstOfBlock && !isAdjacentToPrev,
+                            adjSep:        pi > 0 && firstOfBlock && isAdjacentToPrev,
+                            singleBlock:   pairs.length === 1,
+                        });
                         tmp.setDate(tmp.getDate() + 7);
+                        firstOfBlock = false;
                     }
-
-                    var numWeeks = weeks.length;
-                    // Square cell: min of width-based and height-based sizes
-                    var cellFromW = Math.max(4, Math.floor((weeksW - gapW * (numWeeks - 1)) / numWeeks));
-                    var cellSize  = Math.min(cellFromW, cellFromH);
-                    var cellW = cellSize;
-                    var cellH_yr = cellSize; // local alias used in this year's rows
-
-                    html += '<div>';
-                    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">' + yr + '</div>';
-                    html += '<div style="display:flex;gap:' + gapW + 'px;align-items:flex-start;">';
-
-                    // ── Day-of-week guide column ───────────────────────────────
-                    html += '<div style="width:' + dayLabelW + 'px;flex-shrink:0;display:flex;flex-direction:column;' +
-                        'gap:' + gapH + 'px;padding-top:' + monthLH + 'px;">';
-                    for (var dow = 0; dow < 7; dow++) {
-                        html += '<div style="height:' + cellH_yr + 'px;line-height:' + cellH_yr + 'px;' +
-                            'font-size:9px;color:var(--text-secondary);' +
-                            'opacity:0.5;overflow:hidden;">' + (dayLabels[dow] || '') + '</div>';
-                    }
-                    html += '</div>';
-
-                    // ── Weeks area (month guides + cells) ─────────────────────
-                    html += '<div style="flex:1;min-width:0;">';
-
-                    // Month-name guide row (absolutely positioned labels at month boundaries)
-                    html += '<div style="position:relative;height:' + monthLH + 'px;">';
-                    weeks.forEach(function(wk, idx) {
-                        if (!wk.mStart) return;
-                        html += '<span style="position:absolute;left:' + (idx * (cellW + gapW)) + 'px;top:2px;' +
-                            'font-size:0.62rem;color:var(--text-secondary);opacity:0.6;white-space:nowrap;">' +
-                            monthNames[wk.mStart] + '</span>';
-                    });
-                    html += '</div>';
-
-                    // Week columns
-                    html += '<div style="display:flex;gap:' + gapW + 'px;">';
-                    weeks.forEach(function(wk) {
-                        html += '<div style="display:flex;flex-direction:column;gap:' + gapH + 'px;">';
-                        for (var dow = 0; dow < 7; dow++) {
-                            var day = new Date(wk.start); day.setDate(day.getDate() + dow);
-                            var ds  = toDateStr(day);
-                            var ils = dateIls[ds];
-                            var inRange = day >= yrStart && day <= yrEnd;
-                            var color = (inRange && ils !== undefined) ? pctToColor(ils) : 'transparent';
-                            var tip   = (inRange && ils !== undefined) ? ds + ': ₪' + ils.toFixed(0) : '';
-                            html += '<div data-tip="' + tip + '" style="width:' + cellSize + 'px;height:' + cellSize + 'px;' +
-                                'border-radius:2px;background:' + color + ';"></div>';
-                        }
-                        html += '</div>';
-                    });
-                    html += '</div>'; // week columns
-
-                    html += '</div>'; // weeks area
-                    html += '</div>'; // flex row
-                    html += '</div>'; // year block
                 });
 
-                html += legend(pctToColor, maxAbs) + '</div>';
+                var n = weeks.length;
+                var cellW = Math.max(4, Math.floor((cW - labelW - gapW - gapW * (n - 1)) / n));
+                var cellH = Math.max(4, Math.floor((cH - _HM_PAD - _HM_LEGEND - monthLH - gapH * 6) / 7));
+                var sepColH = 7 * cellH + 6 * gapH;
+
+                var dayLabels  = lang === 'he' ? ['א','ב','ג','ד','ה','ו','ש'] : ['Su','Mo','Tu','We','Th','Fr','Sa'];
+                var monthNames = lang === 'he'
+                    ? ['','ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ']
+                    : ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+                var html = '<div style="direction:ltr;display:flex;gap:' + gapW + 'px;align-items:flex-start;">';
+                // Day-of-week guide column
+                html += '<div style="width:' + labelW + 'px;flex-shrink:0;display:flex;flex-direction:column;gap:' + gapH + 'px;padding-top:' + monthLH + 'px;">';
+                for (var dow = 0; dow < 7; dow++)
+                    html += '<div style="height:' + cellH + 'px;line-height:' + cellH + 'px;font-size:9px;color:var(--text-secondary);opacity:0.5;">' + dayLabels[dow] + '</div>';
+                html += '</div>';
+
+                html += '<div style="flex:1;min-width:0;">';
+                // Month label row — track cumulative x offset accounting for separator widths
+                html += '<div style="position:relative;height:' + monthLH + 'px;">';
+                var xOffset = 0;
+                weeks.forEach(function(wk, i) {
+                    if (i > 0) xOffset += (wk.blockSep ? 6 : gapW);  // blockSep uses wider gap
+                    if (wk.mStart) {
+                        var lbl = monthNames[wk.mStart.mo] + (multiYear ? ' ' + wk.mStart.yr : '');
+                        html += '<span style="position:absolute;left:' + xOffset + 'px;top:2px;font-size:0.62rem;color:var(--text-secondary);opacity:0.6;white-space:nowrap;">' + lbl + '</span>';
+                    }
+                    xOffset += cellW;
+                });
+                html += '</div>';
+
+                // Week columns — separators between blocks
+                html += '<div style="display:flex;gap:0;align-items:flex-end;">';
+                weeks.forEach(function(wk, i) {
+                    if (i > 0) {
+                        if (wk.blockSep) {
+                            // Non-adjacent gap — thick separator with extra breathing room
+                            html += '<div style="width:6px;height:' + sepColH + 'px;flex-shrink:0;display:flex;justify-content:center;">'
+                                  + '<div style="width:3px;height:100%;background:var(--border);opacity:0.65;border-radius:1px;"></div></div>';
+                        } else if (wk.adjSep) {
+                            // Adjacent month boundary — medium separator
+                            html += '<div style="width:' + gapW + 'px;height:' + sepColH + 'px;flex-shrink:0;display:flex;justify-content:center;">'
+                                  + '<div style="width:2px;height:100%;background:var(--border);opacity:0.5;border-radius:1px;"></div></div>';
+                        } else if (wk.singleBlock) {
+                            // Thin week separator within a single month
+                            html += '<div style="width:' + gapW + 'px;height:' + sepColH + 'px;flex-shrink:0;display:flex;justify-content:center;">'
+                                  + '<div style="width:1px;height:100%;background:var(--border);opacity:0.18;"></div></div>';
+                        } else {
+                            html += '<div style="width:' + gapW + 'px;flex-shrink:0;"></div>';
+                        }
+                    }
+                    html += '<div style="display:flex;flex-direction:column;gap:' + gapH + 'px;">';
+                    for (var dow = 0; dow < 7; dow++) {
+                        var day = new Date(wk.start); day.setDate(day.getDate() + dow);
+                        var ds = toDateStr(day), ils = filt[ds];
+                        var inRange = ds >= wk.moStartStr && ds <= wk.moEndStr;
+                        var color = (inRange && ils !== undefined) ? fn(ils) : 'transparent';
+                        var tip   = (inRange && ils !== undefined) ? ds + ': ₪' + ils.toFixed(0) : '';
+                        html += '<div data-tip="' + tip + '" data-dow="' + dow + '" style="width:' + cellW + 'px;height:' + cellH + 'px;border-radius:2px;background:' + color + ';"></div>';
+                    }
+                    html += '</div>';
+                });
+                html += '</div></div></div>';
+                html += legend(fn, maxAbs);
                 return html;
             }
 
+            // ── buildWeekly ───────────────────────────────────────────────────
             function buildWeekly() {
-                // Aggregate daily ILS by ISO year-week (YYYY-Www)
-                var weekMap = {};
+                var weekMap = {}, sorted = [];
                 allDates.forEach(function(ds) {
-                    var d = new Date(ds);
-                    var thu = new Date(d);
+                    if (!inFilter(ds)) return;
+                    var d = new Date(ds), thu = new Date(d);
                     thu.setDate(d.getDate() + (4 - (d.getDay() || 7)));
-                    var yr = thu.getFullYear();
-                    var jan1 = new Date(Date.UTC(yr, 0, 1)); // UTC midnight, consistent with data dates
+                    var yr = thu.getFullYear(), jan1 = new Date(Date.UTC(yr, 0, 1));
                     var wk = Math.ceil(((thu - jan1) / 86400000 + 1) / 7);
                     var key = yr + '-' + (wk < 10 ? '0' + wk : wk);
-                    if (!weekMap[key]) weekMap[key] = { sum: 0, yr: yr, wk: wk };
+                    if (!weekMap[key]) { weekMap[key] = { sum: 0, yr: yr, wk: wk, firstDs: ds }; sorted.push(key); }
                     weekMap[key].sum += dateIls[ds];
                 });
+                sorted.sort();
+                if (!sorted.length) return '<div style="color:var(--text-secondary);padding:8px;">' + (lang === 'he' ? 'אין נתונים' : 'No data') + '</div>';
 
+                var multiYear = selYears.length > 1;
                 var maxAbs = 0;
-                Object.values(weekMap).forEach(function(v) { if (Math.abs(v.sum) > maxAbs) maxAbs = Math.abs(v.sum); });
-                var pctToColor = makeColorFn(maxAbs);
+                sorted.forEach(function(k) { if (Math.abs(weekMap[k].sum) > maxAbs) maxAbs = Math.abs(weekMap[k].sum); });
+                var fn = makeColorFn(maxAbs);
 
-                var years = [];
-                for (var y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) { years.push(y); }
+                var gap = 3, monthLH = 14;
+                var cW = Math.max(100, heatmapEl.clientWidth);
+                var cH = heatmapEl.clientHeight || 300;
+                var n = sorted.length;
+                var cellW = Math.max(6, Math.floor((cW - gap * (n - 1)) / n));
+                var cellH = Math.max(6, cH - _HM_PAD - _HM_LEGEND - monthLH);
 
-                var gap = 2;
-                var containerW = Math.max(100, heatmapEl.clientWidth);
-
-                // Cell size from height: 1 row per year
-                // availH = numYears * cell  →  cell = availH / numYears
-                var availH    = _hmAvailH(years.length);
-                var cellFromH = Math.floor(availH / years.length);
-
-                var html = '<div style="display:flex;flex-direction:column;gap:1rem;">';
-                years.forEach(function(yr) {
-                    var yrWeeks = Object.keys(weekMap).filter(function(k) { return weekMap[k].yr === yr; }).sort();
-                    if (!yrWeeks.length) return;
-                    var numWeeks  = yrWeeks.length;
-                    var cellFromW = Math.floor((containerW - gap * (numWeeks - 1)) / numWeeks);
-                    var cellSize  = Math.max(4, Math.min(cellFromW, cellFromH));
-                    html += '<div>';
-                    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">' + yr + '</div>';
-                    html += '<div style="display:flex;gap:' + gap + 'px;flex-wrap:nowrap;">';
-                    yrWeeks.forEach(function(key) {
-                        var entry = weekMap[key];
-                        var color = pctToColor(entry.sum);
-                        var tip   = (lang === 'he' ? 'שב׳ ' : 'Wk ') + entry.wk + ' ' + yr + ': ₪' + entry.sum.toFixed(0);
-                        html += '<div data-tip="' + tip + '" style="width:' + cellSize + 'px;height:' + cellSize + 'px;border-radius:2px;background:' + color + ';"></div>';
-                    });
-                    html += '</div></div>';
-                });
-                html += legend(pctToColor, maxAbs) + '</div>';
-                return html;
-            }
-
-            function buildMonthly() {
                 var monthNames = lang === 'he'
-                    ? ['', 'ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ']
-                    : ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    ? ['','ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ']
+                    : ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-                var monthMap = {};
-                allDates.forEach(function(ds) {
-                    var key = ds.slice(0, 7);
-                    if (!monthMap[key]) monthMap[key] = 0;
-                    monthMap[key] += dateIls[ds];
+                // Month boundary labels
+                var html = '<div style="direction:ltr;"><div style="position:relative;height:' + monthLH + 'px;">';
+                var lastMo = null;
+                sorted.forEach(function(k, i) {
+                    var mo = weekMap[k].firstDs.slice(0, 7);
+                    if (mo === lastMo) return;
+                    lastMo = mo;
+                    var lbl = monthNames[+mo.slice(5,7)] + (multiYear ? ' ' + mo.slice(0,4) : '');
+                    html += '<span style="position:absolute;left:' + (i * (cellW + gap)) + 'px;top:2px;font-size:0.62rem;color:var(--text-secondary);opacity:0.6;white-space:nowrap;">' + lbl + '</span>';
                 });
-
-                var maxAbs = 0;
-                Object.values(monthMap).forEach(function(v) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); });
-                var pctToColor = makeColorFn(maxAbs);
-
-                var years = [];
-                for (var y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) { years.push(y); }
-
-                var gap = 4;
-                var containerW = Math.max(100, heatmapEl.clientWidth);
-
-                // Each year row: cell + ~12px month-label below it
-                // availH = numYears * (cell + 12)  →  cell = availH/numYears - 12
-                var availH    = _hmAvailH(years.length);
-                var cellFromH = Math.floor(availH / years.length) - 12;
-                var cellFromW = Math.floor((containerW - gap * 11) / 12);
-                var cellSize  = Math.max(8, Math.min(cellFromW, cellFromH));
-                var labelSize = Math.min(9, Math.max(7, Math.round(cellSize * 0.35)));
-
-                var html = '<div style="display:flex;flex-direction:column;gap:1rem;">';
-                years.forEach(function(yr) {
-                    html += '<div>';
-                    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px;">' + yr + '</div>';
-                    html += '<div style="display:flex;gap:' + gap + 'px;flex-wrap:nowrap;">';
-                    for (var mo = 1; mo <= 12; mo++) {
-                        var key = yr + '-' + (mo < 10 ? '0' + mo : mo);
-                        var sum = monthMap[key];
-                        var color = sum !== undefined ? pctToColor(sum) : 'var(--bg-tertiary)';
-                        var tip   = sum !== undefined
-                            ? monthNames[mo] + ' ' + yr + ': ₪' + sum.toFixed(0)
-                            : monthNames[mo] + ' ' + yr;
-                        html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">';
-                        html += '<div data-tip="' + tip + '" style="width:' + cellSize + 'px;height:' + cellSize + 'px;border-radius:3px;background:' + color + ';"></div>';
-                        html += '<span style="font-size:' + labelSize + 'px;color:var(--text-secondary);">' + monthNames[mo] + '</span>';
-                        html += '</div>';
-                    }
-                    html += '</div></div>';
+                html += '</div><div style="display:flex;gap:' + gap + 'px;">';
+                sorted.forEach(function(k) {
+                    var e = weekMap[k];
+                    var tip = (lang === 'he' ? 'שב׳ ' : 'Wk ') + e.wk + ' ' + e.yr + ': ₪' + e.sum.toFixed(0);
+                    html += '<div data-tip="' + tip + '" style="width:' + cellW + 'px;height:' + cellH + 'px;border-radius:3px;background:' + fn(e.sum) + ';"></div>';
                 });
-                html += legend(pctToColor, maxAbs) + '</div>';
+                html += '</div></div>';
+                html += legend(fn, maxAbs);
                 return html;
             }
 
-            // ── Initial render and toggle ─────────────────────────────────────
+            // ── buildMonthly ──────────────────────────────────────────────────
+            function buildMonthly() {
+                var pairs = getSelYMPairs();
+                var multiYear = selYears.length > 1;
+                var months = pairs.map(function(p) {
+                    var ym = p.yr + '-' + (p.mo < 10 ? '0' + p.mo : p.mo);
+                    var sum = 0, has = false;
+                    allDates.forEach(function(ds) { if (ds.slice(0,7) === ym) { sum += dateIls[ds]; has = true; } });
+                    return {mo: p.mo, yr: p.yr, sum: has ? sum : undefined};
+                });
+
+                var maxAbs = 0;
+                months.forEach(function(m) { if (m.sum !== undefined && Math.abs(m.sum) > maxAbs) maxAbs = Math.abs(m.sum); });
+                var fn = makeColorFn(maxAbs);
+
+                var gap = 4, labelH = 14;
+                var cW = Math.max(100, heatmapEl.clientWidth);
+                var cH = heatmapEl.clientHeight || 300;
+                var n = months.length;
+                var cellW = Math.max(8, Math.floor((cW - gap * (n - 1)) / n));
+                var cellH = Math.max(8, cH - _HM_PAD - _HM_LEGEND - labelH);
+                var lsz = Math.min(9, Math.max(7, Math.round(cellW * 0.25)));
+
+                var monthNames = lang === 'he'
+                    ? ['','ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ']
+                    : ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+                var html = '<div style="direction:ltr;display:flex;gap:' + gap + 'px;">';
+                months.forEach(function(m) {
+                    var color = m.sum !== undefined ? fn(m.sum) : 'var(--bg-tertiary)';
+                    var tip   = monthNames[m.mo] + (multiYear ? ' ' + m.yr : '') + (m.sum !== undefined ? ': ₪' + m.sum.toFixed(0) : '');
+                    html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">';
+                    html += '<div data-tip="' + tip + '" style="width:' + cellW + 'px;height:' + cellH + 'px;border-radius:3px;background:' + color + ';"></div>';
+                    html += '<span style="font-size:' + lsz + 'px;color:var(--text-secondary);">' + monthNames[m.mo] + (multiYear ? '<br>' + m.yr : '') + '</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+                html += legend(fn, maxAbs);
+                return html;
+            }
+
+            // ── Filter UI — custom multi-select dropdowns ─────────────────────
+            var mnShort = lang === 'he'
+                ? ['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ']
+                : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+            // Build year list from data
+            var allYears = [];
+            allDates.forEach(function(ds) {
+                var yr = +ds.slice(0,4);
+                if (allYears.indexOf(yr) === -1) allYears.push(yr);
+            });
+            allYears.sort();
+            if (allYears.indexOf(_now.getFullYear()) === -1) allYears.push(_now.getFullYear());
+
+            // Selection state
+            var selYears  = [_now.getFullYear()];
+            var selMonths = [_now.getMonth() + 1];
+
+            // ── Generic dropdown factory ─────────────────────────────────────
+            function makeDropdown(ddEl, btnEl, panelEl, labelEl, items, selArr, labelFn, defaultVal) {
+                // items: [{value, label}]
+                function isSelected(v) { return selArr.indexOf(v) !== -1; }
+
+                function renderPanel() {
+                    panelEl.innerHTML = '';
+                    // Clear row
+                    var clearRow = document.createElement('div');
+                    clearRow.className = 'hm-dd-item hm-dd-clear';
+                    clearRow.dataset.clear = '1';
+                    var clearChk = document.createElement('span');
+                    clearChk.className = 'hm-dd-chk';
+                    var clearLbl = document.createElement('span');
+                    clearLbl.textContent = lang === 'he' ? 'נקה' : 'Clear';
+                    clearRow.appendChild(clearChk); clearRow.appendChild(clearLbl);
+                    panelEl.appendChild(clearRow);
+                    // Item rows
+                    items.forEach(function(item) {
+                        var row = document.createElement('div');
+                        row.className = 'hm-dd-item' + (isSelected(item.value) ? ' selected' : '');
+                        row.dataset.val = item.value;
+                        var chk = document.createElement('span');
+                        chk.className = 'hm-dd-chk';
+                        chk.textContent = isSelected(item.value) ? '✓' : '';
+                        var lbl = document.createElement('span');
+                        lbl.textContent = item.label;
+                        row.appendChild(chk); row.appendChild(lbl);
+                        panelEl.appendChild(row);
+                    });
+                }
+
+                function updateLabel() {
+                    var sorted = selArr.slice().sort(function(a,b){return a-b;});
+                    labelEl.textContent = labelFn(sorted);
+                }
+
+                function toggle(val) {
+                    var idx = selArr.indexOf(val);
+                    if (idx !== -1) {
+                        if (selArr.length > 1) selArr.splice(idx, 1); // keep at least one
+                    } else {
+                        selArr.push(val);
+                    }
+                }
+
+                panelEl.addEventListener('mousedown', function(e) {
+                    var row = e.target.closest('.hm-dd-item');
+                    if (!row) return;
+                    e.preventDefault(); // don't steal focus from btn
+                    if (row.dataset.clear) {
+                        selArr.splice(0, selArr.length, defaultVal);
+                    } else {
+                        toggle(+row.dataset.val);
+                    }
+                    updateLabel();
+                    renderPanel();
+                    applyFilter();
+                });
+
+                btnEl.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var isOpen = panelEl.classList.contains('open');
+                    // Close all panels first
+                    document.querySelectorAll('.hm-dd-panel.open').forEach(function(p) { p.classList.remove('open'); });
+                    if (!isOpen) { renderPanel(); panelEl.classList.add('open'); }
+                });
+
+                updateLabel();
+            }
+
+            // Year dropdown
+            makeDropdown(
+                document.getElementById('hmYearDd'),
+                document.getElementById('hmYearBtn'),
+                document.getElementById('hmYearPanel'),
+                document.getElementById('hmYearLabel'),
+                allYears.map(function(y) { return {value: y, label: String(y)}; }),
+                selYears,
+                function(sorted) {
+                    if (!sorted.length) return lang === 'he' ? 'שנה' : 'Year';
+                    if (sorted.length === 1) return String(sorted[0]);
+                    return sorted.length + (lang === 'he' ? ' שנים' : ' years');
+                },
+                _now.getFullYear()
+            );
+
+            // Month dropdown
+            makeDropdown(
+                document.getElementById('hmMonthDd'),
+                document.getElementById('hmMonthBtn'),
+                document.getElementById('hmMonthPanel'),
+                document.getElementById('hmMonthLabel'),
+                mnShort.map(function(n, i) { return {value: i + 1, label: n}; }),
+                selMonths,
+                function(sorted) {
+                    if (!sorted.length) return lang === 'he' ? 'חודש' : 'Month';
+                    if (sorted.length === 1) return mnShort[sorted[0] - 1];
+                    return sorted.length + (lang === 'he' ? ' חודשים' : ' months');
+                },
+                _now.getMonth() + 1
+            );
+
+            // Close panels on outside click
+            document.addEventListener('click', function() {
+                document.querySelectorAll('.hm-dd-panel.open').forEach(function(p) { p.classList.remove('open'); });
+            });
+
+            function applyFilter() {
+                if (!selYears.length || !selMonths.length) return;
+                buildAndRender();
+            }
+
+            // ── Mode toggle + render ──────────────────────────────────────────
             var heatmapActiveMode = 'daily';
 
-            function buildHeatmap(mode) {
-                heatmapEl.innerHTML = mode === 'weekly' ? buildWeekly()
-                                    : mode === 'monthly' ? buildMonthly()
+            function buildAndRender() {
+                _lastHighDow = null;
+                heatmapEl.innerHTML = heatmapActiveMode === 'weekly'  ? buildWeekly()
+                                    : heatmapActiveMode === 'monthly' ? buildMonthly()
                                     : buildDaily();
             }
 
-            buildHeatmap('daily');
-            heatmapRebuild = function() { buildHeatmap(heatmapActiveMode); };
+            buildAndRender();
+            heatmapRebuild = function() { buildAndRender(); };
 
-            // Rebuild when container WIDTH changes (card width toggle, window resize).
-            // Track last width to avoid looping when rebuilding changes the element's height.
             if (typeof ResizeObserver !== 'undefined') {
-                var heatmapResizeTimer = null;
-                var lastHeatmapWidth = 0;
+                var _resizeTimer = null, _lastW = 0;
                 new ResizeObserver(function(entries) {
-                    var newWidth = Math.round(entries[0].contentRect.width);
-                    if (Math.abs(newWidth - lastHeatmapWidth) < 2) return;
-                    lastHeatmapWidth = newWidth;
-                    clearTimeout(heatmapResizeTimer);
-                    heatmapResizeTimer = setTimeout(function() {
-                        buildHeatmap(heatmapActiveMode);
-                    }, 80);
+                    var w = Math.round(entries[0].contentRect.width);
+                    if (Math.abs(w - _lastW) < 2) return;
+                    _lastW = w;
+                    clearTimeout(_resizeTimer);
+                    _resizeTimer = setTimeout(buildAndRender, 80);
                 }).observe(heatmapEl);
             }
 
@@ -986,7 +1120,7 @@
                         b.classList.toggle('active', b === btn);
                         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
                     });
-                    buildHeatmap(mode);
+                    requestAnimationFrame(buildAndRender);
                 });
             });
         })();

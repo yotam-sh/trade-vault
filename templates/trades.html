@@ -6,6 +6,7 @@
     <title>{{ t.nav_trades }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -81,6 +82,7 @@
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
+                <div class="settings-version">v{{ app_version }}</div>
             </div>
         </div>
 
@@ -213,6 +215,7 @@
                             <th scope="col">{{ t.th_price_ils }}</th>
                             <th scope="col">{{ t.th_amount_ils }}</th>
                             <th scope="col">{{ t.th_pnl_ils }}</th>
+                            <th scope="col"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -225,6 +228,12 @@
                                 {% else %}
                                     <span class="badge badge-sell">{{ t.badge_sell }}</span>
                                 {% endif %}
+                                {% if tr.source == 'interpolated' %}
+                                    <span class="badge badge-auto" title="{{ t.badge_auto_tip if 'badge_auto_tip' in t else 'Inferred from daily data' }}">AUTO</span>
+                                {% endif %}
+                                {% if tr.edited %}
+                                    <span class="badge badge-edit" title="{{ t.badge_edit_tip if 'badge_edit_tip' in t else 'Manually edited' }}">EDIT</span>
+                                {% endif %}
                             </td>
                             <td><span class="badge badge-{{ tr.position_type }}">{{ t[tr.position_type] if tr.position_type in t else tr.position_type }}</span></td>
                             <td><a href="/position/{{ tr.holding_id }}" class="position-link">{{ (tr.name_en if lang == 'en' and tr.name_en else tr.name_he) }}</a></td>
@@ -235,6 +244,19 @@
                             <td class="num pnl">
                                 {% if tr.realized_pnl %}
                                     ₪{{ '{:,.2f}'.format(tr.realized_pnl) }}
+                                {% endif %}
+                            </td>
+                            <td class="actions-cell">
+                                {% if tr.type in ('buy', 'sell') %}
+                                <button class="btn-icon edit-trade-btn"
+                                    data-id="{{ tr.id }}"
+                                    data-price="{{ tr.price_per_share or 0 }}"
+                                    title="{{ t.btn_edit_price if 'btn_edit_price' in t else 'Edit price' }}"
+                                    aria-label="{{ t.btn_edit_price if 'btn_edit_price' in t else 'Edit price' }}">&#9998;</button>
+                                <button class="btn-icon btn-icon-danger delete-trade-btn"
+                                    data-id="{{ tr.id }}"
+                                    title="{{ t.btn_delete if 'btn_delete' in t else 'Delete' }}"
+                                    aria-label="{{ t.btn_delete if 'btn_delete' in t else 'Delete' }}">&#10005;</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -422,6 +444,120 @@
                 closedChart.update();
             }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         }
+    })();
+    </script>
+
+    <!-- Edit-price modal -->
+    <div id="editPriceModal" style="display:none;position:fixed;inset:0;z-index:1000;
+        background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+        <div style="background:var(--bg-secondary);border:1px solid var(--bg-tertiary);
+            border-radius:8px;padding:24px;min-width:280px;max-width:400px;width:90%;">
+            <h3 style="margin:0 0 16px;font-size:1rem;">
+                {% if lang == 'he' %}עדכון מחיר{% else %}Edit Price{% endif %}
+            </h3>
+            <label style="display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-secondary);">
+                {% if lang == 'he' %}מחיר לניר ערך (אגורות){% else %}Price per share (agorot){% endif %}
+            </label>
+            <input id="editPriceInput" type="number" step="0.0001" min="0.0001"
+                style="width:100%;box-sizing:border-box;padding:8px;border-radius:4px;
+                border:1px solid var(--bg-tertiary);background:var(--bg-primary);
+                color:var(--text-primary);font-size:1rem;margin-bottom:16px;">
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button id="editPriceCancelBtn" class="btn-secondary">
+                    {% if lang == 'he' %}ביטול{% else %}Cancel{% endif %}
+                </button>
+                <button id="editPriceSaveBtn" class="btn-primary">
+                    {% if lang == 'he' %}שמור{% else %}Save{% endif %}
+                </button>
+            </div>
+            <div id="editPriceError" style="display:none;color:var(--negative);font-size:0.8rem;margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var modal    = document.getElementById('editPriceModal');
+        var priceInput = document.getElementById('editPriceInput');
+        var errDiv   = document.getElementById('editPriceError');
+        var currentId = null;
+
+        function openModal(id, currentPrice) {
+            currentId = id;
+            // price_per_share is stored in ILS; display in agorot (×100) to match the table column
+            priceInput.value = (parseFloat(currentPrice) * 100).toFixed(4);
+            errDiv.style.display = 'none';
+            modal.style.display = 'flex';
+            priceInput.focus();
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+            currentId = null;
+        }
+
+        document.querySelectorAll('.edit-trade-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                openModal(this.dataset.id, this.dataset.price);
+            });
+        });
+
+        document.getElementById('editPriceCancelBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+
+        document.getElementById('editPriceSaveBtn').addEventListener('click', function() {
+            var agorot = parseFloat(priceInput.value);
+            if (!agorot || agorot <= 0) {
+                errDiv.textContent = '{% if lang == "he" %}מחיר לא תקין{% else %}Invalid price{% endif %}';
+                errDiv.style.display = 'block';
+                return;
+            }
+            var priceIls = agorot / 100;
+            fetch('/api/transactions/' + currentId + '/update-price', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({ price_per_share: priceIls }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    closeModal();
+                    location.reload();
+                } else {
+                    errDiv.textContent = data.error || '{% if lang == "he" %}שגיאה{% else %}Error{% endif %}';
+                    errDiv.style.display = 'block';
+                }
+            })
+            .catch(function() {
+                errDiv.textContent = '{% if lang == "he" %}שגיאת רשת{% else %}Network error{% endif %}';
+                errDiv.style.display = 'block';
+            });
+        });
+
+        document.querySelectorAll('.delete-trade-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.dataset.id;
+                var msg = '{% if lang == "he" %}האם למחוק עסקה זו?{% else %}Delete this transaction?{% endif %}';
+                if (!confirm(msg)) return;
+                fetch('/api/transactions/' + id + '/delete', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.error || '{% if lang == "he" %}שגיאה{% else %}Error{% endif %}');
+                    }
+                })
+                .catch(function() {
+                    alert('{% if lang == "he" %}שגיאת רשת{% else %}Network error{% endif %}');
+                });
+            });
+        });
     })();
     </script>
 </body>
