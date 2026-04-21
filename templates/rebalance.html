@@ -172,6 +172,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer">{{ t.nav_cli_docs }}</a>
@@ -286,7 +287,7 @@
                         <tr data-holding-id="{{ row.holding_id }}" data-group-type="{{ gtype }}">
                             <td>
                                 <a href="/position/{{ row.holding_id }}" class="position-link">
-                                    {{ (row.name_en if lang == 'en' and row.name_en else row.name_he) }}
+                                    {{ row[display_prefs.rebalance_name] or row.name_en or row.name_he }}
                                 </a>
                                 <span class="sub-label">₪{{ '{:,.0f}'.format(row.market_value) }}</span>
                             </td>

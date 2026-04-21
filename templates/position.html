@@ -79,6 +79,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -201,7 +202,34 @@
                 </div>
             </div>
 
-            {% if not data.yfinance_symbol %}
+            {% if data.yfinance_symbol %}
+            <!-- ── yfinance refresh review panel ── -->
+            <div style="margin-top: 0.75rem;">
+                <button type="button" id="yfRefreshBtn" onclick="openYfReview()"
+                    style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;">
+                    {{ t.yf_refresh_btn }}
+                </button>
+                <span id="yfRefreshStatus" style="font-size: 0.78rem; color: var(--text-secondary); margin-inline-start: 0.5rem;"></span>
+            </div>
+            <div id="yfReviewPanel" style="display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary);">
+                <div style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.6rem;">{{ t.yf_review_title }}</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                    <thead>
+                        <tr style="color: var(--text-secondary);">
+                            <th style="padding: 0.2rem 0.4rem; text-align: start; width: 1.5rem;"></th>
+                            <th style="padding: 0.2rem 0.4rem; text-align: start;">{{ t.yf_review_field }}</th>
+                            <th style="padding: 0.2rem 0.4rem; text-align: start;">{{ t.yf_review_current }}</th>
+                            <th style="padding: 0.2rem 0.4rem; text-align: start;">{{ t.yf_review_proposed }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="yfReviewRows"></tbody>
+                </table>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.6rem;">
+                    <button type="button" onclick="closeYfReview()" style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.82rem;">{{ t.yf_review_cancel }}</button>
+                    <button type="button" id="yfApplyBtn" onclick="applyYfData()" style="padding: 0.3rem 0.75rem; background: var(--accent); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600; font-size: 0.82rem;">{{ t.yf_review_apply }}</button>
+                </div>
+            </div>
+            {% else %}
             <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; color: var(--text-secondary);">
                 ⚠ {{ t.position_no_yfinance }}
             </div>
@@ -957,6 +985,104 @@
     document.getElementById('confirmModal').addEventListener('click', function(e) {
         if (e.target === this) closeConfirmModal();
     });
+
+    // ── yfinance review panel ────────────────────────────────────────────────
+    var _yfPreviewData = null;
+
+    var _yfFieldLabels = {
+        'name_yf_long':  '{{ t.yf_field_name_yf_long }}',
+        'name_yf_short': '{{ t.yf_field_name_yf_short }}',
+        'ticker':        '{{ t.yf_field_ticker }}',
+    };
+
+    function openYfReview() {
+        var btn = document.getElementById('yfRefreshBtn');
+        var status = document.getElementById('yfRefreshStatus');
+        btn.disabled = true;
+        status.textContent = '...';
+        fetch('/api/holdings/{{ data.holding_id }}/fetch-yfinance-preview')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.error === 'no_mapping') {
+                    status.textContent = '{{ t.yf_review_no_mapping }}';
+                    status.style.color = 'var(--negative, #f85149)';
+                    return;
+                }
+                if (d.error) {
+                    status.textContent = '{{ t.yf_review_fetch_failed }}';
+                    status.style.color = 'var(--negative, #f85149)';
+                    return;
+                }
+                _yfPreviewData = d;
+                status.textContent = '';
+                renderYfReview(d);
+                document.getElementById('yfReviewPanel').style.display = '';
+            })
+            .catch(function() {
+                status.textContent = '{{ t.yf_review_fetch_failed }}';
+                status.style.color = 'var(--negative, #f85149)';
+            })
+            .finally(function() { btn.disabled = false; });
+    }
+
+    function renderYfReview(d) {
+        var editableFields = ['name_yf_long', 'name_yf_short'];
+        var displayFields = ['ticker'];
+        var rows = editableFields.map(function(f) {
+            var cur = d.current[f] || '—';
+            var prop = d.proposed[f] || '—';
+            var changed = (d.current[f] || '') !== (d.proposed[f] || '');
+            return '<tr style="border-top: 1px solid var(--border);">' +
+                '<td style="padding: 0.25rem 0.4rem;"><input type="checkbox" data-field="' + f + '" ' + (changed ? 'checked' : '') + '></td>' +
+                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + (_yfFieldLabels[f] || f) + '</td>' +
+                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + cur + '</td>' +
+                '<td style="padding: 0.25rem 0.4rem; font-weight: ' + (changed ? '600' : '400') + ';">' + prop + '</td>' +
+                '</tr>';
+        });
+        rows = rows.concat(displayFields.map(function(f) {
+            var cur = d.current[f] || '—';
+            var prop = d.proposed[f] || '—';
+            return '<tr style="border-top: 1px solid var(--border); opacity: 0.55;">' +
+                '<td style="padding: 0.25rem 0.4rem;"></td>' +
+                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + (_yfFieldLabels[f] || f) + ' (read-only)</td>' +
+                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + cur + '</td>' +
+                '<td style="padding: 0.25rem 0.4rem;">' + prop + '</td>' +
+                '</tr>';
+        }));
+        document.getElementById('yfReviewRows').innerHTML = rows.join('');
+    }
+
+    function closeYfReview() {
+        document.getElementById('yfReviewPanel').style.display = 'none';
+        _yfPreviewData = null;
+    }
+
+    function applyYfData() {
+        if (!_yfPreviewData) return;
+        var checkboxes = document.querySelectorAll('#yfReviewRows input[type="checkbox"]');
+        var payload = {};
+        checkboxes.forEach(function(cb) {
+            if (cb.checked) {
+                var f = cb.dataset.field;
+                payload[f] = _yfPreviewData.proposed[f];
+            }
+        });
+        if (!Object.keys(payload).length) { closeYfReview(); return; }
+        fetch('/api/holdings/{{ data.holding_id }}/apply-yfinance-data', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.success) {
+                closeYfReview();
+                document.getElementById('yfRefreshStatus').textContent = '{{ t.yf_review_applied }}';
+                document.getElementById('yfRefreshStatus').style.color = 'var(--positive, #3fb950)';
+                setTimeout(function() { window.location.reload(); }, 1000);
+            }
+        });
+    }
     </script>
     <script src="/static/app.js"></script>
 </body>

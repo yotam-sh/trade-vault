@@ -75,6 +75,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -130,10 +131,10 @@
                     <tr data-pnl="{{ pos.unrealized_pnl }}">
                         <td>
                             <a href="/position/{{ pos.holding_id }}" class="position-link">
-                                {{ (pos.name_en if lang == 'en' and pos.name_en else pos.name_he) }}
+                                {{ pos[display_prefs.positions_open_name] or pos.name_en or pos.name_he }}
                             </a>
                         </td>
-                        <td>{{ (pos.symbol_en if lang == 'en' and pos.symbol_en else pos.symbol) }}</td>
+                        <td>{{ pos[display_prefs.positions_open_symbol] or pos.symbol_en or pos.symbol }}</td>
                         <td>
                             {% if pos.security_type == 'stock' %}{{ t.type_stock }}
                             {% elif pos.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
@@ -182,10 +183,10 @@
                     <tr data-pnl="{{ pos.total_pnl }}">
                         <td>
                             <a href="/position/{{ pos.holding_id }}" class="position-link">
-                                {{ (pos.name_en if lang == 'en' and pos.name_en else pos.name_he) }}
+                                {{ pos[display_prefs.positions_closed_name] or pos.name_en or pos.name_he }}
                             </a>
                         </td>
-                        <td>{{ (pos.symbol_en if lang == 'en' and pos.symbol_en else pos.symbol) }}</td>
+                        <td>{{ pos[display_prefs.positions_closed_symbol] or pos.symbol_en or pos.symbol }}</td>
                         <td>
                             {% if pos.security_type == 'stock' %}{{ t.type_stock }}
                             {% elif pos.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}

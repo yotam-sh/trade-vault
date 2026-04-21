@@ -76,6 +76,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -188,9 +189,9 @@
                                         {% elif d.security_type == 'bond' %}{{ t.type_bond }}
                                         {% else %}{{ d.security_type }}{% endif %}
                                     </td>
-                                    <td><a href="/position/{{ d.holding_id }}" class="position-link">{{ (d.name_en if lang == 'en' and d.name_en else d.name) }}</a></td>
+                                    <td><a href="/position/{{ d.holding_id }}" class="position-link">{{ d[display_prefs.daily_details_name] or d.name_en or d.name }}</a></td>
                                     <td>{{ d.tase_id }}</td>
-                                    <td>{{ (d.symbol_en if lang == 'en' and d.symbol_en else d.symbol) }}</td>
+                                    <td>{{ d[display_prefs.daily_details_symbol] or d.symbol_en or d.symbol }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(d.change_ils or 0) }}</td>
                                     <td class="num pnl">
                                         {% if d.change_pct is not none %}
@@ -229,7 +230,7 @@
                                 </tr>
                                 {% for sec in group.securities %}
                                 <tr>
-                                    <td><a href="/position/{{ sec.holding_id }}" class="position-link">{{ (sec.name_en if lang == 'en' and sec.name_en else sec.name) }}</a></td>
+                                    <td><a href="/position/{{ sec.holding_id }}" class="position-link">{{ sec[display_prefs.daily_details_name] or sec.name_en or sec.name }}</a></td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(sec.total_change_ils) }}</td>
                                     <td class="num positive">{{ '{:,.2f}'.format(sec.max_change_ils or 0) }}</td>
                                     <td class="num negative">{{ '{:,.2f}'.format(sec.min_change_ils or 0) }}</td>

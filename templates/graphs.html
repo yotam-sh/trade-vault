@@ -80,6 +80,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -296,6 +297,7 @@
         var allocationHistory = {{ allocation_history|tojson }};
         var topPositions     = {{ top_positions|tojson }};
         var lang             = {{ lang|tojson }};
+        var pnlLabelField    = {{ display_prefs.graphs_pnl_labels|tojson }};
 
         var CHART_INSTANCES = {};
         var CHART_TITLES = {
@@ -1212,9 +1214,7 @@
         }
         function labelsFor(sorted) {
             return sorted.map(function(d) {
-                return lang === 'he'
-                    ? (d.symbol || d.name_he)
-                    : (d.symbol_en || d.symbol || d.name_he);
+                return d[pnlLabelField] || d.symbol || d.name_he;
             });
         }
         function fullNameFor(d) {

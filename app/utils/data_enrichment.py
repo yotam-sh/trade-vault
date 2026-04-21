@@ -19,9 +19,13 @@ def enrich_position_with_holding(position, holding_id=None):
     enriched = dict(position)
     enriched['name_he'] = holding['name_he'] if holding else position.get('ticker', '')
     enriched['name_en'] = holding.get('name_en') if holding else None
+    enriched['name_tase_he'] = holding.get('name_tase_he') if holding else None
+    enriched['name_tase_en'] = holding.get('name_tase_en') if holding else None
+    enriched['name_yf_long'] = holding.get('name_yf_long') if holding else None
+    enriched['name_yf_short'] = holding.get('name_yf_short') if holding else None
     enriched['symbol'] = holding['tase_symbol'] if holding else position.get('ticker', '')
-    enriched['symbol_en'] = holding.get('tase_symbol_en') if holding else None  # English TASE symbol
-    enriched['ticker'] = holding.get('ticker') if holding else None  # Yahoo Finance ticker
+    enriched['symbol_en'] = holding.get('tase_symbol_en') if holding else None
+    enriched['ticker'] = holding.get('ticker') if holding else None
     enriched['security_type'] = holding.get('security_type', 'other') if holding else 'other'
 
     return enriched
@@ -57,9 +61,13 @@ def enrich_positions_batch(positions, holding_id_key='holding_id'):
         enriched = dict(pos)
         enriched['name_he'] = holding.get('name_he', pos.get('ticker', ''))
         enriched['name_en'] = holding.get('name_en')
+        enriched['name_tase_he'] = holding.get('name_tase_he')
+        enriched['name_tase_en'] = holding.get('name_tase_en')
+        enriched['name_yf_long'] = holding.get('name_yf_long')
+        enriched['name_yf_short'] = holding.get('name_yf_short')
         enriched['symbol'] = holding.get('tase_symbol', pos.get('ticker', ''))
-        enriched['symbol_en'] = holding.get('tase_symbol_en')  # English TASE symbol
-        enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
+        enriched['symbol_en'] = holding.get('tase_symbol_en')
+        enriched['ticker'] = holding.get('ticker')
         enriched['security_type'] = holding.get('security_type', 'other')
 
         result.append(enriched)
@@ -88,14 +96,21 @@ def enrich_trade_with_holding(trade, holding_id=None):
     if holding:
         enriched['name_he'] = holding['name_he']
         enriched['name_en'] = holding.get('name_en')
+        enriched['name_tase_he'] = holding.get('name_tase_he')
+        enriched['name_tase_en'] = holding.get('name_tase_en')
+        enriched['name_yf_long'] = holding.get('name_yf_long')
+        enriched['name_yf_short'] = holding.get('name_yf_short')
         enriched['symbol'] = holding.get('tase_symbol', '')
-        enriched['symbol_en'] = holding.get('tase_symbol_en')  # English TASE symbol
-        enriched['ticker'] = holding.get('ticker')  # Yahoo Finance ticker
+        enriched['symbol_en'] = holding.get('tase_symbol_en')
+        enriched['ticker'] = holding.get('ticker')
         enriched['security_type'] = holding.get('security_type', '')
     else:
-        # Fallback to existing values
         enriched['name_he'] = trade.get('name_he', trade.get('ticker', ''))
         enriched['name_en'] = None
+        enriched['name_tase_he'] = None
+        enriched['name_tase_en'] = None
+        enriched['name_yf_long'] = None
+        enriched['name_yf_short'] = None
         enriched['symbol'] = trade.get('symbol', trade.get('ticker', ''))
         enriched['symbol_en'] = None
         enriched['ticker'] = None

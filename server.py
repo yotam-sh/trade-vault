@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file, Response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file, Response, g
 from flask_wtf.csrf import CSRFProtect
 from app.connection import get_db, close_db, flush_db
 from app.settings import init_default_settings
@@ -195,16 +195,61 @@ def require_admin(f):
 APP_VERSION = '0.8.5'
 
 
+_DEFAULT_DISPLAY_PREFS_HE = {
+    'portfolio_holdings_name':   'name_tase_he',
+    'portfolio_holdings_symbol': 'symbol',
+    'positions_open_name':       'name_tase_he',
+    'positions_open_symbol':     'symbol',
+    'positions_closed_name':     'name_tase_he',
+    'positions_closed_symbol':   'symbol',
+    'daily_summary_best_worst':  'symbol',
+    'daily_details_name':        'name_tase_he',
+    'daily_details_symbol':      'symbol',
+    'rebalance_name':            'name_tase_he',
+    'trades_name':               'name_tase_he',
+    'trades_symbol':             'symbol',
+    'trades_closed_name':        'name_tase_he',
+    'graphs_pnl_labels':         'symbol',
+}
+
+_DEFAULT_DISPLAY_PREFS_EN = {
+    'portfolio_holdings_name':   'name_tase_en',
+    'portfolio_holdings_symbol': 'symbol_en',
+    'positions_open_name':       'name_tase_en',
+    'positions_open_symbol':     'symbol_en',
+    'positions_closed_name':     'name_tase_en',
+    'positions_closed_symbol':   'symbol_en',
+    'daily_summary_best_worst':  'symbol_en',
+    'daily_details_name':        'name_tase_en',
+    'daily_details_symbol':      'symbol_en',
+    'rebalance_name':            'name_tase_en',
+    'trades_name':               'name_tase_en',
+    'trades_symbol':             'symbol_en',
+    'trades_closed_name':        'name_tase_en',
+    'graphs_pnl_labels':         'symbol_en',
+}
+
+
+def _default_display_prefs(lang):
+    return _DEFAULT_DISPLAY_PREFS_HE if lang == 'he' else _DEFAULT_DISPLAY_PREFS_EN
+
+
 @app.context_processor
 def inject_translations():
-    """Make t, lang, dir, t_json, and app_version available in every template."""
+    """Make t, lang, dir, t_json, app_version, and display_prefs available in every template."""
+    from app.settings import get_setting
     lang = _get_lang()
+    if not hasattr(g, 'display_prefs'):
+        saved_all = get_setting('display_name_prefs', {}) or {}
+        saved_prefs = saved_all.get(lang, {}) if isinstance(saved_all, dict) else {}
+        g.display_prefs = {**_default_display_prefs(lang), **saved_prefs}
     return {
         't': get_translations(lang),
         't_json': get_translations_json(lang),
         'lang': lang,
         'dir': 'ltr' if lang == 'en' else 'rtl',
         'app_version': APP_VERSION,
+        'display_prefs': g.display_prefs,
     }
 
 
@@ -860,8 +905,94 @@ def api_fetch_tase_name(holding_id):
         return jsonify({'error': 'Not found'}), 404
     data = fetch_data_from_tase(holding['tase_id'])
     if data:
-        return jsonify({'name': data['name'], 'ticker': data.get('ticker'), 'tase_symbol_en': data.get('tase_symbol_en')})
+        return jsonify({
+            'name': data['name'],
+            'name_tase_he': data.get('name_tase_he'),
+            'ticker': data.get('ticker'),
+            'tase_symbol_en': data.get('tase_symbol_en'),
+        })
     return jsonify({'error': 'not_found'}), 404
+
+
+# ── Display preferences routes ──
+
+@app.route('/api/settings/display-prefs', methods=['GET', 'POST'])
+def api_display_prefs():
+    from app.settings import get_setting, set_setting
+    lang = _get_lang()
+    if request.method == 'GET':
+        saved_all = get_setting('display_name_prefs', {}) or {}
+        saved = saved_all.get(lang, {}) if isinstance(saved_all, dict) else {}
+        return jsonify({**_default_display_prefs(lang), **saved})
+    data = request.get_json(silent=True) or {}
+    valid = {k: v for k, v in data.items() if k in _DEFAULT_DISPLAY_PREFS_HE}
+    saved_all = get_setting('display_name_prefs', {}) or {}
+    if not isinstance(saved_all, dict):
+        saved_all = {}
+    saved_all[lang] = valid
+    set_setting('display_name_prefs', saved_all)
+    return jsonify({'success': True})
+
+
+@app.route('/settings/display')
+def settings_display():
+    from app.settings import get_setting
+    lang = _get_lang()
+    t = get_translations(lang)
+    saved_all = get_setting('display_name_prefs', {}) or {}
+    saved = saved_all.get(lang, {}) if isinstance(saved_all, dict) else {}
+    defaults = _default_display_prefs(lang)
+    prefs = {**defaults, **saved}
+    return render_template('settings_display.html', t=t, lang=lang,
+                           dir='rtl' if lang == 'he' else 'ltr',
+                           prefs=prefs,
+                           default_prefs=defaults)
+
+
+# ── yfinance review routes ──
+
+@app.route('/api/holdings/<int:holding_id>/fetch-yfinance-preview')
+def api_fetch_yfinance_preview(holding_id):
+    """Return what a yfinance refresh would write, without committing to DB."""
+    from app.holdings import get_holding
+    from app.utils.translation_service import fetch_info_from_yfinance, get_yfinance_mapping
+    holding = get_holding(holding_id)
+    if not holding:
+        return jsonify({'error': 'Not found'}), 404
+    yfinance_symbol = get_yfinance_mapping(holding.get('tase_id'))
+    if not yfinance_symbol:
+        return jsonify({'error': 'no_mapping'}), 404
+    info = fetch_info_from_yfinance(yfinance_symbol)
+    if not info:
+        return jsonify({'error': 'fetch_failed'}), 502
+    return jsonify({
+        'current': {
+            'name_yf_long': holding.get('name_yf_long'),
+            'name_yf_short': holding.get('name_yf_short'),
+            'ticker': holding.get('ticker'),
+        },
+        'proposed': {
+            'name_yf_long': info.get('name_long'),
+            'name_yf_short': info.get('name_short'),
+            'ticker': yfinance_symbol,
+        },
+        'symbol': yfinance_symbol,
+    })
+
+
+@app.route('/api/holdings/<int:holding_id>/apply-yfinance-data', methods=['POST'])
+def api_apply_yfinance_data(holding_id):
+    """Write user-reviewed yfinance fields to the holding."""
+    from app.holdings import get_holding, update_holding
+    holding = get_holding(holding_id)
+    if not holding:
+        return jsonify({'error': 'Not found'}), 404
+    data = request.get_json(silent=True) or {}
+    allowed = {'name_yf_long', 'name_yf_short'}
+    updates = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if updates:
+        update_holding(holding_id, **updates)
+    return jsonify({'success': True})
 
 
 # ── Export routes ──
@@ -1029,7 +1160,9 @@ def _tase_refresh_worker():
         yf_map = get_setting('yfinance_map', {}) or {}
         for doc_id, (h, data) in fetch_results.items():
             if data:
-                field_updates = {'name_en': data['name']}
+                field_updates = {'name_tase_en': data['name']}
+                if data.get('name_tase_he'):
+                    field_updates['name_tase_he'] = data['name_tase_he']
                 if data.get('tase_symbol_en'):
                     field_updates['tase_symbol_en'] = data['tase_symbol_en']
                 if data.get('ticker'):

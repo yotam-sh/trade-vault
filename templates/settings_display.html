@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ t.nav_display_settings }} - TradeVault</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
+    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
+        <div class="nav-left">
+            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
+                {{ t.settings }}
+            </button>
+            <div class="settings-dropdown" id="settings-dropdown">
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_language }}</div>
+                    <div class="lang-options">
+                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
+                            עברית
+                        </button>
+                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
+                            English
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #0d1117"></span>
+                                <span class="color-sample" style="background: #161b22"></span>
+                                <span class="color-sample" style="background: #58a6ff"></span>
+                                <span class="color-sample" style="background: #3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #280905"></span>
+                                <span class="color-sample" style="background: #740A03"></span>
+                                <span class="color-sample" style="background: #C3110C"></span>
+                                <span class="color-sample" style="background: #E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #432323"></span>
+                                <span class="color-sample" style="background: #2F5755"></span>
+                                <span class="color-sample" style="background: #5A9690"></span>
+                                <span class="color-sample" style="background: #E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #37353E"></span>
+                                <span class="color-sample" style="background: #44444E"></span>
+                                <span class="color-sample" style="background: #715A5A"></span>
+                                <span class="color-sample" style="background: #D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_pages }}</div>
+                    <div class="settings-links">
+                        <a href="/settings/display" class="settings-link active" aria-current="page">{{ t.nav_display_settings }}</a>
+                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
+                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
+                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
+                    </div>
+                </div>
+                <div class="settings-version">v{{ app_version }}</div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <a href="/">{{ t.nav_home }}</a>
+            <a href="/transactions">{{ t.nav_transactions }}</a>
+            <a href="/trades">{{ t.nav_trades }}</a>
+            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
+            <a href="/daily-details">{{ t.nav_daily_details }}</a>
+            <a href="/graphs">{{ t.nav_graphs }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
+            <a href="/rebalance">{{ t.nav_rebalance }}</a>
+        </div>
+
+        <div class="nav-right">
+            <a href="/" class="brand">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
+            </a>
+        </div>
+    </nav>
+
+    <div class="container" id="main-content" role="main">
+        <h1>{{ t.display_settings_title }}</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% set name_sources = [
+            ('name_tase_en',  t.name_src_name_tase_en),
+            ('name_tase_he',  t.name_src_name_tase_he),
+            ('name_he',       t.name_src_name_he),
+            ('name_yf_long',  t.name_src_name_yf_long),
+            ('name_yf_short', t.name_src_name_yf_short),
+            ('name_en',       t.name_src_name_en),
+            ('symbol',        t.name_src_symbol),
+            ('symbol_en',     t.name_src_symbol_en),
+        ] %}
+
+        <form id="display-prefs-form" autocomplete="off">
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ t.disp_col_context }}</th>
+                            <th>{{ t.disp_col_source }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_portfolio }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_holdings_name }}</td>
+                            <td>
+                                <select name="portfolio_holdings_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.portfolio_holdings_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_holdings_symbol }}</td>
+                            <td>
+                                <select name="portfolio_holdings_symbol" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.portfolio_holdings_symbol == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_positions }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_positions_open_name }}</td>
+                            <td>
+                                <select name="positions_open_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.positions_open_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_positions_open_symbol }}</td>
+                            <td>
+                                <select name="positions_open_symbol" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.positions_open_symbol == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_positions_closed_name }}</td>
+                            <td>
+                                <select name="positions_closed_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.positions_closed_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_positions_closed_symbol }}</td>
+                            <td>
+                                <select name="positions_closed_symbol" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.positions_closed_symbol == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_daily_summary }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_best_worst }}</td>
+                            <td>
+                                <select name="daily_summary_best_worst" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.daily_summary_best_worst == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_daily_details }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_daily_details_name }}</td>
+                            <td>
+                                <select name="daily_details_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.daily_details_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_daily_details_symbol }}</td>
+                            <td>
+                                <select name="daily_details_symbol" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.daily_details_symbol == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_rebalance }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_rebalance_name }}</td>
+                            <td>
+                                <select name="rebalance_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.rebalance_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_trades }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_trades_name }}</td>
+                            <td>
+                                <select name="trades_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.trades_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_trades_symbol }}</td>
+                            <td>
+                                <select name="trades_symbol" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.trades_symbol == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_trades_closed_name }}</td>
+                            <td>
+                                <select name="trades_closed_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.trades_closed_name == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr class="group-header">
+                            <td colspan="2">{{ t.disp_group_graphs }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_graphs_pnl }}</td>
+                            <td>
+                                <select name="graphs_pnl_labels" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.graphs_pnl_labels == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem; margin-bottom: 0.5rem;">
+                <button type="submit" class="admin-action-btn">{{ t.display_settings_save }}</button>
+                <button type="button" id="reset-prefs-btn" class="admin-action-btn" style="background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border);">{{ t.display_settings_reset }}</button>
+            </div>
+        </form>
+
+        <div id="prefs-feedback" class="flash" style="display:none" role="alert"></div>
+    </div>
+
+    <script>var T = {{ t_json | safe }};</script>
+    <script>
+    (function () {
+        var defaultPrefs = {{ default_prefs | tojson }};
+        var serverPrefs = {{ prefs | tojson }};
+
+        // Explicitly set select values from server — overrides any browser form restoration
+        document.querySelectorAll('select.pref-select').forEach(function (sel) {
+            if (serverPrefs[sel.name] !== undefined) {
+                sel.value = serverPrefs[sel.name];
+            }
+        });
+
+        document.getElementById('display-prefs-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            var selects = this.querySelectorAll('select.pref-select');
+            var payload = {};
+            selects.forEach(function (sel) { payload[sel.name] = sel.value; });
+            fetch('/api/settings/display-prefs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function () {
+                var fb = document.getElementById('prefs-feedback');
+                fb.textContent = '{{ t.display_settings_saved }}';
+                fb.className = 'flash flash-success';
+                fb.style.display = '';
+                setTimeout(function () { fb.style.display = 'none'; }, 3000);
+            });
+        });
+
+        document.getElementById('reset-prefs-btn').addEventListener('click', function () {
+            document.querySelectorAll('select.pref-select').forEach(function (sel) {
+                if (defaultPrefs[sel.name]) sel.value = defaultPrefs[sel.name];
+            });
+        });
+    })();
+    </script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

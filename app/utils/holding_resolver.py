@@ -129,12 +129,14 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                     }
                 update_holding(holding_id, **field_updates)
                 if name_changed:
-                    # Try to refresh English name + ticker: TASE first, yfinance fallback
+                    # Try to refresh names: TASE first, yfinance fallback
                     try:
                         from app.utils.translation_service import fetch_data_from_tase, fetch_info_from_yfinance
                         tase_data = fetch_data_from_tase(tase_id)
                         if tase_data:
-                            en_updates = {'name_en': tase_data['name']}
+                            en_updates = {'name_tase_en': tase_data['name']}
+                            if tase_data.get('name_tase_he'):
+                                en_updates['name_tase_he'] = tase_data['name_tase_he']
                             if tase_data.get('tase_symbol_en'):
                                 en_updates['tase_symbol_en'] = tase_data['tase_symbol_en']
                             if tase_data.get('ticker'):
@@ -151,7 +153,9 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                             if old_ticker:
                                 info = fetch_info_from_yfinance(old_ticker)
                                 if info and info.get('name'):
-                                    update_holding(holding_id, name_en=info['name'])
+                                    update_holding(holding_id,
+                                                   name_yf_long=info.get('name_long'),
+                                                   name_yf_short=info.get('name_short'))
                                     name_change['new_name_en'] = info['name']
                     except Exception:
                         pass

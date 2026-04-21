@@ -401,8 +401,8 @@ TRANSLATIONS = {
     'admin_import_label': {'he': 'בחר קובץ גיבוי (.json)',              'en': 'Choose backup file (.json)'},
     'admin_tase_refresh_title': {'he': 'רענון שמות אנגלית מ-TASE',
                                  'en': 'Refresh English Names from TASE'},
-    'admin_tase_refresh_desc':  {'he': 'עדכון שם אנגלי לכל הניירות מה-API הציבורי של TASE',
-                                 'en': 'Update name_en for all holdings from the TASE public API'},
+    'admin_tase_refresh_desc':  {'he': 'עדכון name_tase_en ו-name_tase_he לכל הניירות מה-API הציבורי של TASE',
+                                 'en': 'Update name_tase_en and name_tase_he for all holdings from the TASE public API'},
     'admin_tase_refresh_btn':   {'he': 'רענן הכל מ-TASE',               'en': 'Refresh All from TASE'},
     'admin_tase_refresh_result': {'he': 'עודכנו {updated} ניירות מ-TASE ({failed} נכשלו)',
                                   'en': 'Updated {updated} holdings from TASE ({failed} failed)'},
@@ -422,6 +422,70 @@ TRANSLATIONS = {
         'he': 'שים לב: תאריך הקובץ ({filename_date}) שונה מהתאריך שנבחר ({form_date})',
         'en': 'Note: filename date ({filename_date}) differs from selected date ({form_date})',
     },
+
+    # ── Display Settings page ──
+    'nav_display_settings':        {'he': 'הגדרות תצוגה',                 'en': 'Display Settings'},
+    'display_settings_title':      {'he': 'הגדרות תצוגה — שמות',          'en': 'Display Settings — Names'},
+    'display_settings_intro':      {
+        'he': 'בחר איזה שם יוצג בכל טבלה. השינוי ישפיע על כל הדפים. ניתן לשנות בכל עת.',
+        'en': 'Choose which name is shown in each table. Changes apply to all pages and can be updated any time.',
+    },
+    'display_settings_save':       {'he': 'שמור הגדרות',                  'en': 'Save Settings'},
+    'display_settings_saved':      {'he': 'הגדרות תצוגה נשמרו',           'en': 'Display settings saved'},
+    'display_settings_reset':      {'he': 'איפוס לברירת מחדל',             'en': 'Reset to Defaults'},
+
+    # Display settings table column headers
+    'disp_col_context':            {'he': 'הקשר',                           'en': 'Context'},
+    'disp_col_source':             {'he': 'מקור שם',                        'en': 'Name source'},
+
+    # Context labels (page group + context)
+    'disp_group_portfolio':        {'he': 'סקירה כללית (דף ראשי)',         'en': 'Portfolio Overview (Home)'},
+    'disp_group_positions':        {'he': 'פוזיציות',                      'en': 'Positions'},
+    'disp_group_daily_summary':    {'he': 'סיכום יומי',                    'en': 'Daily Summary'},
+    'disp_group_daily_details':    {'he': 'יומי מלא',                      'en': 'Daily Details'},
+    'disp_group_rebalance':        {'he': 'איזון תיק',                     'en': 'Rebalance'},
+    'disp_group_trades':                {'he': 'עסקאות',                         'en': 'Activity'},
+    'disp_group_graphs':                {'he': 'גרפים',                          'en': 'Graphs'},
+    'disp_ctx_holdings_name':           {'he': 'עמודת שם — טבלת אחזקות',         'en': 'Name — holdings table'},
+    'disp_ctx_holdings_symbol':         {'he': 'עמודת סימול — טבלת אחזקות',      'en': 'Symbol — holdings table'},
+    'disp_ctx_positions_open_name':     {'he': 'שם — פוזיציות פתוחות',           'en': 'Name — open positions'},
+    'disp_ctx_positions_open_symbol':   {'he': 'סימול — פוזיציות פתוחות',        'en': 'Symbol — open positions'},
+    'disp_ctx_positions_closed_name':   {'he': 'שם — פוזיציות סגורות',           'en': 'Name — closed positions'},
+    'disp_ctx_positions_closed_symbol': {'he': 'סימול — פוזיציות סגורות',        'en': 'Symbol — closed positions'},
+    'disp_ctx_best_worst':              {'he': 'ביצועים הטובים/הגרועים ביותר',  'en': 'Best / Worst performer'},
+    'disp_ctx_daily_details_name':      {'he': 'שם — טבלת יומי מלא',            'en': 'Name — daily details table'},
+    'disp_ctx_daily_details_symbol':    {'he': 'סימול — טבלת יומי מלא',         'en': 'Symbol — daily details table'},
+    'disp_ctx_rebalance_name':          {'he': 'עמודת שם — איזון',               'en': 'Name — rebalance'},
+    'disp_ctx_trades_name':             {'he': 'שם — יומן עסקאות',              'en': 'Name — trade log'},
+    'disp_ctx_trades_symbol':           {'he': 'סימול — יומן עסקאות',           'en': 'Symbol — trade log'},
+    'disp_ctx_trades_closed_name':      {'he': 'שם — פוזיציות סגורות',          'en': 'Name — closed positions'},
+    'disp_ctx_graphs_pnl':              {'he': 'תוויות — רווח/הפסד לפי נייר',   'en': 'Labels — P&L by Position'},
+
+    # Name source option labels
+    'name_src_name_he':            {'he': 'שם עברי (IBI)',                 'en': 'Hebrew name (IBI brokerage)'},
+    'name_src_name_tase_he':       {'he': 'שם עברי (TASE)',                'en': 'Hebrew name (TASE registry)'},
+    'name_src_name_tase_en':       {'he': 'שם אנגלי (TASE)',               'en': 'English name (TASE registry)'},
+    'name_src_name_yf_long':       {'he': 'שם מלא (yfinance)',             'en': 'Full name (yfinance)'},
+    'name_src_name_yf_short':      {'he': 'שם קצר (yfinance)',             'en': 'Short name (yfinance)'},
+    'name_src_name_en':            {'he': 'שם אנגלי (ידני)',               'en': 'English name (manual override)'},
+    'name_src_symbol':             {'he': 'סימול TASE (עברי)',              'en': 'TASE symbol (Hebrew)'},
+    'name_src_symbol_en':          {'he': 'סימול TASE (אנגלי)',             'en': 'TASE symbol (English)'},
+
+    # Position page yfinance review panel
+    'yf_refresh_btn':              {'he': 'רענן מ-yfinance',               'en': 'Refresh from yfinance'},
+    'yf_review_title':             {'he': 'סקירת נתוני yfinance',          'en': 'Review yfinance Data'},
+    'yf_review_field':             {'he': 'שדה',                           'en': 'Field'},
+    'yf_review_current':           {'he': 'ערך נוכחי',                     'en': 'Current value'},
+    'yf_review_proposed':          {'he': 'ערך חדש',                       'en': 'Proposed value'},
+    'yf_review_apply':             {'he': 'החל נבחרים',                    'en': 'Apply selected'},
+    'yf_review_cancel':            {'he': 'ביטול',                         'en': 'Cancel'},
+    'yf_review_no_mapping':        {'he': 'אין מיפוי yfinance לנייר זה',   'en': 'No yfinance mapping for this holding'},
+    'yf_review_fetch_failed':      {'he': 'הבאת נתונים נכשלה — בדוק את חיבור האינטרנט',
+                                    'en': 'Data fetch failed — check internet connection'},
+    'yf_field_name_yf_long':       {'he': 'שם מלא',                       'en': 'Full name'},
+    'yf_field_name_yf_short':      {'he': 'שם קצר',                       'en': 'Short name'},
+    'yf_field_ticker':             {'he': 'טיקר',                          'en': 'Ticker'},
+    'yf_review_applied':           {'he': 'נתוני yfinance עודכנו',         'en': 'yfinance data applied'},
 }
 
 

@@ -78,6 +78,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -206,8 +207,8 @@
                         {% for pos in portfolio.positions|sort(attribute='market_value', reverse=True) %}
                         {% if pos.quantity and pos.quantity > 0 %}
                         <tr data-pnl="{{ pos.market_value - pos.cost_basis }}">
-                            <td><a href="/position/{{ pos.holding_id }}" class="position-link">{{ (pos.name_en if lang == 'en' and pos.name_en else pos.name_he) }}</a></td>
-                            <td>{{ (pos.symbol_en if lang == 'en' and pos.symbol_en else pos.symbol) }}</td>
+                            <td><a href="/position/{{ pos.holding_id }}" class="position-link">{{ pos[display_prefs.portfolio_holdings_name] or pos.name_en or pos.name_he }}</a></td>
+                            <td>{{ pos[display_prefs.portfolio_holdings_symbol] or pos.symbol }}</td>
                             <td class="num">{{ '{:,.2f}'.format(pos.market_value) }}</td>
                             <td class="num">{{ '{:,.2f}'.format(pos.cost_basis) }}</td>
                             <td class="num pnl">{{ '{:,.2f}'.format(pos.market_value - pos.cost_basis) }}</td>

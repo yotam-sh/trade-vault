@@ -76,6 +76,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -196,7 +197,7 @@
                             {% if day.best %}
                             <td>
                                 {% if day.best.holding_id %}<a href="/position/{{ day.best.holding_id }}" class="position-link">{% endif %}
-                                {{ (day.best.symbol_en if lang == 'en' and day.best.symbol_en else day.best.symbol) }}
+                                {{ day.best[display_prefs.daily_summary_best_worst] or day.best.name_en or day.best.symbol }}
                                 {% if day.best.holding_id %}</a>{% endif %}
                             </td>
                             <td class="num positive">{{ '{:,.2f}'.format(day.best.daily_pnl) }}</td>
@@ -209,7 +210,7 @@
                             {% if day.worst %}
                             <td>
                                 {% if day.worst.holding_id %}<a href="/position/{{ day.worst.holding_id }}" class="position-link">{% endif %}
-                                {{ (day.worst.symbol_en if lang == 'en' and day.worst.symbol_en else day.worst.symbol) }}
+                                {{ day.worst[display_prefs.daily_summary_best_worst] or day.worst.name_en or day.worst.symbol }}
                                 {% if day.worst.holding_id %}</a>{% endif %}
                             </td>
                             <td class="num negative">{{ '{:,.2f}'.format(day.worst.daily_pnl) }}</td>

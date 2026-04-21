@@ -10,10 +10,10 @@ from app.yfinance_cache import get_yfinance_cache, upsert_yfinance_cache
 
 
 def fetch_data_from_tase(tase_id):
-    """Fetch English name and Yahoo Finance ticker from the TASE API.
+    """Fetch English and Hebrew names, symbol, and Yahoo Finance ticker from TASE API.
 
-    Uses the public TASE market data API (lang=1 returns English names).
-    No authentication required — standard browser headers are sufficient.
+    Makes two API calls: lang=1 (English) and lang=0 (Hebrew).
+    The Hebrew fetch is best-effort — failure does not prevent returning English data.
 
     The TASE Symbol field (e.g. "STRK-M", "IBI.F35") is converted to a
     Yahoo Finance ticker by replacing dots with hyphens and appending ".TA"
@@ -23,44 +23,64 @@ def fetch_data_from_tase(tase_id):
         tase_id: TASE security ID (int or str)
 
     Returns:
-        {'name': str, 'ticker': str} on success, or None on failure
+        {
+            'name': str,           # English name (backward-compat key)
+            'name_tase_he': str,   # Hebrew name from TASE (may be None)
+            'tase_symbol_en': str, # raw TASE symbol, e.g. "STRK-M", "IBI.F35"
+            'ticker': str,         # derived Yahoo Finance ticker, e.g. "STRK-M.TA"
+        }
+        or None if the English fetch fails
 
     Example:
         >>> fetch_data_from_tase(1169895)
-        {'name': 'STARK POWER-M', 'ticker': 'STRK-M.TA'}
+        {'name': 'STARK POWER-M', 'name_tase_he': 'סטארק פאוור-מ', 'ticker': 'STRK-M.TA', ...}
     """
     import requests
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://market.tase.co.il/',
+        'Origin': 'https://market.tase.co.il',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-site',
+    }
+    base_url = f'https://api.tase.co.il/api/company/securitydata?securityId={tase_id}'
     try:
-        r = requests.get(
-            f'https://api.tase.co.il/api/company/securitydata?securityId={tase_id}&lang=1',
-            headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json',
-                'Referer': 'https://market.tase.co.il/',
-                'Origin': 'https://market.tase.co.il',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-site',
-            },
-            timeout=8,
-        )
-        if r.status_code == 200:
-            d = r.json()
-            # 'Name' is the specific security name (correct for ETFs/funds).
-            # 'CompanyName' is the fund-manager name shared across all funds
-            # from the same issuer — do not use it as the primary field.
-            name = d.get('Name') or d.get('CompanyName') or None
-            # Derive Yahoo Finance ticker from TASE Symbol:
-            # dots become hyphens and ".TA" is appended (e.g. IBI.F35 → IBI-F35.TA)
-            tase_symbol = d.get('Symbol') or ''
-            ticker = (tase_symbol.replace('.', '-') + '.TA') if tase_symbol else None
-            if name:
-                return {
-                    'name': name,
-                    'tase_symbol_en': tase_symbol,   # raw English symbol, e.g. "STRK-M", "IBI.F35"
-                    'ticker': ticker,                 # derived Yahoo Finance ticker, e.g. "STRK-M.TA"
-                }
-        return None
+        # English (lang=1) — required; None return if this fails
+        r_en = requests.get(f'{base_url}&lang=1', headers=headers, timeout=8)
+        if r_en.status_code != 200:
+            return None
+        d_en = r_en.json()
+        if not d_en:
+            return None
+        # 'Name' is the specific security name (correct for ETFs/funds).
+        # 'CompanyName' is the fund-manager name shared across all funds
+        # from the same issuer — only use as fallback.
+        name_en = d_en.get('Name') or d_en.get('CompanyName') or None
+        if not name_en:
+            return None
+        # Derive Yahoo Finance ticker: dots → hyphens, append ".TA"
+        tase_symbol = d_en.get('Symbol') or ''
+        ticker = (tase_symbol.replace('.', '-') + '.TA') if tase_symbol else None
+
+        # Hebrew (lang=0) — best-effort; failure is non-fatal
+        name_tase_he = None
+        try:
+            r_he = requests.get(f'{base_url}&lang=0', headers=headers, timeout=8)
+            if r_he.status_code == 200:
+                d_he = r_he.json()
+                if d_he:
+                    name_tase_he = d_he.get('Name') or d_he.get('CompanyName') or None
+        except Exception:
+            pass
+
+        return {
+            'name': name_en,                  # backward-compat key
+            'name_tase_he': name_tase_he,     # Hebrew name from TASE
+            'tase_symbol_en': tase_symbol,    # raw English symbol
+            'ticker': ticker,                 # derived Yahoo Finance ticker
+        }
     except Exception:
         return None
 
@@ -99,20 +119,19 @@ def fetch_info_from_yfinance(yfinance_symbol):
         ticker = yf.Ticker(yfinance_symbol)
         info = ticker.info
 
-        # Fetch name - try multiple fields in order of preference
-        name = None
-        for field in ['longName', 'shortName', 'displayName']:
-            if field in info and info[field]:
-                name = info[field]
-                break
+        # Fetch both long and short names separately
+        name_long = info.get('longName') or None
+        name_short = info.get('shortName') or info.get('displayName') or None
+        name = name_long or name_short  # first available, for backward compat
 
-        # Fetch symbol
         symbol = info.get('symbol', yfinance_symbol)
 
         if name:
             return {
-                'name': name,
-                'symbol': symbol
+                'name': name,           # backward-compat: first available
+                'name_long': name_long, # yfinance longName
+                'name_short': name_short,  # yfinance shortName / displayName
+                'symbol': symbol,
             }
 
         return None
@@ -148,7 +167,7 @@ def set_yfinance_mapping(tase_id, yfinance_symbol, update_info=True):
     result = {
         'success': False,
         'holding_id': None,
-        'name_en': None,
+        'name_en': None,    # kept for backward compat; set to name_long if available
         'ticker': None,
         'error': None
     }
@@ -170,9 +189,11 @@ def set_yfinance_mapping(tase_id, yfinance_symbol, update_info=True):
     if update_info:
         info = fetch_info_from_yfinance(yfinance_symbol)
         if info:
-            # Update both name and ticker
-            update_holding(holding.doc_id, name_en=info['name'], ticker=info['symbol'])
-            result['name_en'] = info['name']
+            update_holding(holding.doc_id,
+                           name_yf_long=info.get('name_long'),
+                           name_yf_short=info.get('name_short'),
+                           ticker=info['symbol'])
+            result['name_en'] = info['name']   # backward compat
             result['ticker'] = info['symbol']
             result['success'] = True
         else:
@@ -256,7 +277,10 @@ def refresh_info_from_mappings(tase_ids=None):
 
         info = fetch_info_from_yfinance(yfinance_symbol)
         if info:
-            update_holding(holding.doc_id, name_en=info['name'], ticker=info['symbol'])
+            update_holding(holding.doc_id,
+                           name_yf_long=info.get('name_long'),
+                           name_yf_short=info.get('name_short'),
+                           ticker=info['symbol'])
             results['success'] += 1
         else:
             results['errors'].append(f"TASE ID {tase_id} ({yfinance_symbol}): Could not fetch info")
@@ -465,7 +489,6 @@ def ensure_yfinance_info_cached(holding, force_refresh=False):
             cache_data = {k: v for k, v in cached.items() if k != 'holding_id'}
             merged = {k: v for k, v in {**cache_data, **info}.items() if k != 'fetch_failed_at'}
             upsert_yfinance_cache(holding_id, merged)
-            update_holding(holding_id, name_en=info.get('name'), ticker=info.get('symbol'))
             return merged
         # Fetch failed — record failure timestamp to rate-limit retries
         cache_data = {k: v for k, v in cached.items() if k != 'holding_id'}

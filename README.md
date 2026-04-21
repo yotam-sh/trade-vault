@@ -32,6 +32,10 @@ Created with Claude Code.
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
 - **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the Hebrew TASE symbol is also updated; English name and symbol are re-fetched from the TASE public API and the holding is updated silently; name changes are printed in the import log
 - **TASE API integration** — Fetches authoritative English names and symbols directly from the TASE public API (`api.tase.co.il`). Returns the English security name (e.g. `STRK-M`, `IBI.INDEX BANK`), the English TASE symbol (e.g. `STRK-M`, `IBI.F35`), and the derived Yahoo Finance ticker (e.g. `STRK-M.TA`, `IBI-F35.TA`). Triggered automatically on name change and available as a one-click "Fetch from TASE" button on each position page or bulk "Refresh All from TASE" on the Profile page
+- **Unified name management** — Each holding stores up to six name variants independently, each updated by its own source and never silently overwriting the others: `name_he` (IBI Hebrew brokerage name, authoritative), `name_tase_he` (Hebrew name from TASE registry), `name_tase_en` (English name from TASE registry), `name_yf_long` (full company name from Yahoo Finance), `name_yf_short` (short/ticker name from Yahoo Finance), and `name_en` (user-entered manual override). Sources write only to their own fields; visiting a position page never auto-modifies any name field
+- **Display preferences** — Per-column name source selection via the new `/settings/display` page (accessible from the ⚙ dropdown). For each context (portfolio holdings, open/closed positions, daily details, trade log, rebalance, P&L chart labels, etc.) choose which name or symbol field to display. Settings are stored per language: Hebrew mode defaults to Hebrew TASE names and Hebrew symbols; English mode defaults to English TASE names and English symbols. Changes take effect immediately across all pages without redeployment
+- **yfinance name review workflow** — The position detail page shows a "Refresh from yfinance" button. Clicking it fetches the latest `longName` and `shortName` from Yahoo Finance and presents a current → proposed comparison with per-field checkboxes. Only the fields you check are written to the holding. No name fields are ever written automatically on page load
+- **TASE Hebrew name fetch** — The TASE API integration now fetches both English (lang=1) and Hebrew (lang=0) names in a single refresh. `name_tase_he` is populated automatically alongside `name_tase_en` during admin TASE refresh and on name-change detection during daily import
 - **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. A "Fetch from TASE" button pre-fills English name and symbol from the TASE API. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
 - **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
@@ -342,6 +346,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 - The theme preference is saved in a cookie and persists across pages and sessions
 
 **Pages:**
+- **Display Settings** — Configure which name/symbol field each table column shows, per language
 - **Profile** — Database backup and restore (formerly "Admin")
 - **Accessibility** — IS 5568 accessibility statement
 - **CLI Docs** — Full CLI reference (`docs/cli.html`), also served at `/docs/cli`
@@ -358,7 +363,8 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle; click any date row to jump to Daily Details for that date |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
 | **Graphs** | `/graphs` | Seven interactive charts: portfolio value vs net invested, monthly return %, historical performance, drawdown from peak, daily P&L heatmap, asset allocation over time, and P&L by position — with drag-and-drop layout, resizable cards, show/hide per chart, and a reset-layout button |
-| **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database); bulk "Refresh All from TASE" to fetch English names and symbols for all holdings — accessible from the settings (⚙) dropdown |
+| **Display Settings** | `/settings/display` | Per-column name source selector: choose which name or symbol field (TASE Hebrew/English, yfinance long/short, IBI Hebrew, manual English, Hebrew/English symbol) displays in each table. Settings are per-language and reset independently — accessible from the settings (⚙) dropdown |
+| **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database); bulk "Refresh All from TASE" to fetch English and Hebrew names for all holdings — accessible from the settings (⚙) dropdown |
 | **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
 | **CLI Docs** | `/docs/cli` | Full CLI reference page (dark theme, regex search) — accessible from the settings (⚙) dropdown |
 
@@ -399,7 +405,7 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Graphs** | Drawdown from peak — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
 | **Graphs** | Asset allocation over time — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
-| **Graphs** | P&L by position — ranked by ILS or % toggle; English TASE symbol labels in English mode, Hebrew symbol in Hebrew mode; full name on hover | Horizontal bar |
+| **Graphs** | P&L by position — ranked by ILS or % toggle; label source configurable via Display Settings; full name on hover | Horizontal bar |
 
 The **Graphs** page (`/graphs`) is the dedicated chart hub with seven configurable panels. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
 
@@ -549,7 +555,7 @@ Uses TinyDB (a lightweight JSON document database). The database file is created
 
 | Table | Purpose |
 |-------|---------|
-| `holdings` | Security master registry (name, TASE ID, type, Hebrew/English TASE symbols, Yahoo Finance ticker) |
+| `holdings` | Security master registry — TASE ID, security type, Hebrew/English TASE symbols, Yahoo Finance ticker, and six name fields: `name_he` (IBI), `name_tase_he` (TASE Hebrew), `name_tase_en` (TASE English), `name_yf_long` (yfinance longName), `name_yf_short` (yfinance shortName), `name_en` (manual override) |
 | `transactions` | All financial events (buys, sells, deposits, summaries) |
 | `daily_prices` | Per-security per-day price and value snapshots |
 | `portfolio_snapshots` | End-of-day portfolio totals |
@@ -583,7 +589,9 @@ Individual trade order files from IBI. Filename encodes the trade date. Contains
 ## Technical Notes
 
 - **Modular architecture**: The codebase uses a three-layer architecture with facades for backward compatibility. `app/importers/` contains specialized import modules (daily, trades, morning balance, repair tools). `app/analytics/` contains query modules (portfolio, daily, monthly, trades, tax). `app/utils/` provides shared utilities (data enrichment, holding resolution, Yahoo Finance integration). The top-level `excel_importer.py` and `queries.py` are facades that import from these modules.
-- **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding English names and symbols to query results. Enriched position dicts carry `symbol` (Hebrew TASE symbol), `symbol_en` (English TASE symbol from `tase_symbol_en`), and `ticker` (Yahoo Finance symbol). All analytics functions automatically populate these fields; templates and charts use `symbol_en` in English mode.
+- **Name source isolation**: Each of the six name fields has exactly one writer — `name_he` is set only on IBI import, `name_tase_he`/`name_tase_en` only by TASE API calls, `name_yf_long`/`name_yf_short` only via the explicit yfinance review workflow on the position page, and `name_en` only via the name edit panel. No page visit or automatic background task writes to any name field without user intent.
+- **Display preferences**: The `display_name_prefs` setting stores per-language dicts (`{'he': {...}, 'en': {...}}`), each mapping context IDs (e.g. `positions_open_name`, `daily_details_symbol`, `graphs_pnl_labels`) to a name field key. Injected into every template via a Flask context processor that caches the merged result in `flask.g` per request. Defaults are language-aware: Hebrew defaults use `name_tase_he` and `symbol`; English defaults use `name_tase_en` and `symbol_en`.
+- **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding names and symbols to query results. Enriched position dicts carry all six name fields plus `symbol` (Hebrew TASE symbol), `symbol_en` (English TASE symbol), and `ticker`. All analytics functions populate these fields so display preference lookups work in every template.
 - **TASE symbol fields**: Holdings store three separate symbol fields: `tase_symbol` (Hebrew TASE symbol, required), `tase_symbol_en` (English TASE symbol, e.g. `STRK-M`, `IBI.F35` — populated on TASE refresh), and `ticker` (Yahoo Finance symbol derived from `tase_symbol_en`, e.g. `STRK-M.TA`, `IBI-F35.TA`). Ticker derivation replaces dots with hyphens and appends `.TA`.
 - **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
 - **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
