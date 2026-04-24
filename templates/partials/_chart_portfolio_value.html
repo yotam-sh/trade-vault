@@ -1,0 +1,90 @@
+<div class="card" data-width="100" data-locked="false">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>{{ t.chart_portfolio_value }}</span>
+    </div>
+    <div class="chart-canvas-wrap"><canvas id="pvChartTx" role="img" aria-label="{{ t.chart_portfolio_value }}"></canvas></div>
+</div>
+<script>
+(function() {
+    var snapshots = {{ snapshots|tojson }};
+
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    requestAnimationFrame(function() {
+        var el = document.getElementById('pvChartTx');
+        if (!el || !snapshots.length) return;
+
+        var labels   = snapshots.map(function(s) { return s.date; });
+        var values   = snapshots.map(function(s) { return s.total_market_value; });
+        var invested = snapshots.map(function(s) { return s.net_invested; });
+
+        var chart = new Chart(el.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: T.label_portfolio_value,
+                        data: values,
+                        borderColor: css('--accent'),
+                        backgroundColor: css('--accent') + '22',
+                        borderWidth: 2,
+                        pointRadius: labels.length > 60 ? 0 : 3,
+                        tension: 0.3,
+                        fill: true,
+                    },
+                    {
+                        label: T.label_net_invested,
+                        data: invested,
+                        borderColor: css('--text-secondary'),
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        borderDash: [5, 4],
+                        pointRadius: 0,
+                        tension: 0,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: css('--text-primary') } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: css('--text-secondary'), maxTicksLimit: 12, maxRotation: 0 },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) { return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
+                        },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        new MutationObserver(function() {
+            chart.options.plugins.legend.labels.color = css('--text-primary');
+            chart.options.scales.x.ticks.color = css('--text-secondary');
+            chart.options.scales.x.grid.color  = css('--bg-tertiary');
+            chart.options.scales.y.ticks.color = css('--text-secondary');
+            chart.options.scales.y.grid.color  = css('--bg-tertiary');
+            chart.update();
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+})();
+</script>

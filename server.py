@@ -210,6 +210,7 @@ _DEFAULT_DISPLAY_PREFS_HE = {
     'trades_symbol':             'symbol',
     'trades_closed_name':        'name_tase_he',
     'graphs_pnl_labels':         'symbol',
+    'graphs_treemap_labels':     'symbol',
 }
 
 _DEFAULT_DISPLAY_PREFS_EN = {
@@ -227,6 +228,7 @@ _DEFAULT_DISPLAY_PREFS_EN = {
     'trades_symbol':             'symbol_en',
     'trades_closed_name':        'name_tase_en',
     'graphs_pnl_labels':         'symbol_en',
+    'graphs_treemap_labels':     'symbol_en',
 }
 
 
@@ -344,6 +346,7 @@ def upload_daily():
 
 @app.route('/transactions')
 def transactions_view():
+    from app.snapshots import list_snapshots
     start = request.args.get('start')
     end = request.args.get('end')
     log = get_transaction_log()
@@ -361,8 +364,13 @@ def transactions_view():
     year_tax = by_year.get(current_year, {})
     summary['net_tax'] = year_tax.get('net_tax', 0)
 
+    snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
+    portfolio = get_portfolio_value()
+    allocation_history = get_allocation_history()
+
     return render_template('transactions.html', log=log, summary=summary,
-                           start=start, end=end)
+                           start=start, end=end, snapshots=snapshots, portfolio=portfolio,
+                           allocation_history=allocation_history)
 
 
 @app.route('/add-deposit', methods=['POST'])
@@ -523,6 +531,11 @@ def add_dividend_route():
 def daily_summary_view():
     start = request.args.get('start')
     end = request.args.get('end')
+    if not start and not end:
+        today = datetime.now().date()
+        start = today.strftime('%Y-%m-01')
+        end = today.strftime('%Y-%m-%d')
+        return redirect(url_for('daily_summary_view') + f'?start={start}&end={end}')
     data = get_daily_summary(start_date=start, end_date=end)
     return render_template('daily_summary.html', data=data, start=start, end=end)
 
@@ -671,7 +684,6 @@ def graphs_view():
     from app.analytics.benchmark_analytics import get_benchmark_data
     snapshots = list_snapshots()
     monthly = get_monthly_chart_data()
-    # net_invested is now stored correctly on each snapshot at import time
     historical_perf = get_historical_performance()
     allocation_history = get_allocation_history()
     top_positions = get_top_positions_pnl()
@@ -689,6 +701,16 @@ def graphs_view():
         app.logger.exception('Benchmark fetch failed')
         benchmark = {'ta125': [], 'ta35': []}
 
+    # Extra data for shared chart partials
+    daily_data = get_daily_summary()
+    type_chart = get_daily_type_chart_data()
+    portfolio = get_portfolio_value()
+    closed = get_closed_positions()
+    by_year, _ = compute_yearly_tax()
+    current_year = datetime.now().year
+    year_data = by_year.get(current_year, {})
+    sales_summary = year_data if year_data.get('total_gains', 0) > 0 else None
+
     return render_template(
         'graphs.html',
         snapshots=snapshots,
@@ -698,6 +720,11 @@ def graphs_view():
         top_positions=top_positions,
         graph_layout=graph_layout,
         benchmark=benchmark,
+        data=daily_data,
+        type_chart=type_chart,
+        portfolio=portfolio,
+        closed=closed,
+        sales_summary=sales_summary,
     )
 
 
@@ -932,6 +959,14 @@ def api_display_prefs():
     saved_all[lang] = valid
     set_setting('display_name_prefs', saved_all)
     return jsonify({'success': True})
+
+
+@app.route('/exports')
+def exports_view():
+    lang = _get_lang()
+    t = get_translations(lang)
+    return render_template('exports.html', t=t, lang=lang, dir='rtl' if lang == 'he' else 'ltr',
+                           t_json=get_translations_json(lang))
 
 
 @app.route('/settings/display')

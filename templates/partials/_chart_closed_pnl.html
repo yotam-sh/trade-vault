@@ -1,0 +1,137 @@
+<div class="card" data-chart-id="L" data-width="100" data-locked="false">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>{{ t.closed_title }}</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <div class="lang-options" id="closedUnitToggle">
+                <button class="lang-option active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option" data-unit="pct" aria-pressed="false">%</button>
+            </div>
+            <div class="chart-edit-controls">
+                <button class="chart-ctrl-btn lock-btn">🔓</button>
+                <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                <button class="chart-ctrl-btn hide-btn">×</button>
+            </div>
+        </div>
+    </div>
+    <canvas id="closedPnlChart" role="img" aria-label="{{ t.chart_closed_pnl }}" style="max-height: 300px; margin-bottom: 16px;"></canvas>
+</div>
+<script>
+(function() {
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    var closedPrefField = "{{ display_prefs.trades_closed_name }}";
+    var closed = {{ closed|tojson }};
+    var activeUnit = 'ils';
+
+    function getSorted() {
+        return closed.slice().sort(function(a, b) {
+            return activeUnit === 'pct' ? b.pnl_pct - a.pnl_pct : b.total_pnl - a.total_pnl;
+        });
+    }
+
+    function getValues(sorted) {
+        return activeUnit === 'pct'
+            ? sorted.map(function(c) { return c.pnl_pct; })
+            : sorted.map(function(c) { return c.total_pnl; });
+    }
+
+    requestAnimationFrame(function() {
+        var el = document.getElementById('closedPnlChart');
+        if (!el) return;
+
+        var sorted = getSorted();
+        var names  = sorted.map(function(c) { return c[closedPrefField] || c.name_en || c.name_he; });
+        var vals   = getValues(sorted);
+
+        function buildColors(vals) {
+            return {
+                bg:     vals.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; }),
+                border: vals.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); }),
+            };
+        }
+
+        var cols = buildColors(vals);
+        var closedChart = new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: names,
+                datasets: [{
+                    label: T.chart_closed_pnl,
+                    data: vals,
+                    backgroundColor: cols.bg,
+                    borderColor: cols.border,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return activeUnit === 'pct'
+                                    ? ctx.parsed.x.toFixed(2) + '%'
+                                    : '₪' + ctx.parsed.x.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) {
+                                return activeUnit === 'pct'
+                                    ? v.toFixed(1) + '%'
+                                    : '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        ticks: { color: css('--text-secondary') },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        document.querySelectorAll('#closedUnitToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var unit = btn.getAttribute('data-unit');
+                if (unit === activeUnit) return;
+                activeUnit = unit;
+                document.querySelectorAll('#closedUnitToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                var s = getSorted();
+                var v = getValues(s);
+                var n = s.map(function(c) { return c[closedPrefField] || c.name_en || c.name_he; });
+                var c2 = buildColors(v);
+                closedChart.data.labels = n;
+                closedChart.data.datasets[0].data = v;
+                closedChart.data.datasets[0].backgroundColor = c2.bg;
+                closedChart.data.datasets[0].borderColor = c2.border;
+                closedChart.update();
+            });
+        });
+
+        new MutationObserver(function() {
+            var c2 = buildColors(closedChart.data.datasets[0].data);
+            closedChart.data.datasets[0].backgroundColor = c2.bg;
+            closedChart.data.datasets[0].borderColor = c2.border;
+            closedChart.options.scales.x.ticks.color = css('--text-secondary');
+            closedChart.options.scales.x.grid.color  = css('--bg-tertiary');
+            closedChart.options.scales.y.ticks.color = css('--text-secondary');
+            closedChart.options.scales.y.grid.color  = css('--bg-tertiary');
+            closedChart.update();
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+})();
+</script>

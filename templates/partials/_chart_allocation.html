@@ -1,0 +1,93 @@
+<div class="card" data-chart-id="N" data-width="100" data-locked="false">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>{{ t.chart_allocation }}</span>
+        <div class="chart-edit-controls">
+            <button class="chart-ctrl-btn lock-btn">🔓</button>
+            <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+            <button class="chart-ctrl-btn hide-btn">×</button>
+        </div>
+    </div>
+    <div style="max-width: 560px; max-height: 220px; margin: 0 auto;">
+        <canvas id="allocationDonut" role="img" aria-label="{{ t.chart_allocation }}"></canvas>
+    </div>
+</div>
+<script>
+(function() {
+    var positions = {{ portfolio.positions|tojson }};
+
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    var typeMap = {};
+    positions.forEach(function(pos) {
+        var t = pos.security_type || 'other';
+        typeMap[t] = (typeMap[t] || 0) + (pos.market_value || 0);
+    });
+
+    var labels = Object.keys(typeMap).map(function(k) { return T['type_' + k] || k; });
+    var values = Object.keys(typeMap).map(function(k) { return typeMap[k]; });
+    var palette = ['#58a6ff', '#3fb950', '#f0883e', '#bc8cff', '#ffa657', '#79c0ff'];
+
+    requestAnimationFrame(function() {
+        var el = document.getElementById('allocationDonut');
+        if (!el) return;
+
+        var chartConfig = {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: palette.slice(0, labels.length),
+                    borderColor: css('--bg-secondary'),
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { color: css('--text-primary'), padding: 16, boxWidth: 14 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                var pct = total ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                                return ctx.label + ': ₪' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0}) + ' (' + pct + '%)';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#ffffff',
+                        font: { weight: 'bold', size: 13 },
+                        formatter: function(value, ctx) {
+                            var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var pct = total ? (value / total * 100) : 0;
+                            if (pct < 5) return '';
+                            return pct.toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        };
+
+        var donut;
+        if (typeof ChartDataLabels !== 'undefined') {
+            chartConfig.plugins = [ChartDataLabels];
+        }
+        donut = new Chart(el.getContext('2d'), chartConfig);
+
+        function applyTheme() {
+            donut.data.datasets[0].borderColor = css('--bg-secondary');
+            donut.options.plugins.legend.labels.color = css('--text-primary');
+            donut.update();
+        }
+        new MutationObserver(applyTheme)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+})();
+</script>

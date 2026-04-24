@@ -1,0 +1,157 @@
+<div class="card" data-chart-id="M" data-width="100" data-locked="false">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>{{ t.treemap_title }}</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <div class="lang-options" id="treemapMetricToggle">
+                <button class="lang-option active" data-metric="daily" aria-pressed="true">{{ t.toggle_daily_pct }}</button>
+                <button class="lang-option" data-metric="total" aria-pressed="false">{{ t.toggle_total_pct }}</button>
+            </div>
+            <div class="chart-edit-controls">
+                <button class="chart-ctrl-btn lock-btn">🔓</button>
+                <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                <button class="chart-ctrl-btn hide-btn">×</button>
+            </div>
+        </div>
+    </div>
+    <div id="treemap-chart" style="height: 420px; overflow: hidden; position: relative; contain: paint;"></div>
+</div>
+<script>
+(function() {
+    var positions = {{ portfolio.positions|tojson }};
+    var lang = "{{ lang }}";
+    var treemapLabelField = "{{ display_prefs.graphs_treemap_labels }}";
+    var activeMetric = 'daily';
+
+    function bgColor(pct) {
+        var t = Math.min(Math.abs(pct) / 3, 1);
+        if (pct >= 0) {
+            return 'rgb(' + Math.round(0x30+(0x3f-0x30)*t) + ','
+                          + Math.round(0x36+(0xb9-0x36)*t) + ','
+                          + Math.round(0x3d+(0x50-0x3d)*t) + ')';
+        }
+        return 'rgb(' + Math.round(0x30+(0xf8-0x30)*t) + ','
+                      + Math.round(0x36+(0x51-0x36)*t) + ','
+                      + Math.round(0x3d+(0x49-0x3d)*t) + ')';
+    }
+
+    function pnlFmt(pct) {
+        var abs = Math.abs(pct).toFixed(2) + '%';
+        var sign = pct >= 0 ? '+' : '-';
+        return lang === 'he' ? abs + sign : sign + abs;
+    }
+
+    function buildGroupMap(metric) {
+        var gm = {};
+        positions.forEach(function(pos) {
+            var g = pos.security_type || 'other';
+            if (!gm[g]) gm[g] = { name: T['type_' + g] || g, pct: 0, mv: 0, cb: 0, pnl: 0, leaves: [] };
+            var leafPct;
+            if (metric === 'total') {
+                var cb = pos.cost_basis || 0;
+                leafPct = cb > 0 ? (pos.market_value - cb) / cb * 100 : 0;
+            } else {
+                leafPct = pos.market_value > 0 ? (pos.daily_pnl || 0) / pos.market_value * 100 : 0;
+            }
+            var sym = pos[treemapLabelField] || pos.symbol;
+            gm[g].leaves.push({ name: sym, value: pos.market_value, pct: leafPct, holding_id: pos.holding_id });
+            gm[g].pnl += (pos.daily_pnl || 0);
+            gm[g].mv  += pos.market_value;
+            gm[g].cb  += (pos.cost_basis || 0);
+        });
+        return gm;
+    }
+
+    function render() {
+        var container = document.getElementById('treemap-chart');
+        var W = container.clientWidth, H = container.clientHeight;
+        if (!W || !H) return;
+        container.innerHTML = '';
+        container.style.position = 'relative';
+
+        var groupMap = buildGroupMap(activeMetric);
+
+        var rootData = {
+            name: 'root',
+            children: Object.keys(groupMap).map(function(g) {
+                var m = groupMap[g];
+                return { name: m.name, type: g, pnl: m.pnl, mv: m.mv, cb: m.cb, children: m.leaves };
+            })
+        };
+
+        var root = d3.hierarchy(rootData)
+            .sum(function(d) { return d.value || 0; })
+            .sort(function(a, b) { return b.value - a.value; });
+
+        d3.treemap()
+            .size([W, H])
+            .paddingTop(4)
+            .paddingInner(2)
+            .paddingOuter(3)
+            (root);
+
+        root.children.forEach(function(group) {
+            var gw = group.x1 - group.x0, gh = group.y1 - group.y0;
+
+            var grpDiv = document.createElement('div');
+            grpDiv.style.cssText = 'position:absolute;box-sizing:border-box;'
+                + 'left:' + group.x0 + 'px;top:' + group.y0 + 'px;'
+                + 'width:' + gw + 'px;height:' + gh + 'px;'
+                + 'background:#21262d;border-radius:3px;overflow:hidden;';
+            container.appendChild(grpDiv);
+
+            group.children.forEach(function(leaf) {
+                var lw = leaf.x1 - leaf.x0, lh = leaf.y1 - leaf.y0;
+                var pnlColor = leaf.data.pct >= 0 ? '#3fb950' : '#f85149';
+
+                var cell = document.createElement('div');
+                cell.style.cssText = 'position:absolute;box-sizing:border-box;'
+                    + 'left:' + leaf.x0 + 'px;top:' + leaf.y0 + 'px;'
+                    + 'width:' + lw + 'px;height:' + lh + 'px;'
+                    + 'background:' + bgColor(leaf.data.pct) + ';border-radius:2px;'
+                    + 'display:flex;flex-direction:column;align-items:center;'
+                    + 'justify-content:center;overflow:hidden;';
+                if (leaf.data.holding_id) {
+                    cell.style.cursor = 'pointer';
+                    cell.setAttribute('tabindex', '0');
+                    cell.setAttribute('role', 'button');
+                    cell.setAttribute('aria-label', leaf.data.name);
+                    cell.addEventListener('click', function() {
+                        window.location.href = '/position/' + leaf.data.holding_id;
+                    });
+                    cell.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            window.location.href = '/position/' + leaf.data.holding_id;
+                        }
+                    });
+                }
+                cell.innerHTML = '<div style="font-size:16px;font-weight:700;color:#e6edf3;'
+                    + 'text-shadow:0 1px 3px #0d1117,0 0 6px #0d1117;line-height:1.2;">'
+                    + leaf.data.name + '</div>'
+                    + '<div style="font-size:10px;font-weight:700;color:' + pnlColor + ';'
+                    + 'text-shadow:0 1px 2px #0d1117,0 0 4px #0d1117;">'
+                    + pnlFmt(leaf.data.pct) + '</div>';
+                container.appendChild(cell);
+            });
+        });
+    }
+
+    requestAnimationFrame(function() {
+        render();
+        window.addEventListener('resize', render);
+
+        document.querySelectorAll('#treemapMetricToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var metric = btn.getAttribute('data-metric');
+                if (metric === activeMetric) return;
+                activeMetric = metric;
+                document.querySelectorAll('#treemapMetricToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                render();
+            });
+        });
+    });
+})();
+</script>

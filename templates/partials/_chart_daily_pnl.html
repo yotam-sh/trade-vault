@@ -1,0 +1,214 @@
+<div class="card" data-chart-id="I" data-width="100" data-locked="false">
+    <div class="card-header">
+        <span>{{ t.chart_daily_pnl }}</span>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            <div class="lang-options" id="pnlPeriodToggle">
+                <button class="lang-option lang-option-sm active" data-period="7" aria-pressed="true">{{ t.filter_1wk }}</button>
+                <button class="lang-option lang-option-sm" data-period="30" aria-pressed="false">{{ t.filter_1mnth }}</button>
+                <button class="lang-option lang-option-sm" data-period="365" aria-pressed="false">{{ t.filter_1yr }}</button>
+                <button class="lang-option lang-option-sm" data-period="-1" aria-pressed="false">{{ t.filter_ytd }}</button>
+                <button class="lang-option lang-option-sm" data-period="0" aria-pressed="false">{{ t.chart_mode_all }}</button>
+            </div>
+            <span class="ctrl-sep">|</span>
+            <div class="lang-options" id="pnlModeToggle">
+                <button class="lang-option lang-option-sm active" data-mode="daily" aria-pressed="true">{{ t.chart_mode_daily }}</button>
+                <button class="lang-option lang-option-sm" data-mode="weekly" id="pnlWeeklyBtn" aria-pressed="false">{{ t.chart_mode_weekly }}</button>
+                <button class="lang-option lang-option-sm" data-mode="monthly" id="pnlMonthlyBtn" aria-pressed="false">{{ t.chart_mode_monthly }}</button>
+            </div>
+            <span class="ctrl-sep">|</span>
+            <div class="lang-options" id="pnlUnitToggle">
+                <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
+            </div>
+            <div class="chart-edit-controls">
+                <button class="chart-ctrl-btn lock-btn">🔓</button>
+                <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                <button class="chart-ctrl-btn hide-btn">×</button>
+            </div>
+        </div>
+    </div>
+    <canvas id="dailyPnlChart" role="img" aria-label="{{ t.chart_daily_pnl }}" style="max-height: 220px;"></canvas>
+</div>
+<script>
+(function() {
+    var allDailyData = {{ data|tojson }};
+
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    function getFiltered(period) {
+        if (period === 0) return allDailyData;
+        if (period === -1) {
+            var yr = new Date().getFullYear().toString();
+            return allDailyData.filter(function(d) { return d.date >= yr + '-01-01'; });
+        }
+        return allDailyData.slice(-period);
+    }
+
+    function weekStart(dateStr) {
+        var d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() - d.getDay());
+        return d.toISOString().slice(0, 10);
+    }
+
+    function aggregate(data, mode, unit) {
+        if (mode === 'daily') {
+            return {
+                labels: data.map(function(d) { return d.date; }),
+                values: data.map(function(d) { return unit === 'pct' ? d.change_pct : d.daily_pnl; }),
+            };
+        }
+        var buckets = {}, order = [], firstDate = {}, morningVals = {};
+        data.forEach(function(d) {
+            var key = mode === 'weekly' ? weekStart(d.date) : d.date.slice(0, 7);
+            if (!(key in buckets)) {
+                buckets[key] = 0;
+                order.push(key);
+                morningVals[key] = d.morning_value || 0;
+                if (mode === 'weekly') firstDate[key] = d.date;
+            }
+            buckets[key] += d.daily_pnl;
+        });
+        var labels = (mode === 'weekly')
+            ? order.map(function(k) { return firstDate[k]; })
+            : order;
+        return {
+            labels: labels,
+            values: order.map(function(k) {
+                if (unit === 'pct') {
+                    return morningVals[k] > 0 ? Math.round(buckets[k] / morningVals[k] * 10000) / 100 : 0;
+                }
+                return buckets[k];
+            }),
+        };
+    }
+
+    var activePeriod = 7;
+    var activeMode   = 'daily';
+    var activeUnit   = 'ils';
+
+    function getActiveData() { return getFiltered(activePeriod); }
+
+    var uniqueWeeks  = new Set(allDailyData.map(function(d) { return weekStart(d.date); })).size;
+    var uniqueMonths = new Set(allDailyData.map(function(d) { return d.date.slice(0, 7); })).size;
+    var weeklyBtn  = document.getElementById('pnlWeeklyBtn');
+    var monthlyBtn = document.getElementById('pnlMonthlyBtn');
+    if (uniqueWeeks  <= 1) weeklyBtn.disabled  = true;
+    if (uniqueMonths <= 1) monthlyBtn.disabled  = true;
+
+    function buildColors(vals) {
+        return {
+            bg:     vals.map(function(v) { return v >= 0 ? css('--positive') + 'cc' : css('--negative') + 'cc'; }),
+            border: vals.map(function(v) { return v >= 0 ? css('--positive') : css('--negative'); }),
+        };
+    }
+
+    function fmtValue(v) {
+        if (activeUnit === 'pct') return v.toFixed(2) + '%';
+        return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+    }
+
+    function fmtTick(v) {
+        if (activeUnit === 'pct') return v.toFixed(1) + '%';
+        return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+    }
+
+    requestAnimationFrame(function() {
+        var ctx = document.getElementById('dailyPnlChart');
+        if (!ctx) return;
+
+        var init   = aggregate(getActiveData(), activeMode, activeUnit);
+        var initCols = buildColors(init.values);
+
+        var chart = new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: init.labels,
+                datasets: [{
+                    label: T.chart_daily_pnl,
+                    data: init.values,
+                    backgroundColor: initCols.bg,
+                    borderColor: initCols.border,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(ctx) { return fmtValue(ctx.parsed.y); } } }
+                },
+                scales: {
+                    x: { ticks: { color: css('--text-secondary'), maxRotation: 45, maxTicksLimit: 20 }, grid: { color: css('--bg-tertiary') } },
+                    y: { ticks: { color: css('--text-secondary'), callback: function(v) { return fmtTick(v); } }, grid: { color: css('--bg-tertiary') } }
+                }
+            }
+        });
+
+        function refreshChart() {
+            var agg = aggregate(getActiveData(), activeMode, activeUnit);
+            var cols = buildColors(agg.values);
+            chart.data.labels = agg.labels;
+            chart.data.datasets[0].data = agg.values;
+            chart.data.datasets[0].backgroundColor = cols.bg;
+            chart.data.datasets[0].borderColor = cols.border;
+            chart.update();
+        }
+
+        document.querySelectorAll('#pnlPeriodToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var p = parseInt(btn.getAttribute('data-period'), 10);
+                if (p === activePeriod) return;
+                activePeriod = p;
+                document.querySelectorAll('#pnlPeriodToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                refreshChart();
+            });
+        });
+
+        document.querySelectorAll('#pnlModeToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (btn.disabled) return;
+                var mode = btn.getAttribute('data-mode');
+                if (mode === activeMode) return;
+                activeMode = mode;
+                document.querySelectorAll('#pnlModeToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                refreshChart();
+            });
+        });
+
+        document.querySelectorAll('#pnlUnitToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var unit = btn.getAttribute('data-unit');
+                if (unit === activeUnit) return;
+                activeUnit = unit;
+                document.querySelectorAll('#pnlUnitToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                refreshChart();
+            });
+        });
+
+        function applyTheme() {
+            var cols = buildColors(chart.data.datasets[0].data);
+            chart.data.datasets[0].backgroundColor = cols.bg;
+            chart.data.datasets[0].borderColor = cols.border;
+            chart.options.scales.x.ticks.color = css('--text-secondary');
+            chart.options.scales.x.grid.color  = css('--bg-tertiary');
+            chart.options.scales.y.ticks.color = css('--text-secondary');
+            chart.options.scales.y.grid.color  = css('--bg-tertiary');
+            chart.update();
+        }
+        new MutationObserver(applyTheme)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+})();
+</script>

@@ -1,0 +1,66 @@
+<div class="card" data-chart-id="K" data-width="100" data-locked="false">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>{{ t.chart_tax_breakdown }}</span>
+        <div class="chart-edit-controls">
+            <button class="chart-ctrl-btn lock-btn">🔓</button>
+            <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+            <button class="chart-ctrl-btn hide-btn">×</button>
+        </div>
+    </div>
+    <div style="max-width: 560px; max-height: 220px; margin: 0 auto;">
+        <canvas id="taxDonutChart" role="img" aria-label="{{ t.chart_tax_breakdown }}"></canvas>
+    </div>
+</div>
+<script>
+(function() {
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    var salesSummary = {{ sales_summary|tojson }};
+    var gains       = salesSummary.total_gains || 0;
+    var lossOffset  = salesSummary.tax_offset_from_losses || 0;
+    var netTax      = salesSummary.net_tax || 0;
+
+    requestAnimationFrame(function() {
+        var el = document.getElementById('taxDonutChart');
+        if (!el) return;
+        var taxDonut = new Chart(el.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: [T.label_gross_gains, T.label_loss_offset, T.label_net_tax],
+                datasets: [{
+                    data: [gains, lossOffset, netTax],
+                    backgroundColor: [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'],
+                    borderColor: css('--bg-secondary'),
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { color: css('--text-primary'), padding: 16, boxWidth: 14 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.label + ': ₪' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        new MutationObserver(function() {
+            taxDonut.data.datasets[0].backgroundColor = [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'];
+            taxDonut.data.datasets[0].borderColor = css('--bg-secondary');
+            taxDonut.options.plugins.legend.labels.color = css('--text-primary');
+            taxDonut.update();
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+})();
+</script>

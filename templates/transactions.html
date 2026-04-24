@@ -6,6 +6,8 @@
     <title>{{ t.nav_transactions }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
@@ -76,6 +78,7 @@
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
                         <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
+                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -104,7 +107,6 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
-        <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
@@ -113,129 +115,37 @@
         {% endif %}
         {% endwith %}
 
-        <h1>{{ t.page_transactions }}</h1>
-
-        <!-- Add deposit / withdrawal / dividend forms -->
-        <div class="two-col">
-            <div class="card upload-card">
-                <div class="card-header">{{ t.add_deposit_title }}</div>
-                <form action="/add-deposit" method="post" class="upload-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="upload-row">
-                        <label>{{ t.label_amount }}</label>
-                        <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
-                        <label>{{ t.label_date }}</label>
-                        <input type="hidden" name="date" id="deposit-date" required>
-                        <div class="calendar-picker" data-input="deposit-date" data-mode="single" data-default="today">
-                            <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
-                            <div class="date-picker-dropdown">
-                                <div class="calendar-header">
-                                    <button type="button" class="next-month">&#9654;</button>
-                                    <span class="month-label"></span>
-                                    <button type="button" class="prev-month">&#9664;</button>
-                                </div>
-                                <div class="calendar-grid">
-                                    <div class="day-header">{{ t.day_sun }}</div>
-                                    <div class="day-header">{{ t.day_mon }}</div>
-                                    <div class="day-header">{{ t.day_tue }}</div>
-                                    <div class="day-header">{{ t.day_wed }}</div>
-                                    <div class="day-header">{{ t.day_thu }}</div>
-                                    <div class="day-header">{{ t.day_fri }}</div>
-                                    <div class="day-header">{{ t.day_sat }}</div>
-                                </div>
-                                <div class="selected-dates">{{ t.no_date_selected }}</div>
-                                <div class="date-picker-actions">
-                                    <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit">{{ t.btn_add_deposit }}</button>
-                    </div>
-                </form>
+        <!-- Summary stat cards -->
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div class="stat-label">{{ t.summary_total_deposits }}</div>
+                <div class="stat-value">₪{{ '{:,.0f}'.format(summary.total_deposits) }}</div>
             </div>
-
-            <div class="card upload-card">
-                <div class="card-header">{{ t.add_withdrawal_title }}</div>
-                <form action="/add-withdrawal" method="post" class="upload-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="upload-row">
-                        <label>{{ t.label_amount }}</label>
-                        <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
-                        <label>{{ t.label_date }}</label>
-                        <input type="hidden" name="date" id="withdrawal-date" required>
-                        <div class="calendar-picker" data-input="withdrawal-date" data-mode="single" data-default="today">
-                            <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
-                            <div class="date-picker-dropdown">
-                                <div class="calendar-header">
-                                    <button type="button" class="next-month">&#9654;</button>
-                                    <span class="month-label"></span>
-                                    <button type="button" class="prev-month">&#9664;</button>
-                                </div>
-                                <div class="calendar-grid">
-                                    <div class="day-header">{{ t.day_sun }}</div>
-                                    <div class="day-header">{{ t.day_mon }}</div>
-                                    <div class="day-header">{{ t.day_tue }}</div>
-                                    <div class="day-header">{{ t.day_wed }}</div>
-                                    <div class="day-header">{{ t.day_thu }}</div>
-                                    <div class="day-header">{{ t.day_fri }}</div>
-                                    <div class="day-header">{{ t.day_sat }}</div>
-                                </div>
-                                <div class="selected-dates">{{ t.no_date_selected }}</div>
-                                <div class="date-picker-actions">
-                                    <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit">{{ t.btn_add_withdrawal }}</button>
-                    </div>
-                </form>
+            {% if summary.total_dividends %}
+            <div class="stat-card green">
+                <div class="stat-label">{{ t.summary_total_dividends }}</div>
+                <div class="stat-value">₪{{ '{:,.0f}'.format(summary.total_dividends) }}</div>
+            </div>
+            {% endif %}
+            <div class="stat-card">
+                <div class="stat-label">{{ t.summary_net_invested }}</div>
+                <div class="stat-value">₪{{ '{:,.0f}'.format(summary.net_invested) }}</div>
+            </div>
+            <div class="stat-card {{ 'green' if summary.cost_change_ils >= 0 else 'red' }}">
+                <div class="stat-label">{{ t.summary_cost_change_ils }}</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(summary.cost_change_ils) }}</div>
+            </div>
+            <div class="stat-card {{ 'green' if summary.cost_change_pct >= 0 else 'red' }}">
+                <div class="stat-label">{{ t.summary_cost_change_pct }}</div>
+                <div class="stat-value">{{ '{:.2f}%'.format(summary.cost_change_pct * 100) }}</div>
+            </div>
+            <div class="stat-card {{ 'red' if summary.net_tax > 0 else '' }}">
+                <div class="stat-label">{{ t.summary_net_tax }}</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(summary.net_tax) }}</div>
             </div>
         </div>
 
-        <!-- Dividend form (full-width) -->
-        <div class="card upload-card" style="margin-bottom: 16px;">
-            <div class="card-header">{{ t.add_dividend_title }}</div>
-            <form action="/add-dividend" method="post" class="upload-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="upload-row">
-                    <label>{{ t.label_amount }}</label>
-                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
-                    <label>{{ t.label_date }}</label>
-                    <input type="hidden" name="date" id="dividend-date" required>
-                    <div class="calendar-picker" data-input="dividend-date" data-mode="single" data-default="today">
-                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
-                        <div class="date-picker-dropdown">
-                            <div class="calendar-header">
-                                <button type="button" class="next-month">&#9654;</button>
-                                <span class="month-label"></span>
-                                <button type="button" class="prev-month">&#9664;</button>
-                            </div>
-                            <div class="calendar-grid">
-                                <div class="day-header">{{ t.day_sun }}</div>
-                                <div class="day-header">{{ t.day_mon }}</div>
-                                <div class="day-header">{{ t.day_tue }}</div>
-                                <div class="day-header">{{ t.day_wed }}</div>
-                                <div class="day-header">{{ t.day_thu }}</div>
-                                <div class="day-header">{{ t.day_fri }}</div>
-                                <div class="day-header">{{ t.day_sat }}</div>
-                            </div>
-                            <div class="selected-dates">{{ t.no_date_selected }}</div>
-                            <div class="date-picker-actions">
-                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
-                            </div>
-                        </div>
-                    </div>
-                    <label>{{ t.label_ticker_optional }}</label>
-                    <input type="text" name="ticker" dir="ltr" placeholder="e.g. TEVA.TA" style="width:120px;">
-                    <label>{{ t.label_tax_withheld }}</label>
-                    <input type="number" name="tax" step="0.01" min="0" dir="ltr" style="width:100px;">
-                    <label>{{ t.label_notes_optional }}</label>
-                    <input type="text" name="notes" style="width:180px;">
-                    <button type="submit">{{ t.btn_add_dividend }}</button>
-                </div>
-            </form>
-        </div>
-
+        <!-- Date filter -->
         <div class="filters">
             <label>{{ t.label_date }}</label>
             <div class="calendar-picker">
@@ -274,115 +184,269 @@
             <a href="/export/transactions?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
 
-        <div class="two-col">
-            <!-- Left panel - Transaction table -->
-            <div class="card">
-                <div class="card-header">{{ t.transactions_title }}</div>
-                <div class="table-wrapper">
-                    <table class="sortable">
-                        <caption class="visually-hidden">{{ t.transactions_title }}</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">{{ t.th_date }}</th>
-                                <th scope="col">{{ t.th_action }}</th>
-                                <th scope="col">{{ t.th_amount }}</th>
-                                <th scope="col">{{ t.th_balance }}</th>
-                                <th scope="col">{{ t.th_cost_change_pct }}</th>
-                                <th scope="col">{{ t.th_cost_change_ils }}</th>
-                                <th scope="col">{{ t.th_notes }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for entry in log %}
-                            <tr>
-                                <td>{{ entry.date | format_date(lang) }}</td>
-                                <td>
-                                    {{ t[entry.action_key] if entry.action_key in t else entry.action_key }}
-                                    {% if entry.is_partial %}
-                                        <span class="badge badge-partial" title="{{ entry.trading_days }}/{{ entry.expected_days }}">{{ t.badge_partial }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="num">
-                                    {% if entry.amount and entry.amount != 0 %}
-                                        {{ '{:,.0f}'.format(entry.amount) }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td class="num">
-                                    {% if entry.balance %}
-                                        {{ '{:,.2f}'.format(entry.balance) }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td class="num pnl">
-                                    {% if entry.cost_change_pct is not none %}
-                                        {{ '{:.3f}%'.format(entry.cost_change_pct * 100) }}
-                                    {% endif %}
-                                </td>
-                                <td class="num pnl">
-                                    {% if entry.cost_change_ils is not none %}
-                                        {{ '{:,.2f}'.format(entry.cost_change_ils) }}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if entry.action == 'dividend' and entry.ticker %}
-                                        <span class="badge" style="background:var(--accent-secondary,#3fb950);color:#000;margin-inline-end:4px;">{{ entry.ticker }}</span>
-                                    {% endif %}
-                                    {{ entry.notes or '' }}
-                                    {% if entry.action == 'dividend' and entry.tax %}
-                                        <span style="color:var(--text-secondary);font-size:0.85em;"> ({{ t.label_tax_withheld }} {{ '{:,.0f}'.format(entry.tax) }} ₪)</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <!-- Transactions table -->
+        <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>{{ t.transactions_title }}</span>
+                <div class="add-btn-wrap">
+                    <button type="button" class="admin-action-btn" id="add-btn">{{ t.btn_add }}</button>
+                    <div class="add-dropdown-menu" id="add-dropdown-menu" role="menu">
+                        <div class="add-dropdown-item" data-modal="modal-deposit" role="menuitem">{{ t.add_deposit_title }}</div>
+                        <div class="add-dropdown-item" data-modal="modal-withdrawal" role="menuitem">{{ t.add_withdrawal_title }}</div>
+                        <div class="add-dropdown-item" data-modal="modal-dividend" role="menuitem">{{ t.add_dividend_title }}</div>
+                    </div>
                 </div>
             </div>
-
-            <!-- Right panel - Summary metrics -->
-            <div>
-                <div class="summary-panel">
-                    <div class="card-header">{{ t.summary_title }}</div>
-                    <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_total_deposits }}</span>
-                        <span class="summary-value">₪{{ '{:,.2f}'.format(summary.total_deposits) }}</span>
-                    </div>
-                    {% if summary.total_dividends %}
-                    <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_total_dividends }}</span>
-                        <span class="summary-value positive">₪{{ '{:,.2f}'.format(summary.total_dividends) }}</span>
-                    </div>
-                    {% endif %}
-                    <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_net_invested }}</span>
-                        <span class="summary-value">₪{{ '{:,.2f}'.format(summary.net_invested) }}</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_cost_change_ils }}</span>
-                        <span class="summary-value {{ 'positive' if summary.cost_change_ils >= 0 else 'negative' }}">
-                            ₪{{ '{:,.2f}'.format(summary.cost_change_ils) }}
-                        </span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_cost_change_pct }}</span>
-                        <span class="summary-value {{ 'positive' if summary.cost_change_pct >= 0 else 'negative' }}">
-                            {{ '{:.3f}%'.format(summary.cost_change_pct * 100) }}
-                        </span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="summary-label">{{ t.summary_net_tax }}</span>
-                        <span class="summary-value {{ 'negative' if summary.net_tax > 0 else '' }}">
-                            ₪{{ '{:,.2f}'.format(summary.net_tax) }}
-                        </span>
-                    </div>
-                </div>
+            <div class="table-wrapper">
+                <table class="sortable">
+                    <caption class="visually-hidden">{{ t.transactions_title }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ t.th_date }}</th>
+                            <th scope="col">{{ t.th_action }}</th>
+                            <th scope="col">{{ t.th_amount }}</th>
+                            <th scope="col">{{ t.th_balance }}</th>
+                            <th scope="col">{{ t.th_cost_change_pct }}</th>
+                            <th scope="col">{{ t.th_cost_change_ils }}</th>
+                            <th scope="col">{{ t.th_notes }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in log %}
+                        <tr>
+                            <td>{{ entry.date | format_date(lang) }}</td>
+                            <td>
+                                {{ t[entry.action_key] if entry.action_key in t else entry.action_key }}
+                                {% if entry.is_partial %}
+                                    <span class="badge badge-partial" title="{{ entry.trading_days }}/{{ entry.expected_days }}">{{ t.badge_partial }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="num">
+                                {% if entry.amount and entry.amount != 0 %}
+                                    {{ '{:,.0f}'.format(entry.amount) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="num">
+                                {% if entry.balance %}
+                                    {{ '{:,.2f}'.format(entry.balance) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="num pnl">
+                                {% if entry.cost_change_pct is not none %}
+                                    {{ '{:.3f}%'.format(entry.cost_change_pct * 100) }}
+                                {% endif %}
+                            </td>
+                            <td class="num pnl">
+                                {% if entry.cost_change_ils is not none %}
+                                    {{ '{:,.2f}'.format(entry.cost_change_ils) }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if entry.action == 'dividend' and entry.ticker %}
+                                    <span class="badge" style="background:var(--accent-secondary,#3fb950);color:#000;margin-inline-end:4px;">{{ entry.ticker }}</span>
+                                {% endif %}
+                                {{ entry.notes or '' }}
+                                {% if entry.action == 'dividend' and entry.tax %}
+                                    <span style="color:var(--text-secondary);font-size:0.85em;"> ({{ t.label_tax_withheld }} {{ '{:,.0f}'.format(entry.tax) }} ₪)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
+    <!-- Portfolio Charts -->
+    <div class="container" style="padding-top: 0;">
+        {% if snapshots %}{% include 'partials/_chart_portfolio_value.html' %}{% endif %}
+        {% if allocation_history %}{% include 'partials/_chart_allocation_history.html' %}{% endif %}
+        {% if portfolio %}{% include 'partials/_chart_allocation.html' %}{% endif %}
+    </div>
+
+    <!-- Add Deposit Modal -->
+    <div class="modal-overlay" id="modal-deposit" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-deposit-title">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-deposit-title">{{ t.add_deposit_title }}</span>
+                <button type="button" class="modal-close" aria-label="{{ t.modal_close_btn }}">&times;</button>
+            </div>
+            <form action="/add-deposit" method="post" class="upload-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="upload-row">
+                    <label>{{ t.label_amount }}</label>
+                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                    <label>{{ t.label_date }}</label>
+                    <input type="hidden" name="date" id="deposit-date" required>
+                    <div class="calendar-picker" data-input="deposit-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
+                            </div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit">{{ t.btn_add_deposit }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Withdrawal Modal -->
+    <div class="modal-overlay" id="modal-withdrawal" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-withdrawal-title">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-withdrawal-title">{{ t.add_withdrawal_title }}</span>
+                <button type="button" class="modal-close" aria-label="{{ t.modal_close_btn }}">&times;</button>
+            </div>
+            <form action="/add-withdrawal" method="post" class="upload-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="upload-row">
+                    <label>{{ t.label_amount }}</label>
+                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                    <label>{{ t.label_date }}</label>
+                    <input type="hidden" name="date" id="withdrawal-date" required>
+                    <div class="calendar-picker" data-input="withdrawal-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
+                            </div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit">{{ t.btn_add_withdrawal }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Dividend Modal -->
+    <div class="modal-overlay" id="modal-dividend" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-dividend-title">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-dividend-title">{{ t.add_dividend_title }}</span>
+                <button type="button" class="modal-close" aria-label="{{ t.modal_close_btn }}">&times;</button>
+            </div>
+            <form action="/add-dividend" method="post" class="upload-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="upload-row">
+                    <label>{{ t.label_amount }}</label>
+                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr">
+                    <label>{{ t.label_date }}</label>
+                    <input type="hidden" name="date" id="dividend-date" required>
+                    <div class="calendar-picker" data-input="dividend-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
+                            </div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <label>{{ t.label_ticker_optional }}</label>
+                    <input type="text" name="ticker" dir="ltr" placeholder="e.g. TEVA.TA">
+                    <label>{{ t.label_tax_withheld }}</label>
+                    <input type="number" name="tax" step="0.01" min="0" dir="ltr">
+                    <label>{{ t.label_notes_optional }}</label>
+                    <input type="text" name="notes">
+                    <button type="submit">{{ t.btn_add_dividend }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var addBtn = document.getElementById('add-btn');
+        var addMenu = document.getElementById('add-dropdown-menu');
+
+        function closeMenu() { addMenu.classList.remove('open'); }
+        function openModal(id) {
+            var modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.add('open');
+            modal.removeAttribute('aria-hidden');
+            var first = modal.querySelector('input:not([type=hidden]), button');
+            if (first) first.focus();
+        }
+        function closeModal(modal) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            addBtn.focus();
+        }
+
+        addBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            addMenu.classList.toggle('open');
+        });
+        document.addEventListener('click', closeMenu);
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMenu();
+                document.querySelectorAll('.modal-overlay.open').forEach(function(m) { closeModal(m); });
+            }
+        });
+        document.querySelectorAll('.add-dropdown-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                closeMenu();
+                openModal(item.dataset.modal);
+            });
+        });
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+            overlay.querySelector('.modal-close').addEventListener('click', function() { closeModal(overlay); });
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(overlay); });
+        });
+    })();
+    </script>
     <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
 </body>

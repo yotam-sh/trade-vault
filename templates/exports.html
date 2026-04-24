@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t.nav_positions }} - TradeVault</title>
+    <title>{{ t.exports_page_title }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -76,7 +76,7 @@
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
                         <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
-                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
+                        <a href="/exports" class="settings-link active" aria-current="page">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -93,7 +93,7 @@
             <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
             <a href="/daily-details">{{ t.nav_daily_details }}</a>
             <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions" class="active" aria-current="page">{{ t.nav_positions }}</a>
+            <a href="/positions">{{ t.nav_positions }}</a>
             <a href="/rebalance">{{ t.nav_rebalance }}</a>
         </div>
 
@@ -105,113 +105,135 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
+        <h1>{{ t.exports_page_title }}</h1>
 
-        <!-- Open Positions -->
         <div class="card">
-            <div class="card-header">{{ t.positions_open }}</div>
-            {% if data.open %}
-            <table class="sortable">
-                <caption class="visually-hidden">{{ t.positions_open }}</caption>
+            <table class="export-table">
                 <thead>
                     <tr>
-                        <th scope="col">{{ t.th_name }}</th>
-                        <th scope="col">{{ t.th_symbol }}</th>
-                        <th scope="col">{{ t.th_trade_type }}</th>
-                        <th scope="col" class="num">{{ t.th_quantity }}</th>
-                        <th scope="col" class="num">{{ t.th_value_ils }}</th>
-                        <th scope="col" class="num">{{ t.th_cost_ils }}</th>
-                        <th scope="col" class="num">{{ t.position_unrealized_pnl }} ₪</th>
-                        <th scope="col" class="num">{{ t.position_unrealized_pnl }} %</th>
-                        <th scope="col" class="num">{{ t.position_weight }}</th>
-                        <th scope="col" class="num">{{ t.position_days_holding }}</th>
+                        <th>{{ t.exports_col_name }}</th>
+                        <th>{{ t.exports_col_date_range }}</th>
+                        <th>{{ t.exports_col_format }}</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for pos in data.open %}
-                    <tr data-pnl="{{ pos.unrealized_pnl }}">
-                        <td>
-                            <a href="/position/{{ pos.holding_id }}" class="position-link">
-                                {{ pos[display_prefs.positions_open_name] or pos.name_en or pos.name_he }}
-                            </a>
-                        </td>
-                        <td>{{ pos[display_prefs.positions_open_symbol] or pos.symbol_en or pos.symbol }}</td>
-                        <td>
-                            {% if pos.security_type == 'stock' %}{{ t.type_stock }}
-                            {% elif pos.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
-                            {% elif pos.security_type == 'etf' %}{{ t.type_etf }}
-                            {% elif pos.security_type == 'bond' %}{{ t.type_bond }}
-                            {% else %}{{ pos.security_type }}{% endif %}
-                        </td>
-                        <td class="num">{{ '{:,.4g}'.format(pos.quantity) }}</td>
-                        <td class="num">{{ '{:,.2f}'.format(pos.market_value) }}</td>
-                        <td class="num">{{ '{:,.2f}'.format(pos.cost_basis) }}</td>
-                        <td class="num pnl">{{ '{:,.2f}'.format(pos.unrealized_pnl) }}</td>
-                        <td class="num pnl">{{ '{:.2f}'.format(pos.unrealized_pnl_pct) }}%</td>
-                        <td class="num">{{ '{:.1f}'.format(pos.weight) }}%</td>
-                        <td class="num">{{ pos.days_holding if pos.days_holding is not none else '—' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p class="empty-state">{{ t.positions_no_open }}</p>
-            {% endif %}
-        </div>
-
-        <!-- Closed Positions -->
-        <div class="card">
-            <div class="card-header">{{ t.positions_closed }}</div>
-            {% if data.closed %}
-            <table class="sortable">
-                <caption class="visually-hidden">{{ t.positions_closed }}</caption>
-                <thead>
+                    <!-- Portfolio Holdings -->
                     <tr>
-                        <th scope="col">{{ t.th_name }}</th>
-                        <th scope="col">{{ t.th_symbol }}</th>
-                        <th scope="col">{{ t.th_trade_type }}</th>
-                        <th scope="col" class="num">{{ t.th_quantity }}</th>
-                        <th scope="col" class="num">{{ t.th_avg_buy }}</th>
-                        <th scope="col" class="num">{{ t.th_avg_sell }}</th>
-                        <th scope="col" class="num">{{ t.th_cost_ils }}</th>
-                        <th scope="col" class="num">{{ t.position_realized_pnl }} ₪</th>
-                        <th scope="col" class="num">{{ t.position_realized_pnl }} %</th>
-                        <th scope="col">{{ t.position_period }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pos in data.closed %}
-                    <tr data-pnl="{{ pos.total_pnl }}">
+                        <td>{{ t.exports_portfolio }}</td>
+                        <td>—</td>
                         <td>
-                            <a href="/position/{{ pos.holding_id }}" class="position-link">
-                                {{ pos[display_prefs.positions_closed_name] or pos.name_en or pos.name_he }}
-                            </a>
+                            <select class="export-fmt-select" id="fmt-portfolio">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
                         </td>
-                        <td>{{ pos[display_prefs.positions_closed_symbol] or pos.symbol_en or pos.symbol }}</td>
-                        <td>
-                            {% if pos.security_type == 'stock' %}{{ t.type_stock }}
-                            {% elif pos.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
-                            {% elif pos.security_type == 'etf' %}{{ t.type_etf }}
-                            {% elif pos.security_type == 'bond' %}{{ t.type_bond }}
-                            {% else %}{{ pos.security_type }}{% endif %}
-                        </td>
-                        <td class="num">{{ '{:,.4g}'.format(pos.total_shares) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(pos.avg_buy_price * 100) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(pos.avg_sell_price * 100) }}</td>
-                        <td class="num">{{ '{:,.2f}'.format(pos.total_cost) }}</td>
-                        <td class="num pnl">{{ '{:,.2f}'.format(pos.total_pnl) }}</td>
-                        <td class="num pnl">{{ '{:.2f}'.format(pos.pnl_pct) }}%</td>
-                        <td>{{ pos.period }}</td>
+                        <td><a href="#" class="admin-action-btn export-go-btn" data-base="/export/portfolio" data-fmt-id="fmt-portfolio">{{ t.exports_btn }}</a></td>
                     </tr>
-                    {% endfor %}
+                    <!-- Transactions -->
+                    <tr>
+                        <td>{{ t.exports_transactions }}</td>
+                        <td>
+                            <div class="export-date-pair">
+                                <input type="date" class="export-date-input" id="start-transactions">
+                                <span>–</span>
+                                <input type="date" class="export-date-input" id="end-transactions">
+                            </div>
+                        </td>
+                        <td>
+                            <select class="export-fmt-select" id="fmt-transactions">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
+                        </td>
+                        <td><a href="#" class="admin-action-btn export-go-btn" data-base="/export/transactions" data-fmt-id="fmt-transactions" data-start-id="start-transactions" data-end-id="end-transactions">{{ t.exports_btn }}</a></td>
+                    </tr>
+                    <!-- Trade Log -->
+                    <tr>
+                        <td>{{ t.exports_trades }}</td>
+                        <td>
+                            <div class="export-date-pair">
+                                <input type="date" class="export-date-input" id="start-trades">
+                                <span>–</span>
+                                <input type="date" class="export-date-input" id="end-trades">
+                            </div>
+                        </td>
+                        <td>
+                            <select class="export-fmt-select" id="fmt-trades">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
+                        </td>
+                        <td><a href="#" class="admin-action-btn export-go-btn" data-base="/export/trades" data-fmt-id="fmt-trades" data-start-id="start-trades" data-end-id="end-trades">{{ t.exports_btn }}</a></td>
+                    </tr>
+                    <!-- Annual Tax Report -->
+                    <tr>
+                        <td>{{ t.exports_tax_report }}</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td><a href="/export/tax-report" class="admin-action-btn">{{ t.exports_btn }}</a></td>
+                    </tr>
+                    <!-- Daily Summary -->
+                    <tr>
+                        <td>{{ t.exports_daily_summary }}</td>
+                        <td>
+                            <div class="export-date-pair">
+                                <input type="date" class="export-date-input" id="start-daily-summary">
+                                <span>–</span>
+                                <input type="date" class="export-date-input" id="end-daily-summary">
+                            </div>
+                        </td>
+                        <td>
+                            <select class="export-fmt-select" id="fmt-daily-summary">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
+                        </td>
+                        <td><a href="#" class="admin-action-btn export-go-btn" data-base="/export/daily-summary" data-fmt-id="fmt-daily-summary" data-start-id="start-daily-summary" data-end-id="end-daily-summary">{{ t.exports_btn }}</a></td>
+                    </tr>
+                    <!-- Daily Details -->
+                    <tr>
+                        <td>{{ t.exports_daily_details }}</td>
+                        <td>
+                            <div class="export-date-pair">
+                                <input type="date" class="export-date-input" id="start-daily-details">
+                                <span>–</span>
+                                <input type="date" class="export-date-input" id="end-daily-details">
+                            </div>
+                        </td>
+                        <td>
+                            <select class="export-fmt-select" id="fmt-daily-details">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
+                        </td>
+                        <td><a href="#" class="admin-action-btn export-go-btn" data-base="/export/daily-details" data-fmt-id="fmt-daily-details" data-start-id="start-daily-details" data-end-id="end-daily-details">{{ t.exports_btn }}</a></td>
+                    </tr>
                 </tbody>
             </table>
-            {% else %}
-            <p class="empty-state">{{ t.positions_no_closed }}</p>
-            {% endif %}
         </div>
     </div>
 
-    <script>var T = {{ t_json | safe }};</script>
+    <script>
+    document.querySelectorAll('.export-go-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var base = btn.dataset.base;
+            var fmt = btn.dataset.fmtId ? document.getElementById(btn.dataset.fmtId).value : 'xlsx';
+            var params = new URLSearchParams({ format: fmt });
+            if (btn.dataset.startId) {
+                var s = document.getElementById(btn.dataset.startId).value;
+                if (s) params.set('start', s);
+            }
+            if (btn.dataset.endId) {
+                var en = document.getElementById(btn.dataset.endId).value;
+                if (en) params.set('end', en);
+            }
+            window.location.href = base + '?' + params.toString();
+        });
+    });
+    </script>
+    <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
 </body>
 </html>

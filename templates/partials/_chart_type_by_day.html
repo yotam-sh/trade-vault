@@ -1,0 +1,161 @@
+<div class="card" data-chart-id="J" data-width="100" data-locked="false">
+    <div class="card-header">
+        <span>{{ t.chart_type_by_day }}</span>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            <div class="lang-options" id="typePeriodToggle">
+                <button class="lang-option lang-option-sm active" data-period="7" aria-pressed="true">{{ t.filter_1wk }}</button>
+                <button class="lang-option lang-option-sm" data-period="30" aria-pressed="false">{{ t.filter_1mnth }}</button>
+                <button class="lang-option lang-option-sm" data-period="365" aria-pressed="false">{{ t.filter_1yr }}</button>
+                <button class="lang-option lang-option-sm" data-period="-1" aria-pressed="false">{{ t.filter_ytd }}</button>
+                <button class="lang-option lang-option-sm" data-period="0" aria-pressed="false">{{ t.chart_mode_all }}</button>
+            </div>
+            <span class="ctrl-sep">|</span>
+            <div class="lang-options" id="typeUnitToggle">
+                <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
+            </div>
+            <div class="chart-edit-controls">
+                <button class="chart-ctrl-btn lock-btn">🔓</button>
+                <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
+                <button class="chart-ctrl-btn hide-btn">×</button>
+            </div>
+        </div>
+    </div>
+    <canvas id="typeByDayChart" role="img" aria-label="{{ t.chart_type_by_day }}" style="max-height: 260px;"></canvas>
+</div>
+<script>
+(function() {
+    var allTypeData = {{ type_chart|tojson }};
+
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    var types      = ['stock', 'mutual_fund', 'etf', 'bond', 'other'];
+    var typeColors = ['#58a6ff', '#3fb950', '#f0883e', '#bc8cff', '#8b949e'];
+    var typeLabels = [T.type_stock, T.type_mutual_fund, T.type_etf, T.type_bond, T.type_other];
+    var activePeriod = 7;
+    var activeUnit   = 'ils';
+
+    function getSlice(period) {
+        if (period === 0) return allTypeData;
+        if (period === -1) {
+            var yr = new Date().getFullYear().toString();
+            return allTypeData.filter(function(d) { return d.date >= yr + '-01-01'; });
+        }
+        return allTypeData.slice(-period);
+    }
+
+    function buildDatasets(slice, unit) {
+        return types.map(function(t, i) {
+            return {
+                label: typeLabels[i],
+                data: slice.map(function(d, di) {
+                    if (unit === 'pct') {
+                        var tot = types.reduce(function(s, t2) { return s + (d[t2] || 0); }, 0);
+                        return tot !== 0 ? (d[t] || 0) / tot * 100 : 0;
+                    }
+                    return d[t] || 0;
+                }),
+                backgroundColor: typeColors[i] + 'cc',
+                borderColor: typeColors[i],
+                borderWidth: 1,
+                borderRadius: 2,
+            };
+        }).filter(function(ds) {
+            return ds.data.some(function(v) { return v !== 0; });
+        });
+    }
+
+    requestAnimationFrame(function() {
+        var el = document.getElementById('typeByDayChart');
+        if (!el) return;
+
+        var slice = getSlice(activePeriod);
+        var chart = new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: { labels: slice.map(function(d) { return d.date; }), datasets: buildDatasets(slice, activeUnit) },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: css('--text-primary'), padding: 12 } },
+                    tooltip: {
+                        mode: 'index',
+                        callbacks: {
+                            label: function(ctx) {
+                                var v = ctx.parsed.y;
+                                return ctx.dataset.label + ': ' + (activeUnit === 'pct'
+                                    ? v.toFixed(1) + '%'
+                                    : '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}));
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { color: css('--text-secondary'), maxRotation: 45, maxTicksLimit: 20 },
+                        grid: { color: css('--bg-tertiary') }
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: {
+                            color: css('--text-secondary'),
+                            callback: function(v) {
+                                return activeUnit === 'pct'
+                                    ? v.toFixed(0) + '%'
+                                    : '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                            }
+                        },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+
+        function refreshChart() {
+            var s = getSlice(activePeriod);
+            chart.data.labels = s.map(function(d) { return d.date; });
+            chart.data.datasets = buildDatasets(s, activeUnit);
+            chart.update();
+        }
+
+        document.querySelectorAll('#typePeriodToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var p = parseInt(btn.getAttribute('data-period'), 10);
+                if (p === activePeriod) return;
+                activePeriod = p;
+                document.querySelectorAll('#typePeriodToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                refreshChart();
+            });
+        });
+
+        document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var unit = btn.getAttribute('data-unit');
+                if (unit === activeUnit) return;
+                activeUnit = unit;
+                document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(b) {
+                    b.classList.toggle('active', b === btn);
+                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                });
+                refreshChart();
+            });
+        });
+
+        function applyTheme() {
+            chart.options.plugins.legend.labels.color = css('--text-primary');
+            chart.options.scales.x.ticks.color = css('--text-secondary');
+            chart.options.scales.x.grid.color  = css('--bg-tertiary');
+            chart.options.scales.y.ticks.color = css('--text-secondary');
+            chart.options.scales.y.grid.color  = css('--bg-tertiary');
+            chart.update();
+        }
+        new MutationObserver(applyTheme)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+})();
+</script>

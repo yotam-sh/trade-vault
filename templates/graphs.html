@@ -11,6 +11,9 @@
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3/dist/d3-hierarchy.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script>var T = {{ t_json|safe }};</script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
@@ -81,6 +84,7 @@
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
                         <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
+                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -109,15 +113,13 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
-        <h1>{{ t.page_graphs }}
-            <span class="layout-action-btns">
-                <span class="layout-feedback" id="layoutFeedback"></span>
-                <button class="lang-option layout-save-btn" id="saveLayoutBtn">{{ t.btn_save_layout }}</button>
-                <button class="lang-option layout-discard-btn" id="discardLayoutBtn">{{ t.btn_discard_layout }}</button>
-                <button class="lang-option layout-reset-btn" id="resetLayoutBtn">{{ t.btn_reset_layout }}</button>
-                <button class="lang-option" id="editLayoutBtn">{{ t.btn_edit_layout }}</button>
-            </span>
-        </h1>
+        <div class="layout-action-btns" style="margin-bottom: 16px;">
+            <span class="layout-feedback" id="layoutFeedback"></span>
+            <button class="lang-option layout-save-btn" id="saveLayoutBtn">{{ t.btn_save_layout }}</button>
+            <button class="lang-option layout-discard-btn" id="discardLayoutBtn">{{ t.btn_discard_layout }}</button>
+            <button class="lang-option layout-reset-btn" id="resetLayoutBtn">{{ t.btn_reset_layout }}</button>
+            <button class="lang-option" id="editLayoutBtn">{{ t.btn_edit_layout }}</button>
+        </div>
 
         {% if snapshots %}
         <div id="graphsGrid" class="graphs-grid">
@@ -270,6 +272,13 @@
             <div class="chart-canvas-wrap"><canvas id="returnComparisonChart" role="img" aria-label="{{ t.chart_h_title }}"></canvas></div>
         </div>
 
+        {% if data %}{% include 'partials/_chart_daily_pnl.html' %}{% endif %}
+        {% if type_chart %}{% include 'partials/_chart_type_by_day.html' %}{% endif %}
+        {% if sales_summary and sales_summary.total_gains > 0 %}{% include 'partials/_chart_tax_donut.html' %}{% endif %}
+        {% if closed %}{% include 'partials/_chart_closed_pnl.html' %}{% endif %}
+        {% if portfolio %}{% include 'partials/_chart_treemap.html' %}{% endif %}
+        {% if portfolio %}{% include 'partials/_chart_allocation.html' %}{% endif %}
+
         </div><!-- /graphsGrid -->
 
         <!-- Hidden charts tray (visible only in edit mode) -->
@@ -285,7 +294,6 @@
         {% endif %}
     </div>
 
-    <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
 
     {% if snapshots %}
@@ -308,7 +316,13 @@
             E: T.chart_heatmap,
             F: T.chart_allocation_history,
             G: T.chart_top_positions,
-            H: T.chart_h_title
+            H: T.chart_h_title,
+            I: T.chart_daily_pnl,
+            J: T.chart_type_by_day,
+            K: T.chart_tax_breakdown,
+            L: T.closed_title,
+            M: T.treemap_title,
+            N: T.chart_allocation
         };
 
         function css(v) {
@@ -388,7 +402,7 @@
                     },
                     zoom: {
                         zoom: {
-                            wheel: { enabled: true },
+                            wheel: { enabled: true, modifierKey: 'ctrl' },
                             pinch: { enabled: true },
                             mode: 'x',
                             onZoom: function() {
@@ -617,7 +631,7 @@
                     },
                     zoom: {
                         zoom: {
-                            wheel: { enabled: true },
+                            wheel: { enabled: true, modifierKey: 'ctrl' },
                             pinch: { enabled: true },
                             mode: 'x',
                             onZoom: function() {
@@ -1176,7 +1190,7 @@
                     },
                     zoom: {
                         zoom: {
-                            wheel: { enabled: true },
+                            wheel: { enabled: true, modifierKey: 'ctrl' },
                             pinch: { enabled: true },
                             mode: 'x',
                             onZoom: function() {
@@ -1389,7 +1403,7 @@
                     },
                     zoom: {
                         zoom: {
-                            wheel: { enabled: true },
+                            wheel: { enabled: true, modifierKey: 'ctrl' },
                             pinch: { enabled: true },
                             mode: 'x',
                             onZoom: function() {
@@ -1628,8 +1642,19 @@
             setTimeout(resizeAllCharts, 50);
         }
 
-        // Fetch and apply saved layout on page load
-        fetch('/api/graph-layout').then(function(r) { return r.json(); }).then(applyLayout);
+        // Fetch and apply saved layout on page load — hide grid until ready to prevent flash
+        var _grid = document.getElementById('graphsGrid');
+        _grid.style.opacity = '0';
+        fetch('/api/graph-layout')
+            .then(function(r) { return r.json(); })
+            .then(function(layout) {
+                applyLayout(layout);
+                _grid.style.transition = 'opacity 0.15s ease';
+                _grid.style.opacity = '1';
+            })
+            .catch(function() {
+                _grid.style.opacity = '1';
+            });
 
         // ── Edit mode ─────────────────────────────────────────────────────────
         var sortableInstance = null;

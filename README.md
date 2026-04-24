@@ -22,8 +22,8 @@ Created with Claude Code.
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
 - **Version display** — App version shown in small text at the bottom of the settings dropdown on every page, injected via a Flask context processor
-- **Web dashboard** — Eight views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, positions, and portfolio rebalancing — plus Profile and Accessibility pages accessible from the settings menu
-- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (switchable between daily, weekly, and monthly granularity), security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, portfolio value vs net invested + monthly return charts on the graphs page, and a benchmark comparison chart showing cumulative % return for the portfolio vs TA-125 and TA-35 indices (sourced via yfinance). All charts re-render instantly when you switch color themes
+- **Web dashboard** — Eight views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, positions, and portfolio rebalancing — plus Display Settings, Exports, Profile, and Accessibility pages accessible from the settings menu
+- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (switchable between daily, weekly, and monthly granularity), security-type stacked bar on the daily details page, tax breakdown donut and closed-positions bar on the trades page, portfolio value vs net invested + monthly return charts on the graphs page, and a benchmark comparison chart showing cumulative % return for the portfolio vs TA-125 and TA-35 indices (sourced via yfinance). The Graphs page aggregates all charts from across the app via shared Jinja2 partials — no duplication. All charts re-render instantly when you switch color themes
 - **Calendar Heatmap** — Renamed from "Daily P&L Heatmap". Period is controlled by two multi-select dropdowns (Year and Month) using a cross-product filter: selecting years [2025, 2026] + month [April] shows only April 2025 and April 2026, not the full intervening range. Three view modes: daily calendar grid (week columns, day-of-week rows), weekly bars, and monthly bars. Day mode shows separators between week columns (thin within a month, medium at adjacent-month boundaries, thick at non-adjacent gaps). Row-hover highlights the entire day-of-week row; the hovered cell gets an accent-colour outline. Clear button resets each dimension to the current year/month
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
@@ -39,7 +39,7 @@ Created with Claude Code.
 - **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. A "Fetch from TASE" button pre-fills English name and symbol from the TASE API. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
 - **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
 - **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
-- **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red); group headers display section name and aggregate daily P&L. Each cell is clickable (and keyboard-navigable) and navigates directly to that position's detail page
+- **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red). Each cell is clickable (and keyboard-navigable) and navigates directly to that position's detail page
 - **Clickable daily dates** — In the Daily Summary table, clicking any date row navigates to the Daily Details page pre-filtered to that date
 - **IS 5568 / WCAG 2.1 AA accessibility** — Full keyboard navigation throughout; skip-to-main-content link; ARIA landmarks, roles, and live regions; calendar picker arrow-key navigation with focus management; sortable table headers keyboard-activated; `aria-current`, `aria-expanded`, `aria-sort`, `aria-pressed` on all interactive elements; visible focus ring; screen-reader announcements for flash messages and date changes
 - **Accessibility statement** — Dedicated `/accessibility` page (Hebrew and English) declaring IS 5568 conformance, listing implemented features, known limitations, and a feedback link to the GitHub repository
@@ -347,6 +347,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 
 **Pages:**
 - **Display Settings** — Configure which name/symbol field each table column shows, per language
+- **Exports** — Centralized export hub: all six data exports (portfolio, transactions, trade log, tax report, daily summary, daily details) in one place with date-range pickers and format selector (XLSX/CSV)
 - **Profile** — Database backup and restore (formerly "Admin")
 - **Accessibility** — IS 5568 accessibility statement
 - **CLI Docs** — Full CLI reference (`docs/cli.html`), also served at `/docs/cli`
@@ -358,12 +359,13 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap (cells clickable → position page), allocation donut, daily file upload |
 | **Positions** | `/positions` | All holdings with open/closed tabs, market value, cost, P&L, avg buy/sell prices (in Agorot) |
 | **Position detail** | `/position/<id>` | Full individual position view: price chart with buy/sell markers, company info from Yahoo Finance, trade history, FIFO lots, daily P&L chart |
-| **Account Overview** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries, add deposit/withdrawal forms, aggregate metrics (net invested, all-time cost change) |
-| **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax, tax breakdown donut, closed-positions bar chart |
-| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle; click any date row to jump to Daily Details for that date |
+| **Account Overview** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries; aggregate stat cards (net invested, cost change, tax); deposit/withdrawal/dividend entry via "Add..." modal forms; portfolio value and allocation charts at the bottom |
+| **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax; tax breakdown donut and stat cards side-by-side; closed-positions bar chart |
+| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart with daily/weekly/monthly granularity toggle; defaults to the current month on first load; click any date row to jump to Daily Details for that date |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
-| **Graphs** | `/graphs` | Seven interactive charts: portfolio value vs net invested, monthly return %, historical performance, drawdown from peak, daily P&L heatmap, asset allocation over time, and P&L by position — with drag-and-drop layout, resizable cards, show/hide per chart, and a reset-layout button |
-| **Display Settings** | `/settings/display` | Per-column name source selector: choose which name or symbol field (TASE Hebrew/English, yfinance long/short, IBI Hebrew, manual English, Hebrew/English symbol) displays in each table. Settings are per-language and reset independently — accessible from the settings (⚙) dropdown |
+| **Graphs** | `/graphs` | All charts in one place via shared partials: portfolio value vs net invested, monthly return %, historical performance, drawdown, calendar heatmap, asset allocation over time, P&L by position, daily P&L bar, security-type stacked bar, tax breakdown donut, closed-positions bar, portfolio map treemap, and allocation donut — drag-and-drop layout, resizable cards, show/hide per chart, reset-layout button |
+| **Exports** | `/exports` | Centralized export hub: portfolio holdings, transactions, trade log, annual tax report, daily summary, and daily details — all in one table with date-range pickers and XLSX/CSV format selector — accessible from the settings (⚙) dropdown |
+| **Display Settings** | `/settings/display` | Per-column name source selector: choose which name or symbol field (TASE Hebrew/English, yfinance long/short, IBI Hebrew, manual English, Hebrew/English symbol) displays in each table and chart. Settings are per-language — accessible from the settings (⚙) dropdown |
 | **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database); bulk "Refresh All from TASE" to fetch English and Hebrew names for all holdings — accessible from the settings (⚙) dropdown |
 | **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
 | **CLI Docs** | `/docs/cli` | Full CLI reference page (dark theme, regex search) — accessible from the settings (⚙) dropdown |
@@ -381,10 +383,12 @@ The file is saved to `data/daily_data/<month>_<year>/` and imported automaticall
 
 The Dashboard home page shows a **Portfolio Map** — a squarified treemap below the holdings table. Each rectangle represents one open position; its area is proportional to market value.
 
-- Positions are grouped by security type (stocks, funds, other); each group has a visible header showing the group name and its aggregate daily P&L.
+- Positions are grouped by security type (stocks, funds, other); group boundaries are shown as dark dividers.
 - Cell colour shifts from neutral grey toward green (daily gain) or red (daily loss), capped at ±3 %.
-- Labels show the English TASE symbol in English mode (or Hebrew TASE symbol in Hebrew mode) and the position's daily change percentage.
+- Labels show the symbol (configurable via Display Settings) and the position's daily change percentage.
+- Each cell is clickable (and keyboard-navigable) and navigates to that position's detail page.
 - The chart is responsive — it re-renders automatically when the browser window is resized.
+- The same treemap appears on the Graphs page via a shared partial.
 
 ### Charts
 
@@ -406,30 +410,37 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
 | **Graphs** | Asset allocation over time — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
 | **Graphs** | P&L by position — ranked by ILS or % toggle; label source configurable via Display Settings; full name on hover | Horizontal bar |
+| **Graphs** | Daily P&L bar (shared with Daily Summary page) — period, mode, and unit toggles | Bar |
+| **Graphs** | Security-type stacked bar (shared with Daily Details page) — period and unit toggles | Stacked bar |
+| **Graphs** | Tax breakdown donut (shared with Activity page) | Donut |
+| **Graphs** | Closed positions P&L (shared with Activity page) | Horizontal bar |
+| **Graphs** | Portfolio map treemap (shared with Dashboard) — grouped by security type | Treemap |
+| **Graphs** | Allocation by type donut (shared with Dashboard) | Donut |
+| **Account Overview** | Portfolio value vs net invested over time | Line |
+| **Account Overview** | Asset allocation over time | Stacked area |
+| **Account Overview** | Allocation by type donut | Donut |
 
-The **Graphs** page (`/graphs`) is the dedicated chart hub with seven configurable panels. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
+The **Graphs** page (`/graphs`) is the dedicated chart hub with all charts from every page aggregated via shared Jinja2 partials — any change to a chart is reflected everywhere automatically. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
 
-### Adding deposits via the web
+### Adding deposits, withdrawals, and dividends via the web
 
-On the Account Overview page (`/transactions`), use the deposit form at the top-left:
-1. Enter the amount
-2. Pick a date using the calendar button (defaults to today)
-3. Click Add Deposit
+On the Account Overview page (`/transactions`), click the **Add...** button in the transactions card header. A dropdown appears with three options:
 
-### Adding withdrawals via the web
+- **Deposit** — enter amount and date
+- **Withdrawal** — enter amount and date
+- **Dividend** — enter amount, date, ticker (optional), tax withheld (optional), and notes (optional)
 
-On the Account Overview page (`/transactions`), use the withdrawal form at the top-right:
-1. Enter the amount
-2. Pick a date using the calendar button (defaults to today)
-3. Click Add Withdrawal
+Each option opens a modal form. Submit to record the transaction; the page reloads with the new entry in the table.
 
-### Summary panel
+### Account Overview stat cards
 
-The right-side Summary panel on the Account Overview page shows metrics computed entirely from live DB data:
+Above the transactions table, six stat cards show metrics computed entirely from live DB data:
 - **Total Deposits** — sum of all deposit transactions
+- **Total Dividends** — sum of all dividend income (shown only if non-zero)
 - **Net Invested** — deposits minus withdrawals
-- **Cost Change (₪ / %)** — current portfolio value minus net invested (all-time gain/loss)
-- **Net Tax Payable** — estimated capital gains tax for the current year
+- **Cost Change (₪)** — current portfolio value minus net invested (all-time gain/loss)
+- **Cost Change (%)** — same as above, expressed as a percentage
+- **Net Tax** — estimated capital gains tax for the current year
 
 No brokerage-specific import is required for these figures to be accurate.
 

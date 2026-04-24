@@ -207,31 +207,51 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ─── Date Presets ───
-    document.querySelectorAll('.date-preset').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var range = btn.dataset.range;
-            var today = new Date();
-            today.setHours(0, 0, 0, 0);
-            var start, end = formatDate(today);
+    (function() {
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        var todayStr = formatDate(today);
 
+        function presetStart(range) {
             if (range === 'week') {
                 var sun = new Date(today);
                 sun.setDate(today.getDate() - today.getDay());
-                start = formatDate(sun);
-            } else if (range === 'month') {
-                start = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-01';
-            } else if (range === '30') {
+                return formatDate(sun);
+            }
+            if (range === 'month') {
+                return today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-01';
+            }
+            if (range === '30') {
                 var d = new Date(today);
                 d.setDate(today.getDate() - 30);
-                start = formatDate(d);
+                return formatDate(d);
             }
+            return null;
+        }
 
-            var p = new URLSearchParams(window.location.search);
-            p.set('start', start);
-            p.set('end', end);
-            window.location.search = p.toString();
+        // Mark active preset on page load
+        var params = new URLSearchParams(window.location.search);
+        var urlStart = params.get('start');
+        var urlEnd   = params.get('end');
+        if (urlStart && urlEnd === todayStr) {
+            document.querySelectorAll('.date-preset').forEach(function(btn) {
+                if (presetStart(btn.dataset.range) === urlStart) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        document.querySelectorAll('.date-preset').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var start = presetStart(btn.dataset.range);
+                if (!start) return;
+                var p = new URLSearchParams(window.location.search);
+                p.set('start', start);
+                p.set('end', todayStr);
+                window.location.search = p.toString();
+            });
         });
-    });
+    })();
 
     // ─── Table Text Search ───
     document.querySelectorAll('.table-search').forEach(function (input) {

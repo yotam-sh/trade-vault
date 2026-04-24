@@ -1,0 +1,73 @@
+<div class="card">
+    <div class="card-header">{{ t.chart_allocation_history }}</div>
+    <div class="chart-canvas-wrap"><canvas id="allocHistoryTx" role="img" aria-label="{{ t.chart_allocation_history }}"></canvas></div>
+</div>
+<script>
+(function() {
+    var allocationHistory = {{ allocation_history|tojson }};
+    if (!allocationHistory || !allocationHistory.length) return;
+
+    function css(v) {
+        return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    }
+
+    var allocTypes     = ['stock', 'etf', 'mutual_fund', 'bond', 'other'];
+    var allocColors    = ['--accent', '--positive', '--text-primary', '--text-secondary', '--bg-tertiary'];
+    var allocLabelKeys = ['label_stock', 'label_etf', 'label_mutual_fund', 'label_bond', 'label_other'];
+
+    var usedTypes = allocTypes.filter(function(type) {
+        return allocationHistory.some(function(d) { return d[type] > 0; });
+    });
+    var usedColors    = usedTypes.map(function(t) { return allocColors[allocTypes.indexOf(t)]; });
+    var usedLabelKeys = usedTypes.map(function(t) { return allocLabelKeys[allocTypes.indexOf(t)]; });
+
+    var allocLabels = allocationHistory.map(function(d) { return d.date; });
+
+    function buildDatasets() {
+        return usedTypes.map(function(type, i) {
+            return {
+                label: T[usedLabelKeys[i]],
+                data: allocationHistory.map(function(d) { return d[type]; }),
+                borderColor: css(usedColors[i]),
+                backgroundColor: css(usedColors[i]) + '55',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                tension: 0.2,
+                fill: true,
+            };
+        });
+    }
+
+    requestAnimationFrame(function() {
+        var el = document.getElementById('allocHistoryTx');
+        if (!el) return;
+        new Chart(el.getContext('2d'), {
+            type: 'line',
+            data: { labels: allocLabels, datasets: buildDatasets() },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: css('--text-primary') } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { color: css('--text-secondary'), maxTicksLimit: 12, maxRotation: 0 }, grid: { color: css('--bg-tertiary') } },
+                    y: {
+                        stacked: true,
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return '₪' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } },
+                        grid: { color: css('--bg-tertiary') }
+                    }
+                }
+            }
+        });
+    });
+})();
+</script>
