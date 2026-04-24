@@ -565,26 +565,34 @@ tr.group-header {
     margin-bottom: 24px;
 }
 
+.tax-donut-canvas-wrap { max-width: 560px; max-height: 220px; margin: 0 auto; }
+
 /* Activity page: tax donut + stat cards side by side */
 .tax-summary-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: row;
     gap: 20px;
     align-items: stretch;
     margin-bottom: 24px;
 }
-.tax-summary-grid .tax-stat-cards {
-    grid-template-columns: 1fr 1fr;
-    grid-auto-rows: 1fr;
+.tax-summary-grid > .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     margin-bottom: 0;
-    align-content: start;
 }
-.tax-summary-grid .tax-stat-cards .stat-card {
-    align-self: stretch;
+.tax-summary-grid > .card .tax-donut-canvas-wrap {
+    max-height: none;
+    flex: 1;
+    min-height: 0;
+}
+.tax-summary-grid > .tax-stat-cards {
+    flex: 1;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 0;
 }
 @media (max-width: 900px) {
-    .tax-summary-grid { grid-template-columns: 1fr; }
-    .tax-summary-grid .tax-stat-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .tax-summary-grid { flex-direction: column; }
 }
 
 .stat-card {

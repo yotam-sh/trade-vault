@@ -7,7 +7,7 @@
             <button class="chart-ctrl-btn hide-btn">×</button>
         </div>
     </div>
-    <div style="max-width: 560px; max-height: 220px; margin: 0 auto;">
+    <div class="tax-donut-canvas-wrap">
         <canvas id="taxDonutChart" role="img" aria-label="{{ t.chart_tax_breakdown }}"></canvas>
     </div>
 </div>
@@ -25,6 +25,22 @@
     requestAnimationFrame(function() {
         var el = document.getElementById('taxDonutChart');
         if (!el) return;
+
+        var statCards = document.querySelector('.tax-stat-cards');
+        if (statCards) {
+            var card = el.closest('.card');
+            var cardHeader = card ? card.querySelector('.card-header') : null;
+            var headerH = cardHeader ? cardHeader.offsetHeight : 0;
+            var cs = card ? getComputedStyle(card) : null;
+            var padT = cs ? parseFloat(cs.paddingTop) || 0 : 0;
+            var padB = cs ? parseFloat(cs.paddingBottom) || 0 : 0;
+            var availH = statCards.offsetHeight - headerH - padT - padB;
+            if (availH > 60) {
+                el.parentElement.style.height = availH + 'px';
+                el.parentElement.style.maxHeight = 'none';
+            }
+        }
+
         var taxDonut = new Chart(el.getContext('2d'), {
             type: 'doughnut',
             data: {
@@ -54,6 +70,8 @@
                 }
             }
         });
+
+        new ResizeObserver(function() { taxDonut.resize(); }).observe(el.parentElement);
 
         new MutationObserver(function() {
             taxDonut.data.datasets[0].backgroundColor = [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'];

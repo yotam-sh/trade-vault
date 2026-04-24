@@ -365,11 +365,10 @@ def transactions_view():
     summary['net_tax'] = year_tax.get('net_tax', 0)
 
     snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
-    portfolio = get_portfolio_value()
     allocation_history = get_allocation_history()
 
     return render_template('transactions.html', log=log, summary=summary,
-                           start=start, end=end, snapshots=snapshots, portfolio=portfolio,
+                           start=start, end=end, snapshots=snapshots,
                            allocation_history=allocation_history)
 
 
@@ -610,11 +609,19 @@ def delete_transaction_route(doc_id):
 
 @app.route('/trades')
 def trades_view():
+    year_param  = request.args.get('year')
+    start_param = request.args.get('start')
+    end_param   = request.args.get('end')
+    if not year_param and not start_param and not end_param:
+        today = datetime.now().date()
+        _start = today.strftime('%Y-%m-01')
+        _end   = today.strftime('%Y-%m-%d')
+        return redirect(url_for('trades_view') + f'?start={_start}&end={_end}')
+
     # Yearly tax with loss carryover
     by_year, tax_years = compute_yearly_tax()
     current_year = datetime.now().year
-    year_param = request.args.get('year', str(current_year))
-    selected_year = 'all' if year_param == 'all' else int(year_param)
+    selected_year = 'all' if not year_param or year_param == 'all' else int(year_param)
 
     # Date picker overrides year bounds; otherwise default to selected year
     if selected_year == 'all':

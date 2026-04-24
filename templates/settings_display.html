@@ -283,17 +283,6 @@
                                 </select>
                             </td>
                         </tr>
-                        <tr>
-                            <td>{{ t.disp_ctx_trades_closed_name }}</td>
-                            <td>
-                                <select name="trades_closed_name" class="pref-select">
-                                    {% for val, label in name_sources %}
-                                        <option value="{{ val }}" {% if prefs.trades_closed_name == val %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                        </tr>
-
                         <tr class="group-header">
                             <td colspan="2">{{ t.disp_group_graphs }}</td>
                         </tr>
@@ -313,6 +302,16 @@
                                 <select name="graphs_treemap_labels" class="pref-select">
                                     {% for val, label in name_sources %}
                                         <option value="{{ val }}" {% if prefs.graphs_treemap_labels == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ t.disp_ctx_trades_closed_name }}</td>
+                            <td>
+                                <select name="trades_closed_name" class="pref-select">
+                                    {% for val, label in name_sources %}
+                                        <option value="{{ val }}" {% if prefs.trades_closed_name == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
                             </td>

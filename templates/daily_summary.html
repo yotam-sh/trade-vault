@@ -146,6 +146,7 @@
             <a href="/export/daily-summary?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
 
+        {% set chart_period_hidden = true %}
         {% if data %}{% include 'partials/_chart_daily_pnl.html' %}{% endif %}
 
         <div class="card">

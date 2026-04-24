@@ -155,6 +155,7 @@
             <a href="/export/daily-details?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
         </div>
 
+        {% set chart_period_hidden = true %}
         {% if type_chart %}{% include 'partials/_chart_type_by_day.html' %}{% endif %}
 
         <!-- Per-security daily data (full width, scrollable) -->

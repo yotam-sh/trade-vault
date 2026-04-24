@@ -2,6 +2,7 @@
     <div class="card-header">
         <span>{{ t.chart_type_by_day }}</span>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            {% if not chart_period_hidden %}
             <div class="lang-options" id="typePeriodToggle">
                 <button class="lang-option lang-option-sm active" data-period="7" aria-pressed="true">{{ t.filter_1wk }}</button>
                 <button class="lang-option lang-option-sm" data-period="30" aria-pressed="false">{{ t.filter_1mnth }}</button>
@@ -10,7 +11,8 @@
                 <button class="lang-option lang-option-sm" data-period="0" aria-pressed="false">{{ t.chart_mode_all }}</button>
             </div>
             <span class="ctrl-sep">|</span>
-            <div class="lang-options" id="typeUnitToggle">
+            {% endif %}
+            <div class="lang-options" id="typeUnitToggle" style="visibility:hidden;">
                 <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
                 <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
             </div>
@@ -35,7 +37,9 @@
     var typeColors = ['#58a6ff', '#3fb950', '#f0883e', '#bc8cff', '#8b949e'];
     var typeLabels = [T.type_stock, T.type_mutual_fund, T.type_etf, T.type_bond, T.type_other];
     var activePeriod = 7;
-    var activeUnit   = 'ils';
+    var periodHidden = {{ 'true' if chart_period_hidden else 'false' }};
+    if (periodHidden) activePeriod = 0;
+    var activeUnit = localStorage.getItem('typeByDay_unit') || 'ils';
 
     function getSlice(period) {
         if (period === 0) return allTypeData;
@@ -53,7 +57,8 @@
                 data: slice.map(function(d, di) {
                     if (unit === 'pct') {
                         var tot = types.reduce(function(s, t2) { return s + (d[t2] || 0); }, 0);
-                        return tot !== 0 ? (d[t] || 0) / tot * 100 : 0;
+                        var absTot = Math.abs(tot);
+                        return absTot > 0 ? (d[t] || 0) / absTot * 100 : 0;
                     }
                     return d[t] || 0;
                 }),
@@ -133,11 +138,20 @@
             });
         });
 
+        document.getElementById('typeUnitToggle').style.visibility = '';
         document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(btn) {
+            if (btn.getAttribute('data-unit') === activeUnit) {
+                btn.classList.add('active');
+                btn.setAttribute('aria-pressed', 'true');
+            } else {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+            }
             btn.addEventListener('click', function() {
                 var unit = btn.getAttribute('data-unit');
                 if (unit === activeUnit) return;
                 activeUnit = unit;
+                localStorage.setItem('typeByDay_unit', unit);
                 document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(b) {
                     b.classList.toggle('active', b === btn);
                     b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');

@@ -2,6 +2,7 @@
     <div class="card-header">
         <span>{{ t.chart_daily_pnl }}</span>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            {% if not chart_period_hidden %}
             <div class="lang-options" id="pnlPeriodToggle">
                 <button class="lang-option lang-option-sm active" data-period="7" aria-pressed="true">{{ t.filter_1wk }}</button>
                 <button class="lang-option lang-option-sm" data-period="30" aria-pressed="false">{{ t.filter_1mnth }}</button>
@@ -10,12 +11,7 @@
                 <button class="lang-option lang-option-sm" data-period="0" aria-pressed="false">{{ t.chart_mode_all }}</button>
             </div>
             <span class="ctrl-sep">|</span>
-            <div class="lang-options" id="pnlModeToggle">
-                <button class="lang-option lang-option-sm active" data-mode="daily" aria-pressed="true">{{ t.chart_mode_daily }}</button>
-                <button class="lang-option lang-option-sm" data-mode="weekly" id="pnlWeeklyBtn" aria-pressed="false">{{ t.chart_mode_weekly }}</button>
-                <button class="lang-option lang-option-sm" data-mode="monthly" id="pnlMonthlyBtn" aria-pressed="false">{{ t.chart_mode_monthly }}</button>
-            </div>
-            <span class="ctrl-sep">|</span>
+            {% endif %}
             <div class="lang-options" id="pnlUnitToggle">
                 <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
                 <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
@@ -46,56 +42,12 @@
         return allDailyData.slice(-period);
     }
 
-    function weekStart(dateStr) {
-        var d = new Date(dateStr + 'T00:00:00');
-        d.setDate(d.getDate() - d.getDay());
-        return d.toISOString().slice(0, 10);
-    }
-
-    function aggregate(data, mode, unit) {
-        if (mode === 'daily') {
-            return {
-                labels: data.map(function(d) { return d.date; }),
-                values: data.map(function(d) { return unit === 'pct' ? d.change_pct : d.daily_pnl; }),
-            };
-        }
-        var buckets = {}, order = [], firstDate = {}, morningVals = {};
-        data.forEach(function(d) {
-            var key = mode === 'weekly' ? weekStart(d.date) : d.date.slice(0, 7);
-            if (!(key in buckets)) {
-                buckets[key] = 0;
-                order.push(key);
-                morningVals[key] = d.morning_value || 0;
-                if (mode === 'weekly') firstDate[key] = d.date;
-            }
-            buckets[key] += d.daily_pnl;
-        });
-        var labels = (mode === 'weekly')
-            ? order.map(function(k) { return firstDate[k]; })
-            : order;
-        return {
-            labels: labels,
-            values: order.map(function(k) {
-                if (unit === 'pct') {
-                    return morningVals[k] > 0 ? Math.round(buckets[k] / morningVals[k] * 10000) / 100 : 0;
-                }
-                return buckets[k];
-            }),
-        };
-    }
-
     var activePeriod = 7;
-    var activeMode   = 'daily';
+    var periodHidden = {{ 'true' if chart_period_hidden else 'false' }};
+    if (periodHidden) activePeriod = 0;
     var activeUnit   = 'ils';
 
     function getActiveData() { return getFiltered(activePeriod); }
-
-    var uniqueWeeks  = new Set(allDailyData.map(function(d) { return weekStart(d.date); })).size;
-    var uniqueMonths = new Set(allDailyData.map(function(d) { return d.date.slice(0, 7); })).size;
-    var weeklyBtn  = document.getElementById('pnlWeeklyBtn');
-    var monthlyBtn = document.getElementById('pnlMonthlyBtn');
-    if (uniqueWeeks  <= 1) weeklyBtn.disabled  = true;
-    if (uniqueMonths <= 1) monthlyBtn.disabled  = true;
 
     function buildColors(vals) {
         return {
@@ -114,11 +66,18 @@
         return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
     }
 
+    function getDailyData(data, unit) {
+        return {
+            labels: data.map(function(d) { return d.date; }),
+            values: data.map(function(d) { return unit === 'pct' ? d.change_pct : d.daily_pnl; }),
+        };
+    }
+
     requestAnimationFrame(function() {
         var ctx = document.getElementById('dailyPnlChart');
         if (!ctx) return;
 
-        var init   = aggregate(getActiveData(), activeMode, activeUnit);
+        var init = getDailyData(getActiveData(), activeUnit);
         var initCols = buildColors(init.values);
 
         var chart = new Chart(ctx.getContext('2d'), {
@@ -148,10 +107,10 @@
         });
 
         function refreshChart() {
-            var agg = aggregate(getActiveData(), activeMode, activeUnit);
-            var cols = buildColors(agg.values);
-            chart.data.labels = agg.labels;
-            chart.data.datasets[0].data = agg.values;
+            var d = getDailyData(getActiveData(), activeUnit);
+            var cols = buildColors(d.values);
+            chart.data.labels = d.labels;
+            chart.data.datasets[0].data = d.values;
             chart.data.datasets[0].backgroundColor = cols.bg;
             chart.data.datasets[0].borderColor = cols.border;
             chart.update();
@@ -163,20 +122,6 @@
                 if (p === activePeriod) return;
                 activePeriod = p;
                 document.querySelectorAll('#pnlPeriodToggle .lang-option').forEach(function(b) {
-                    b.classList.toggle('active', b === btn);
-                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
-                });
-                refreshChart();
-            });
-        });
-
-        document.querySelectorAll('#pnlModeToggle .lang-option').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                if (btn.disabled) return;
-                var mode = btn.getAttribute('data-mode');
-                if (mode === activeMode) return;
-                activeMode = mode;
-                document.querySelectorAll('#pnlModeToggle .lang-option').forEach(function(b) {
                     b.classList.toggle('active', b === btn);
                     b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
                 });
