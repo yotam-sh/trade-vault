@@ -20,12 +20,27 @@ from tinydb import Query
 def get_positions_list():
     """Return open and closed positions for the /positions index page."""
     portfolio = get_portfolio_value()
+
+    # Build fallback map: holding_id -> earliest buy date from transactions
+    # (used when the holding's first_bought field was never set by the trade importer)
+    buy_txns = list_transactions(type_='buy')
+    first_buy_map = {}
+    for txn in buy_txns:
+        hid = txn.get('holding_id')
+        if hid and txn.get('date'):
+            if hid not in first_buy_map or txn['date'] < first_buy_map[hid]:
+                first_buy_map[hid] = txn['date']
+
     open_positions = []
     if portfolio:
         for pos in portfolio['positions']:
             if pos.get('quantity', 0) <= 0:
                 continue
             holding = get_holding(pos['holding_id'])
+            first_bought = (
+                (holding.get('first_bought') if holding else None)
+                or first_buy_map.get(pos['holding_id'])
+            )
             open_positions.append({
                 'holding_id': pos['holding_id'],
                 'name_he': pos.get('name_he', ''),
@@ -44,10 +59,10 @@ def get_positions_list():
                     if pos.get('cost_basis') else 0
                 ),
                 'weight': pos.get('weight', 0),
-                'first_bought': holding.get('first_bought') if holding else None,
+                'first_bought': first_bought,
                 'days_holding': (
-                    (date.today() - date.fromisoformat(holding['first_bought'])).days
-                    if holding and holding.get('first_bought') else None
+                    (date.today() - date.fromisoformat(first_bought)).days
+                    if first_bought else None
                 ),
             })
 

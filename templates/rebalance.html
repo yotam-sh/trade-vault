@@ -172,7 +172,6 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
-                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
@@ -202,7 +201,10 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
-        <h1>{{ t.page_title_rebalance }}</h1>
+        <h1 style="display:flex;align-items:center;gap:8px;">
+            {{ t.page_title_rebalance }}
+            <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+        </h1>
 
         {% if group_data %}
 
@@ -544,5 +546,7 @@
         });
     })();
     </script>
+{% set display_prefs_context = 'rebalance' %}
+{% include 'partials/_display_prefs_modal.html' %}
 </body>
 </html>

@@ -28,12 +28,14 @@ Created with Claude Code.
 - **Calendar date picker** — Filter any view by single date or date range
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
 - **Best/worst performers** — Daily summary highlights top and bottom movers
-- **Closed position tracking** — P&L summary for fully sold positions
+- **Closed position tracking** — P&L summary for fully sold positions, including a Days Held column (integer count from first buy to last sell date)
+- **Deposit event markers** — Yellow dashed vertical lines mark deposit dates on the Portfolio Value Over Time and Asset Allocation Over Time charts, appearing on both the Account Overview and Graphs pages
+- **Potential future tax** — The Activity page shows an additional "Potential Future Tax" stat card (unrealized gains × 25%) and a fourth segment in the Tax Breakdown donut. A sortable "Potential Tax by Position" table lists each open position's holding duration, % change, unrealized P&L, and estimated tax liability or loss offset — displayed at the same height as the Realized Positions P&L chart with internal scrolling
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
 - **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the Hebrew TASE symbol is also updated; English name and symbol are re-fetched from the TASE public API and the holding is updated silently; name changes are printed in the import log
 - **TASE API integration** — Fetches authoritative English names and symbols directly from the TASE public API (`api.tase.co.il`). Returns the English security name (e.g. `STRK-M`, `IBI.INDEX BANK`), the English TASE symbol (e.g. `STRK-M`, `IBI.F35`), and the derived Yahoo Finance ticker (e.g. `STRK-M.TA`, `IBI-F35.TA`). Triggered automatically on name change and available as a one-click "Fetch from TASE" button on each position page or bulk "Refresh All from TASE" on the Profile page
 - **Unified name management** — Each holding stores up to six name variants independently, each updated by its own source and never silently overwriting the others: `name_he` (IBI Hebrew brokerage name, authoritative), `name_tase_he` (Hebrew name from TASE registry), `name_tase_en` (English name from TASE registry), `name_yf_long` (full company name from Yahoo Finance), `name_yf_short` (short/ticker name from Yahoo Finance), and `name_en` (user-entered manual override). Sources write only to their own fields; visiting a position page never auto-modifies any name field
-- **Display preferences** — Per-column name source selection via the `/settings/display` page (accessible from the ⚙ dropdown). For each context (portfolio holdings, open/closed positions, daily details, trade log, rebalance, P&L chart labels, treemap labels, realized positions P&L chart labels, etc.) choose which name or symbol field to display. Settings are stored per language: Hebrew mode defaults to Hebrew TASE names and Hebrew symbols; English mode defaults to English TASE names and English symbols. Changes take effect immediately across all pages without redeployment
+- **Display preferences** — Per-column name source selection, accessible both from the `/settings/display` page and via a per-page ⚙ cog icon in each table card header. The cog opens a modal showing only the display settings relevant to that page; saving merges the change without touching other pages' settings. For each context (portfolio holdings, open/closed positions, daily details, trade log, rebalance, P&L chart labels, treemap labels, etc.) choose which name or symbol field to display. Settings are stored per language: Hebrew mode defaults to Hebrew TASE names and Hebrew symbols; English mode defaults to English TASE names and English symbols
 - **yfinance name review workflow** — The position detail page shows a "Refresh from yfinance" button. Clicking it fetches the latest `longName` and `shortName` from Yahoo Finance and presents a current → proposed comparison with per-field checkboxes. Only the fields you check are written to the holding. No name fields are ever written automatically on page load
 - **TASE Hebrew name fetch** — The TASE API integration now fetches both English (lang=1) and Hebrew (lang=0) names in a single refresh. `name_tase_he` is populated automatically alongside `name_tase_en` during admin TASE refresh and on name-change detection during daily import
 - **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. A "Fetch from TASE" button pre-fills English name and symbol from the TASE API. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
@@ -357,10 +359,10 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | Page | URL | Description |
 |------|-----|-------------|
 | **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap (cells clickable → position page), allocation donut, daily file upload |
-| **Positions** | `/positions` | All holdings with open/closed tabs, market value, cost, P&L, avg buy/sell prices (in Agorot) |
+| **Positions** | `/positions` | All holdings with open/closed tabs, market value, cost, P&L, avg buy/sell prices (in Agorot); open positions show Days Holding; closed positions show Days Held (integer) |
 | **Position detail** | `/position/<id>` | Full individual position view: price chart with buy/sell markers, company info from Yahoo Finance, trade history, FIFO lots, daily P&L chart |
 | **Account Overview** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries; aggregate stat cards (net invested, cost change, tax); deposit/withdrawal/dividend entry via "Add..." modal forms; portfolio value vs net invested and asset allocation history charts |
-| **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax; tax breakdown donut and stat cards equal-height side-by-side; closed-positions bar chart; defaults to current month on first load |
+| **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax; tax breakdown donut and stat cards (including Potential Future Tax) equal-height side-by-side; closed-positions P&L bar chart alongside a Potential Tax by Position table (height-matched, scrollable); defaults to current month on first load |
 | **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart (daily bars; period controlled by the page's date filter, no separate period toggle); click any date row to jump to Daily Details for that date |
 | **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
 | **Graphs** | `/graphs` | All charts in one place via shared partials: portfolio value vs net invested, monthly return %, historical performance, drawdown, calendar heatmap, asset allocation over time, P&L by position, daily P&L bar, security-type stacked bar, tax breakdown donut, closed-positions bar, portfolio map treemap, and allocation donut — drag-and-drop layout, resizable cards, show/hide per chart, reset-layout button |
@@ -399,16 +401,16 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Dashboard** | Portfolio allocation by security type with percentage labels | Donut |
 | **Daily Summary** | Daily P&L over the page-filtered period — daily bars only | Bar (green/red) |
 | **Daily Details** | P&L contribution by security type per day — period scoped by page date filter | Stacked bar |
-| **Trades** | Tax breakdown (gross gains / loss offset / net tax) | Donut |
+| **Trades** | Tax breakdown (gross gains / loss offset / net tax / potential future tax) | Donut |
 | **Trades** | Closed positions P&L % ranked | Horizontal bar |
 | **Position detail** | Price history with buy/sell markers — 8 range filter buttons | Line + markers |
 | **Position detail** | Daily P&L over time for the position | Bar (green/red) |
-| **Graphs** | Portfolio value vs net invested over time — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
+| **Graphs** | Portfolio value vs net invested over time — deposit event markers, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
 | **Graphs** | Historical performance — daily P&L bar with daily/weekly/monthly granularity toggle | Bar |
 | **Graphs** | Drawdown from peak — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
-| **Graphs** | Asset allocation over time — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
+| **Graphs** | Asset allocation over time — deposit event markers, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
 | **Graphs** | P&L by position — ranked by ILS or % toggle; label source configurable via Display Settings; full name on hover | Horizontal bar |
 | **Graphs** | Daily P&L bar (shared with Daily Summary page) — period, mode, and unit toggles | Bar |
 | **Graphs** | Security-type stacked bar (shared with Daily Details page) — period and unit toggles | Stacked bar |
@@ -416,8 +418,8 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Graphs** | Closed positions P&L (shared with Activity page) | Horizontal bar |
 | **Graphs** | Portfolio map treemap (shared with Dashboard) — grouped by security type | Treemap |
 | **Graphs** | Allocation by type donut (shared with Dashboard) | Donut |
-| **Account Overview** | Portfolio value vs net invested over time | Line |
-| **Account Overview** | Asset allocation over time | Stacked area |
+| **Account Overview** | Portfolio value vs net invested over time — with deposit event markers | Line |
+| **Account Overview** | Asset allocation over time — with deposit event markers | Stacked area |
 
 The **Graphs** page (`/graphs`) is the dedicated chart hub with all charts from every page aggregated via shared Jinja2 partials — any change to a chart is reflected everywhere automatically. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
 

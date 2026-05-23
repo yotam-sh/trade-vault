@@ -6,11 +6,36 @@
 </div>
 <script>
 (function() {
-    var snapshots = {{ snapshots|tojson }};
+    var snapshots    = {{ snapshots|tojson }};
+    var depositDates = {{ deposit_dates|tojson if deposit_dates is defined else '[]' }};
 
     function css(v) {
         return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
     }
+
+    var depositLinesPlugin = {
+        id: 'depositLines',
+        afterDraw: function(chart) {
+            var xAxis = chart.scales['x'];
+            var yAxis = chart.scales['y'];
+            if (!xAxis || !yAxis) return;
+            var ctx = chart.ctx;
+            depositDates.forEach(function(date) {
+                var idx = chart.data.labels.indexOf(date);
+                if (idx < 0) return;
+                var x = xAxis.getPixelForValue(idx);
+                ctx.save();
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(255,200,0,0.65)';
+                ctx.lineWidth = 1.5;
+                ctx.moveTo(x, yAxis.top);
+                ctx.lineTo(x, yAxis.bottom);
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+    };
 
     requestAnimationFrame(function() {
         var el = document.getElementById('pvChartTx');
@@ -21,6 +46,7 @@
         var invested = snapshots.map(function(s) { return s.net_invested; });
 
         var chart = new Chart(el.getContext('2d'), {
+            plugins: [depositLinesPlugin],
             type: 'line',
             data: {
                 labels: labels,

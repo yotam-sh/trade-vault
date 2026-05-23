@@ -53,3 +53,12 @@ def compute_yearly_tax():
         }
 
     return by_year, years
+
+
+def compute_potential_tax():
+    """Potential tax on unrealized gains (open positions × 25%)."""
+    from app.analytics.portfolio_analytics import get_portfolio_value
+    portfolio = get_portfolio_value()
+    unrealized = (portfolio or {}).get('unrealized_pnl', 0) or 0
+    taxable = max(0, unrealized)
+    return {'unrealized_pnl': unrealized, 'potential_tax': round(taxable * 0.25, 2)}

@@ -2,16 +2,6 @@
     <div class="card-header">
         <span>{{ t.chart_type_by_day }}</span>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-            {% if not chart_period_hidden %}
-            <div class="lang-options" id="typePeriodToggle">
-                <button class="lang-option lang-option-sm active" data-period="7" aria-pressed="true">{{ t.filter_1wk }}</button>
-                <button class="lang-option lang-option-sm" data-period="30" aria-pressed="false">{{ t.filter_1mnth }}</button>
-                <button class="lang-option lang-option-sm" data-period="365" aria-pressed="false">{{ t.filter_1yr }}</button>
-                <button class="lang-option lang-option-sm" data-period="-1" aria-pressed="false">{{ t.filter_ytd }}</button>
-                <button class="lang-option lang-option-sm" data-period="0" aria-pressed="false">{{ t.chart_mode_all }}</button>
-            </div>
-            <span class="ctrl-sep">|</span>
-            {% endif %}
             <div class="lang-options" id="typeUnitToggle" style="visibility:hidden;">
                 <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
                 <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
@@ -37,8 +27,6 @@
     var typeColors = ['#58a6ff', '#3fb950', '#f0883e', '#bc8cff', '#8b949e'];
     var typeLabels = [T.type_stock, T.type_mutual_fund, T.type_etf, T.type_bond, T.type_other];
     var activePeriod = 7;
-    var periodHidden = {{ 'true' if chart_period_hidden else 'false' }};
-    if (periodHidden) activePeriod = 0;
     var activeUnit = localStorage.getItem('typeByDay_unit') || 'ils';
 
     function getSlice(period) {
@@ -124,19 +112,6 @@
             chart.data.datasets = buildDatasets(s, activeUnit);
             chart.update();
         }
-
-        document.querySelectorAll('#typePeriodToggle .lang-option').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var p = parseInt(btn.getAttribute('data-period'), 10);
-                if (p === activePeriod) return;
-                activePeriod = p;
-                document.querySelectorAll('#typePeriodToggle .lang-option').forEach(function(b) {
-                    b.classList.toggle('active', b === btn);
-                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
-                });
-                refreshChart();
-            });
-        });
 
         document.getElementById('typeUnitToggle').style.visibility = '';
         document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(btn) {

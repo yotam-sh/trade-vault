@@ -77,7 +77,6 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
-                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
@@ -160,7 +159,10 @@
 
         <!-- Per-security daily data (full width, scrollable) -->
         <div class="card">
-            <div class="card-header">{{ t.detail_title }}</div>
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ t.detail_title }}</span>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+            </div>
             <div class="table-wrapper" style="max-height: 500px; overflow-y: auto; resize: vertical;">
                 <table id="details-table" class="sortable filterable">
                             <caption class="visually-hidden">{{ t.detail_title }}</caption>
@@ -273,7 +275,6 @@
                                     <th scope="col">{{ t.th_date }}</th>
                                     <th scope="col">{{ t.th_total_change_ils }}</th>
                                     <th scope="col">{{ t.th_total_change_pct }}</th>
-                                    <th scope="col">{{ t.th_securities_count }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -282,7 +283,6 @@
                                     <td>{{ day.date | format_date(lang) }}</td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(day.total_change_ils) }}</td>
                                     <td class="num pnl">{{ '{:.2f}'.format(day.total_change_pct) }}%</td>
-                                    <td class="num">{{ day.count }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -298,5 +298,7 @@
     </div>
 
     <script src="/static/app.js"></script>
+{% set display_prefs_context = 'daily_details' %}
+{% include 'partials/_display_prefs_modal.html' %}
 </body>
 </html>

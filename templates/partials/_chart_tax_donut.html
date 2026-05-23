@@ -17,10 +17,12 @@
         return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
     }
 
-    var salesSummary = {{ sales_summary|tojson }};
-    var gains       = salesSummary.total_gains || 0;
-    var lossOffset  = salesSummary.tax_offset_from_losses || 0;
-    var netTax      = salesSummary.net_tax || 0;
+    var salesSummary    = {{ sales_summary|tojson }};
+    var potentialTaxData = {{ potential_tax_data|tojson if potential_tax_data is defined and potential_tax_data else 'null' }};
+    var gains        = salesSummary.total_gains || 0;
+    var lossOffset   = salesSummary.tax_offset_from_losses || 0;
+    var netTax       = salesSummary.net_tax || 0;
+    var potentialTax = potentialTaxData ? (potentialTaxData.potential_tax || 0) : 0;
 
     requestAnimationFrame(function() {
         var el = document.getElementById('taxDonutChart');
@@ -44,10 +46,10 @@
         var taxDonut = new Chart(el.getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: [T.label_gross_gains, T.label_loss_offset, T.label_net_tax],
+                labels: [T.label_gross_gains, T.label_loss_offset, T.label_net_tax, T.label_potential_tax],
                 datasets: [{
-                    data: [gains, lossOffset, netTax],
-                    backgroundColor: [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'],
+                    data: [gains, lossOffset, netTax, potentialTax],
+                    backgroundColor: [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc', '#f0883ecc'],
                     borderColor: css('--bg-secondary'),
                     borderWidth: 2,
                 }]
@@ -74,7 +76,7 @@
         new ResizeObserver(function() { taxDonut.resize(); }).observe(el.parentElement);
 
         new MutationObserver(function() {
-            taxDonut.data.datasets[0].backgroundColor = [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc'];
+            taxDonut.data.datasets[0].backgroundColor = [css('--positive') + 'cc', css('--text-secondary') + 'cc', css('--negative') + 'cc', '#f0883ecc'];
             taxDonut.data.datasets[0].borderColor = css('--bg-secondary');
             taxDonut.options.plugins.legend.labels.color = css('--text-primary');
             taxDonut.update();

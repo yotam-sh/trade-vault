@@ -595,6 +595,34 @@ tr.group-header {
     .tax-summary-grid { flex-direction: column; }
 }
 
+.two-col-charts {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+.two-col-charts > .card {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+.two-col-charts > .card.table-card {
+    /* canvas(300) + card padding(40) + header(40) + canvas margin(16) = 396px */
+    max-height: 396px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.two-col-charts > .card.table-card .table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+@media (max-width: 900px) {
+    .two-col-charts { flex-direction: column; }
+}
+
 .stat-card {
     background: var(--bg-secondary);
     border-radius: 8px;
@@ -1726,6 +1754,26 @@ body.graphs-edit-mode .hidden-charts-tray { display: block; }
 .modal-content .upload-row input[type="text"] { width: 100%; box-sizing: border-box; }
 .modal-content .upload-row .calendar-picker { width: 100%; }
 .modal-content .upload-row button[type="submit"] { margin-top: 12px; width: 100%; }
+
+/* ── Table display-prefs cog button ── */
+.table-settings-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 1rem; color: var(--text-secondary);
+    padding: 2px 6px; border-radius: 4px;
+    transition: color 0.15s; line-height: 1;
+}
+.table-settings-btn:hover { color: var(--text-primary); }
+.prefs-table { width: 100%; border-collapse: collapse; }
+.prefs-table th, .prefs-table td { padding: 6px 8px; text-align: start; border-bottom: 1px solid var(--border); }
+.prefs-table tbody tr:last-child td { border-bottom: none; }
+.modal-body { padding: 4px 0; }
+.modal-footer { margin-top: 16px; display: flex; justify-content: flex-end; }
+.btn-primary {
+    background: var(--accent); color: #fff; border: none;
+    padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+    transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
 
 /* ── Add button dropdown ── */
 .add-btn-wrap { position: relative; }

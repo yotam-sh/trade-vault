@@ -75,7 +75,6 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
-                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
@@ -108,7 +107,10 @@
 
         <!-- Open Positions -->
         <div class="card">
-            <div class="card-header">{{ t.positions_open }}</div>
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ t.positions_open }}</span>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+            </div>
             {% if data.open %}
             <table class="sortable">
                 <caption class="visually-hidden">{{ t.positions_open }}</caption>
@@ -175,7 +177,7 @@
                         <th scope="col" class="num">{{ t.th_cost_ils }}</th>
                         <th scope="col" class="num">{{ t.position_realized_pnl }} ₪</th>
                         <th scope="col" class="num">{{ t.position_realized_pnl }} %</th>
-                        <th scope="col">{{ t.position_period }}</th>
+                        <th scope="col" class="num">{{ t.th_days_held }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -200,7 +202,7 @@
                         <td class="num">{{ '{:,.2f}'.format(pos.total_cost) }}</td>
                         <td class="num pnl">{{ '{:,.2f}'.format(pos.total_pnl) }}</td>
                         <td class="num pnl">{{ '{:.2f}'.format(pos.pnl_pct) }}%</td>
-                        <td>{{ pos.period }}</td>
+                        <td class="num">{{ pos.days_held if pos.days_held is not none else '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -213,5 +215,7 @@
 
     <script>var T = {{ t_json | safe }};</script>
     <script src="/static/app.js"></script>
+{% set display_prefs_context = 'positions' %}
+{% include 'partials/_display_prefs_modal.html' %}
 </body>
 </html>

@@ -1,0 +1,208 @@
+{% set name_sources = [
+    ('name_tase_en',  t.name_src_name_tase_en),
+    ('name_tase_he',  t.name_src_name_tase_he),
+    ('name_he',       t.name_src_name_he),
+    ('name_yf_long',  t.name_src_name_yf_long),
+    ('name_yf_short', t.name_src_name_yf_short),
+    ('name_en',       t.name_src_name_en),
+    ('symbol',        t.name_src_symbol),
+    ('symbol_en',     t.name_src_symbol_en),
+] %}
+<div id="display-prefs-modal" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="display-prefs-modal-title">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title" id="display-prefs-modal-title">{{ t.nav_display_settings }}</span>
+            <button class="modal-close" id="display-prefs-close" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+            <table class="prefs-table">
+                <thead>
+                    <tr>
+                        <th>{{ t.disp_col_context }}</th>
+                        <th>{{ t.disp_col_source }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if display_prefs_context == 'portfolio' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_holdings_name }}</td>
+                        <td>
+                            <select name="portfolio_holdings_name" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.portfolio_holdings_name == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_holdings_symbol }}</td>
+                        <td>
+                            <select name="portfolio_holdings_symbol" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.portfolio_holdings_symbol == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+
+                    {% elif display_prefs_context == 'positions' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_positions_open_name }}</td>
+                        <td>
+                            <select name="positions_open_name" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.positions_open_name == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_positions_open_symbol }}</td>
+                        <td>
+                            <select name="positions_open_symbol" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.positions_open_symbol == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_positions_closed_name }}</td>
+                        <td>
+                            <select name="positions_closed_name" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.positions_closed_name == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_positions_closed_symbol }}</td>
+                        <td>
+                            <select name="positions_closed_symbol" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.positions_closed_symbol == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+
+                    {% elif display_prefs_context == 'daily_summary' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_best_worst }}</td>
+                        <td>
+                            <select name="daily_summary_best_worst" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.daily_summary_best_worst == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+
+                    {% elif display_prefs_context == 'daily_details' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_daily_details_name }}</td>
+                        <td>
+                            <select name="daily_details_name" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.daily_details_name == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_daily_details_symbol }}</td>
+                        <td>
+                            <select name="daily_details_symbol" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.daily_details_symbol == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+
+                    {% elif display_prefs_context == 'rebalance' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_rebalance_name }}</td>
+                        <td>
+                            <select name="rebalance_name" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.rebalance_name == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+
+                    {% elif display_prefs_context == 'trades' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_trades_name }}</td>
+                        <td>
+                            <select name="trades_name" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.trades_name == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_trades_symbol }}</td>
+                        <td>
+                            <select name="trades_symbol" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.trades_symbol == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+
+                    {% elif display_prefs_context == 'graphs' %}
+                    <tr>
+                        <td>{{ t.disp_ctx_graphs_pnl }}</td>
+                        <td>
+                            <select name="graphs_pnl_labels" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.graphs_pnl_labels == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ t.disp_ctx_graphs_treemap }}</td>
+                        <td>
+                            <select name="graphs_treemap_labels" class="pref-select">
+                                {% for val, label in name_sources %}<option value="{{ val }}" {% if display_prefs.graphs_treemap_labels == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button id="display-prefs-save-btn" class="btn-primary">{{ t.display_settings_save }}</button>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var modal = document.getElementById('display-prefs-modal');
+    var saveBtn = document.getElementById('display-prefs-save-btn');
+    var closeBtn = document.getElementById('display-prefs-close');
+
+    function openDisplayPrefsModal() {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+    window.openDisplayPrefsModal = openDisplayPrefsModal;
+
+    function closeModal() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+
+    saveBtn.addEventListener('click', function() {
+        var updates = {};
+        modal.querySelectorAll('select[name]').forEach(function(sel) {
+            updates[sel.name] = sel.value;
+        });
+        fetch('/api/settings/display-prefs', {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(allPrefs) {
+            var merged = Object.assign({}, allPrefs, updates);
+            return fetch('/api/settings/display-prefs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify(merged)
+            });
+        })
+        .then(function() { location.reload(); });
+    });
+})();
+</script>

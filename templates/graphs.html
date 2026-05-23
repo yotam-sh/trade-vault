@@ -83,7 +83,6 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
-                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
@@ -119,6 +118,7 @@
             <button class="lang-option layout-discard-btn" id="discardLayoutBtn">{{ t.btn_discard_layout }}</button>
             <button class="lang-option layout-reset-btn" id="resetLayoutBtn">{{ t.btn_reset_layout }}</button>
             <button class="lang-option" id="editLayoutBtn">{{ t.btn_edit_layout }}</button>
+            <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}" style="font-size:1.1rem;">&#9881;</button>
         </div>
 
         {% if snapshots %}
@@ -306,6 +306,31 @@
         var topPositions     = {{ top_positions|tojson }};
         var lang             = {{ lang|tojson }};
         var pnlLabelField    = {{ display_prefs.graphs_pnl_labels|tojson }};
+        var depositDates     = {{ deposit_dates|tojson }};
+
+        var depositLinesPlugin = {
+            id: 'depositLines',
+            afterDraw: function(chart) {
+                var xAxis = chart.scales['x'];
+                var yAxis = chart.scales['y'];
+                if (!xAxis || !yAxis) return;
+                var ctx = chart.ctx;
+                depositDates.forEach(function(date) {
+                    var idx = chart.data.labels.indexOf(date);
+                    if (idx < 0) return;
+                    var x = xAxis.getPixelForValue(idx);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeStyle = 'rgba(255,200,0,0.65)';
+                    ctx.lineWidth = 1.5;
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.stroke();
+                    ctx.restore();
+                });
+            }
+        };
 
         var CHART_INSTANCES = {};
         var CHART_TITLES = {
@@ -430,7 +455,8 @@
                         grid: { color: css('--bg-tertiary') }
                     }
                 }
-            }
+            },
+            plugins: [depositLinesPlugin]
         });
         document.querySelector('[data-chart-id="A"] .zoom-reset-btn').addEventListener('click', function() {
             chartA.resetZoom(); this.style.display = 'none';
@@ -1209,7 +1235,8 @@
                         grid: { color: css('--bg-tertiary') }
                     }
                 }
-            }
+            },
+            plugins: [depositLinesPlugin]
         });
         document.querySelector('[data-chart-id="F"] .zoom-reset-btn').addEventListener('click', function() {
             chartF.resetZoom(); this.style.display = 'none';
@@ -1852,5 +1879,7 @@
     })();
     </script>
     {% endif %}
+{% set display_prefs_context = 'graphs' %}
+{% include 'partials/_display_prefs_modal.html' %}
 </body>
 </html>

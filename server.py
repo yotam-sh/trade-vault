@@ -37,6 +37,7 @@ from app.analytics import (
     get_trade_history,
     get_closed_positions,
     compute_yearly_tax,
+    compute_potential_tax,
     get_position_data,
     get_positions_list,
     get_historical_performance,
@@ -192,7 +193,7 @@ def require_admin(f):
     return decorated
 
 
-APP_VERSION = '0.8.5'
+APP_VERSION = '0.8.6'
 
 
 _DEFAULT_DISPLAY_PREFS_HE = {
@@ -366,10 +367,13 @@ def transactions_view():
 
     snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
     allocation_history = get_allocation_history()
+    from app.transactions import list_transactions as _list_txns
+    deposit_dates = [d['date'] for d in _list_txns(type_='deposit')]
 
     return render_template('transactions.html', log=log, summary=summary,
                            start=start, end=end, snapshots=snapshots,
-                           allocation_history=allocation_history)
+                           allocation_history=allocation_history,
+                           deposit_dates=deposit_dates)
 
 
 @app.route('/add-deposit', methods=['POST'])
@@ -655,10 +659,39 @@ def trades_view():
             'tax_offset_from_losses': 0, 'net_tax': 0,
         })
 
+    potential_tax_data = compute_potential_tax()
+
+    raw_open = get_positions_list()['open']
+    open_positions = []
+    for pos in raw_open:
+        pnl = pos['unrealized_pnl']
+        days = pos.get('days_holding')
+        if days is None:
+            duration = '—'
+        elif days >= 730:
+            y, m = days // 365, (days % 365) // 30
+            duration = f'{y}y {m}m' if m else f'{y}y'
+        elif days >= 365:
+            m = (days % 365) // 30
+            duration = f'1y {m}m' if m else '1y'
+        elif days >= 30:
+            duration = f'{days // 30}m'
+        else:
+            duration = f'{days}d'
+        open_positions.append({
+            **pos,
+            'holding_duration': duration,
+            'days_holding': days or 0,
+            'potential_tax':  round(max(0,  pnl) * 0.25, 2),
+            'loss_offset':    round(max(0, -pnl) * 0.25, 2),
+        })
+
     return render_template('trades.html', trades=trades, closed=closed,
                            sales_summary=sales_summary, tax_years=tax_years,
                            selected_year=selected_year,
-                           start=start, end=end)
+                           start=start, end=end,
+                           potential_tax_data=potential_tax_data,
+                           open_positions=open_positions)
 
 
 @app.route('/api/graph-layout', methods=['GET'])
@@ -718,6 +751,10 @@ def graphs_view():
     year_data = by_year.get(current_year, {})
     sales_summary = year_data if year_data.get('total_gains', 0) > 0 else None
 
+    from app.transactions import list_transactions
+    deposit_dates = [d['date'] for d in list_transactions(type_='deposit')]
+    potential_tax_data = compute_potential_tax()
+
     return render_template(
         'graphs.html',
         snapshots=snapshots,
@@ -732,6 +769,8 @@ def graphs_view():
         portfolio=portfolio,
         closed=closed,
         sales_summary=sales_summary,
+        deposit_dates=deposit_dates,
+        potential_tax_data=potential_tax_data,
     )
 
 

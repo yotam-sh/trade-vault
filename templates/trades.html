@@ -78,7 +78,6 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
-                        <a href="/settings/display" class="settings-link">{{ t.nav_display_settings }}</a>
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
@@ -190,13 +189,30 @@
                     <div class="stat-label">{{ t.stat_net_tax }}</div>
                     <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.net_tax) }}</div>
                 </div>
+                {% if potential_tax_data and potential_tax_data.potential_tax > 0 %}
+                <div class="stat-card">
+                    <div class="stat-label">{{ t.stat_potential_tax }}</div>
+                    <div class="stat-value">₪{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% if potential_tax_data and potential_tax_data.potential_tax > 0 and not sales_summary %}
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div class="stat-label">{{ t.stat_potential_tax }}</div>
+                <div class="stat-value">₪{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
             </div>
         </div>
         {% endif %}
 
         <!-- Trade Log -->
         <div class="card">
-            <div class="card-header">{{ t.trade_log_title }}</div>
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ t.trade_log_title }}</span>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+            </div>
             <div class="table-wrapper">
                 <table class="sortable">
                     <caption class="visually-hidden">{{ t.trade_log_title }}</caption>
@@ -269,8 +285,57 @@
         </div>
         {% endif %}
 
-        <!-- Closed Positions -->
-        {% if closed %}{% include 'partials/_chart_closed_pnl.html' %}{% endif %}
+        <!-- Closed Positions P&L chart + Open Positions Tax Table -->
+        {% if closed or open_positions %}
+        <div class="two-col-charts">
+            {% if closed %}{% include 'partials/_chart_closed_pnl.html' %}{% endif %}
+
+            {% if open_positions %}
+            <div class="card table-card">
+                <div class="card-header">{{ t.open_pnl_tax_title }}</div>
+                <div class="table-wrapper">
+                    <table class="sortable">
+                        <caption class="visually-hidden">{{ t.open_pnl_tax_title }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ t.th_name }}</th>
+                                <th scope="col">{{ t.th_holding_duration }}</th>
+                                <th scope="col">%</th>
+                                <th scope="col">{{ t.th_pnl_ils }}</th>
+                                <th scope="col">{{ t.th_tax_exposure }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in open_positions %}
+                            <tr data-pnl="{{ p.unrealized_pnl }}" data-sort-days="{{ p.days_holding }}">
+                                <td><a href="/position/{{ p.holding_id }}" class="position-link">{{ p[display_prefs.trades_name] or p.name_en or p.name_he }}</a></td>
+                                <td data-sort="{{ p.days_holding }}">{{ p.holding_duration }}</td>
+                                <td class="num pnl">{{ '{:.2f}'.format(p.unrealized_pnl_pct) }}%</td>
+                                <td class="num pnl">₪{{ '{:,.2f}'.format(p.unrealized_pnl) }}</td>
+                                <td class="num {% if p.unrealized_pnl >= 0 %}negative{% else %}positive{% endif %}">
+                                    {% if p.unrealized_pnl >= 0 %}
+                                    ₪{{ '{:,.2f}'.format(p.potential_tax) }}
+                                    {% else %}
+                                    (₪{{ '{:,.2f}'.format(p.loss_offset) }})
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="grand-total">
+                                <td colspan="3">{{ t.grand_total }}</td>
+                                <td class="num pnl">₪{{ '{:,.2f}'.format(open_positions|sum(attribute='unrealized_pnl')) }}</td>
+                                <td class="num">₪{{ '{:,.2f}'.format(open_positions|sum(attribute='potential_tax') - open_positions|sum(attribute='loss_offset')) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% if closed %}
         <div class="card">
             <div class="table-wrapper">
@@ -436,5 +501,7 @@
         });
     })();
     </script>
+{% set display_prefs_context = 'trades' %}
+{% include 'partials/_display_prefs_modal.html' %}
 </body>
 </html>

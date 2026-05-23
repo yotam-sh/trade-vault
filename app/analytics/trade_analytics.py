@@ -1,5 +1,7 @@
 """Trade analytics - trade history and closed positions."""
 
+from datetime import date as _date
+
 from app.holdings import get_holding
 from app.transactions import list_transactions
 from app.analytics.daily_analytics import get_daily_details
@@ -191,7 +193,10 @@ def get_closed_positions():
             'holding_id': hid,
             'name_he': most_recent.get('name_he', ''),
             'name_en': most_recent.get('name_en'),
+            'name_tase_he': holding.get('name_tase_he') if holding else None,
+            'name_tase_en': holding.get('name_tase_en') if holding else None,
             'symbol': most_recent.get('symbol', ''),
+            'symbol_en': holding.get('symbol_en') if holding else None,
             'ticker': most_recent.get('ticker'),
             'security_type': security_type,
             'total_shares': total_buy_shares,
@@ -202,7 +207,10 @@ def get_closed_positions():
             'pnl_pct': round(pnl_pct, 2),
             'buy_dates': buy_dates,
             'sell_dates': sell_dates,
-            'period': f"{buy_dates[0]} - {sell_dates[-1]}" if buy_dates and sell_dates else '',
+            'days_held': (
+                (_date.fromisoformat(sell_dates[-1]) - _date.fromisoformat(buy_dates[0])).days
+                if buy_dates and sell_dates else None
+            ),
         })
 
     return sorted(closed, key=lambda c: c.get('sell_dates', [''])[-1] if c.get('sell_dates') else '', reverse=True)
