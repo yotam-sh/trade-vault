@@ -193,7 +193,7 @@ def require_admin(f):
     return decorated
 
 
-APP_VERSION = '0.8.6'
+APP_VERSION = '0.8.7'
 
 
 _DEFAULT_DISPLAY_PREFS_HE = {

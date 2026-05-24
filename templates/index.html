@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
@@ -188,9 +189,11 @@
         <div class="card">
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>{{ t.holdings_title }} <a href="/export/portfolio" class="export-btn">{{ t.btn_export }} &#8595;</a></span>
-                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="text" class="table-search" placeholder="{{ t.search_placeholder }}" data-table="holdings-table" style="margin:0;">
+                    <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+                </div>
             </div>
-            <input type="text" class="table-search" placeholder="{{ t.search_placeholder }}" data-table="holdings-table">
             <div class="table-wrapper">
                 <table id="holdings-table" class="sortable">
                     <caption class="visually-hidden">{{ t.holdings_title }}</caption>

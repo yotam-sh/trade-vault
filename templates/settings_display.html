@@ -125,6 +125,8 @@
             ('name_yf_long',  t.name_src_name_yf_long),
             ('name_yf_short', t.name_src_name_yf_short),
             ('name_en',       t.name_src_name_en),
+        ] %}
+        {% set symbol_sources = [
             ('symbol',        t.name_src_symbol),
             ('symbol_en',     t.name_src_symbol_en),
         ] %}
@@ -157,7 +159,7 @@
                             <td>{{ t.disp_ctx_holdings_symbol }}</td>
                             <td>
                                 <select name="portfolio_holdings_symbol" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.portfolio_holdings_symbol == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
@@ -181,7 +183,7 @@
                             <td>{{ t.disp_ctx_positions_open_symbol }}</td>
                             <td>
                                 <select name="positions_open_symbol" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.positions_open_symbol == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
@@ -201,7 +203,7 @@
                             <td>{{ t.disp_ctx_positions_closed_symbol }}</td>
                             <td>
                                 <select name="positions_closed_symbol" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.positions_closed_symbol == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
@@ -239,7 +241,7 @@
                             <td>{{ t.disp_ctx_daily_details_symbol }}</td>
                             <td>
                                 <select name="daily_details_symbol" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.daily_details_symbol == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
@@ -277,7 +279,7 @@
                             <td>{{ t.disp_ctx_trades_symbol }}</td>
                             <td>
                                 <select name="trades_symbol" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.trades_symbol == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
@@ -290,7 +292,7 @@
                             <td>{{ t.disp_ctx_graphs_pnl }}</td>
                             <td>
                                 <select name="graphs_pnl_labels" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.graphs_pnl_labels == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
@@ -300,7 +302,7 @@
                             <td>{{ t.disp_ctx_graphs_treemap }}</td>
                             <td>
                                 <select name="graphs_treemap_labels" class="pref-select">
-                                    {% for val, label in name_sources %}
+                                    {% for val, label in symbol_sources %}
                                         <option value="{{ val }}" {% if prefs.graphs_treemap_labels == val %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>

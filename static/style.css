@@ -1763,9 +1763,11 @@ body.graphs-edit-mode .hidden-charts-tray { display: block; }
     transition: color 0.15s; line-height: 1;
 }
 .table-settings-btn:hover { color: var(--text-primary); }
-.prefs-table { width: 100%; border-collapse: collapse; }
+.prefs-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .prefs-table th, .prefs-table td { padding: 6px 8px; text-align: start; border-bottom: 1px solid var(--border); }
+.prefs-table th:first-child, .prefs-table td:first-child { width: 55%; }
 .prefs-table tbody tr:last-child td { border-bottom: none; }
+.pref-select { width: 100%; box-sizing: border-box; }
 .modal-body { padding: 4px 0; }
 .modal-footer { margin-top: 16px; display: flex; justify-content: flex-end; }
 .btn-primary {
