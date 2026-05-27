@@ -280,6 +280,13 @@ python main.py set-ticker <search> <ticker>
 ```
 Assigns a ticker symbol to a holding. `<search>` can be a TASE ID (number) or a Hebrew name fragment.
 
+### Syncing active holdings
+
+```bash
+python main.py sync-holdings
+```
+Reads the latest portfolio snapshot and syncs the `is_active` flag on all holdings: sets it to `true` for securities with a current position (quantity > 0) and `false` for holdings no longer held. Useful after a bulk import or manual DB correction to ensure the positions list and holdings registry are in agreement.
+
 ### Yahoo Finance integration
 
 **Map TASE security to Yahoo Finance symbol:**
