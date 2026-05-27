@@ -78,7 +78,32 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { labels: { color: css('--text-primary') } },
+                    legend: {
+                        labels: {
+                            color: css('--text-primary'),
+                            usePointStyle: true,
+                            generateLabels: function(chart) {
+                                var items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                if (depositDates.length) {
+                                    items.push({
+                                        text: T.th_deposits,
+                                        strokeStyle: 'rgba(255,200,0,0.85)',
+                                        fillStyle: 'transparent',
+                                        lineWidth: 1.5,
+                                        lineDash: [4, 4],
+                                        hidden: false,
+                                        pointStyle: 'line',
+                                        datasetIndex: -1,
+                                    });
+                                }
+                                return items;
+                            }
+                        },
+                        onClick: function(e, legendItem, legend) {
+                            if (legendItem.datasetIndex === undefined || legendItem.datasetIndex < 0) return;
+                            Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {

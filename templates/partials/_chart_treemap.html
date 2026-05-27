@@ -3,9 +3,10 @@
         <span>{{ t.treemap_title }}</span>
         <div style="display:flex; gap:8px; align-items:center;">
             <div class="lang-options" id="treemapMetricToggle">
-                <button class="lang-option active" data-metric="daily" aria-pressed="true">{{ t.toggle_daily_pct }}</button>
-                <button class="lang-option" data-metric="total" aria-pressed="false">{{ t.toggle_total_pct }}</button>
+                <button class="lang-option lang-option-sm active" data-metric="daily" aria-pressed="true">{{ t.toggle_daily_pct }}</button>
+                <button class="lang-option lang-option-sm" data-metric="total" aria-pressed="false">{{ t.toggle_total_pct }}</button>
             </div>
+            <button class="table-settings-btn" onclick="openDisplayPrefsModal('graphs_treemap', this)" title="Display settings">&#9881;</button>
             <div class="chart-edit-controls">
                 <button class="chart-ctrl-btn lock-btn">🔓</button>
                 <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>

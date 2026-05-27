@@ -166,7 +166,8 @@ def get_daily_details(start_date=None, end_date=None):
 def get_daily_type_chart_data(start_date=None, end_date=None):
     """Return daily change ILS aggregated by security type for the stacked bar chart.
 
-    Returns a list of {date, stock, mutual_fund, etf, bond, other} dicts.
+    Returns a list of {date, stock, mutual_fund, etf, bond, other, total_value} dicts.
+    total_value is the sum of all holdings' market_value that day, used as % denominator.
     """
     details = get_daily_details(start_date, end_date)
 
@@ -176,11 +177,12 @@ def get_daily_type_chart_data(start_date=None, end_date=None):
     for d in details:
         dt = d['date']
         if dt not in by_date:
-            by_date[dt] = {'stock': 0, 'mutual_fund': 0, 'etf': 0, 'bond': 0, 'other': 0}
+            by_date[dt] = {'stock': 0, 'mutual_fund': 0, 'etf': 0, 'bond': 0, 'other': 0, 'total_value': 0}
         sec_type = d.get('security_type') or 'other'
         if sec_type not in by_date[dt]:
             sec_type = 'other'
         by_date[dt][sec_type] += d.get('change_ils', 0) or 0
+        by_date[dt]['total_value'] += d.get('market_value', 0) or 0
 
     result = []
     for dt, totals in by_date.items():
@@ -191,6 +193,7 @@ def get_daily_type_chart_data(start_date=None, end_date=None):
             'etf': round(totals['etf'], 2),
             'bond': round(totals['bond'], 2),
             'other': round(totals['other'], 2),
+            'total_value': round(totals['total_value'], 2),
         })
     return result
 

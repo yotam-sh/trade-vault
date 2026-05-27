@@ -2,10 +2,11 @@
     <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
         <span>{{ t.closed_title }}</span>
         <div style="display:flex; gap:8px; align-items:center;">
-            <div class="lang-options" id="closedUnitToggle">
+            <div class="unit-switch" id="closedUnitToggle" data-active="ils">
                 <button class="lang-option active" data-unit="ils" aria-pressed="true">₪</button>
                 <button class="lang-option" data-unit="pct" aria-pressed="false">%</button>
             </div>
+            <button class="table-settings-btn" onclick="openDisplayPrefsModal('trades_closed', this)" title="Display settings">&#9881;</button>
             <div class="chart-edit-controls">
                 <button class="chart-ctrl-btn lock-btn">🔓</button>
                 <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
@@ -103,12 +104,12 @@
 
         document.querySelectorAll('#closedUnitToggle .lang-option').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var unit = btn.getAttribute('data-unit');
-                if (unit === activeUnit) return;
-                activeUnit = unit;
+                activeUnit = activeUnit === 'ils' ? 'pct' : 'ils';
+                document.getElementById('closedUnitToggle').setAttribute('data-active', activeUnit);
                 document.querySelectorAll('#closedUnitToggle .lang-option').forEach(function(b) {
-                    b.classList.toggle('active', b === btn);
-                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                    var on = b.getAttribute('data-unit') === activeUnit;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
                 });
                 var s = getSorted();
                 var v = getValues(s);

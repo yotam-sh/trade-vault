@@ -162,7 +162,7 @@
         <div class="card">
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>{{ t.detail_title }}</span>
-                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal('daily_details', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
             </div>
             <div class="table-wrapper" style="max-height: 500px; overflow-y: auto; resize: vertical;">
                 <table id="details-table" class="sortable filterable">
@@ -208,7 +208,10 @@
         <!-- Pivot tables (stacked below main table) -->
         <!-- Pivot by security type -->
         <div class="card">
-                    <div class="card-header">{{ t.pivot_security_title }}</div>
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>{{ t.pivot_security_title }}</span>
+                        <button class="table-settings-btn" onclick="openDisplayPrefsModal('daily_details_pivot', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
+                    </div>
                     <div class="table-wrapper">
                         <table class="sortable group-sortable">
                             <caption class="visually-hidden">{{ t.pivot_security_title }}</caption>
@@ -230,7 +233,7 @@
                                 </tr>
                                 {% for sec in group.securities %}
                                 <tr>
-                                    <td><a href="/position/{{ sec.holding_id }}" class="position-link">{{ sec[display_prefs.daily_details_name] or sec.name_en or sec.name }}</a></td>
+                                    <td><a href="/position/{{ sec.holding_id }}" class="position-link">{{ sec[display_prefs.daily_details_pivot_name] or sec.name_en or sec.name }}</a></td>
                                     <td class="num pnl">{{ '{:,.2f}'.format(sec.total_change_ils) }}</td>
                                     <td class="num positive">{{ '{:,.2f}'.format(sec.max_change_ils or 0) }}</td>
                                     <td class="num negative">{{ '{:,.2f}'.format(sec.min_change_ils or 0) }}</td>

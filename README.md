@@ -29,7 +29,7 @@ Created with Claude Code.
 - **Pivot analytics** — Aggregations by security type and by date with subtotals
 - **Best/worst performers** — Daily summary highlights top and bottom movers
 - **Closed position tracking** — P&L summary for fully sold positions, including a Days Held column (integer count from first buy to last sell date)
-- **Deposit event markers** — Yellow dashed vertical lines mark deposit dates on the Portfolio Value Over Time and Asset Allocation Over Time charts, appearing on both the Account Overview and Graphs pages
+- **Deposit event markers** — Yellow dashed vertical lines mark deposit dates on the Portfolio Value Over Time and Asset Allocation Over Time charts, appearing on both the Account Overview and Graphs pages. Deposit dates also appear as a labelled dashed-line entry in each chart's legend so the markers are self-explanatory without hovering
 - **Potential future tax** — The Activity page shows an additional "Potential Future Tax" stat card (unrealized gains × 25%) and a fourth segment in the Tax Breakdown donut. A sortable "Potential Tax by Position" table lists each open position's holding duration, % change, unrealized P&L, and estimated tax liability or loss offset — displayed at the same height as the Realized Positions P&L chart with internal scrolling
 - **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
 - **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the Hebrew TASE symbol is also updated; English name and symbol are re-fetched from the TASE public API and the holding is updated silently; name changes are printed in the import log
@@ -405,12 +405,12 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Trades** | Closed positions P&L % ranked | Horizontal bar |
 | **Position detail** | Price history with buy/sell markers — 8 range filter buttons | Line + markers |
 | **Position detail** | Daily P&L over time for the position | Bar (green/red) |
-| **Graphs** | Portfolio value vs net invested over time — deposit event markers, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
+| **Graphs** | Portfolio value vs net invested over time — deposit markers on chart and in legend, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
 | **Graphs** | Historical performance — daily P&L bar with daily/weekly/monthly granularity toggle | Bar |
 | **Graphs** | Drawdown from peak — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
 | **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
-| **Graphs** | Asset allocation over time — deposit event markers, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
+| **Graphs** | Asset allocation over time — deposit markers on chart and in legend, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
 | **Graphs** | P&L by position — ranked by ILS or % toggle; label source configurable via Display Settings; full name on hover | Horizontal bar |
 | **Graphs** | Daily P&L bar (shared with Daily Summary page) — period, mode, and unit toggles | Bar |
 | **Graphs** | Security-type stacked bar (shared with Daily Details page) — period and unit toggles | Stacked bar |
@@ -418,8 +418,8 @@ Each page includes contextual charts relevant to its data. All charts use [Chart
 | **Graphs** | Closed positions P&L (shared with Activity page) | Horizontal bar |
 | **Graphs** | Portfolio map treemap (shared with Dashboard) — grouped by security type | Treemap |
 | **Graphs** | Allocation by type donut (shared with Dashboard) | Donut |
-| **Account Overview** | Portfolio value vs net invested over time — with deposit event markers | Line |
-| **Account Overview** | Asset allocation over time — with deposit event markers | Stacked area |
+| **Account Overview** | Portfolio value vs net invested over time — deposit markers on chart and in legend | Line |
+| **Account Overview** | Asset allocation over time — deposit markers on chart and in legend | Stacked area |
 
 The **Graphs** page (`/graphs`) is the dedicated chart hub with all charts from every page aggregated via shared Jinja2 partials — any change to a chart is reflected everywhere automatically. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
 

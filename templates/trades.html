@@ -211,7 +211,7 @@
         <div class="card">
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>{{ t.trade_log_title }}</span>
-                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal('trade_log', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
             </div>
             <div class="table-wrapper">
                 <table class="sortable">
@@ -292,14 +292,17 @@
 
             {% if open_positions %}
             <div class="card table-card">
-                <div class="card-header">{{ t.open_pnl_tax_title }}</div>
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>{{ t.open_pnl_tax_title }}</span>
+                    <button class="table-settings-btn" onclick="openDisplayPrefsModal('trades_tax', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
+                </div>
                 <div class="table-wrapper">
                     <table class="sortable">
                         <caption class="visually-hidden">{{ t.open_pnl_tax_title }}</caption>
                         <thead>
                             <tr>
                                 <th scope="col">{{ t.th_name }}</th>
-                                <th scope="col">{{ t.th_holding_duration }}</th>
+                                <th scope="col">{{ t.th_days_held }}</th>
                                 <th scope="col">%</th>
                                 <th scope="col">{{ t.th_pnl_ils }}</th>
                                 <th scope="col">{{ t.th_tax_exposure }}</th>
@@ -308,8 +311,8 @@
                         <tbody>
                             {% for p in open_positions %}
                             <tr data-pnl="{{ p.unrealized_pnl }}" data-sort-days="{{ p.days_holding }}">
-                                <td><a href="/position/{{ p.holding_id }}" class="position-link">{{ p[display_prefs.trades_name] or p.name_en or p.name_he }}</a></td>
-                                <td data-sort="{{ p.days_holding }}">{{ p.holding_duration }}</td>
+                                <td><a href="/position/{{ p.holding_id }}" class="position-link">{{ p[display_prefs.trades_tax_name] or p.name_en or p.name_he }}</a></td>
+                                <td class="num" data-sort="{{ p.days_holding }}">{{ p.days_holding }}</td>
                                 <td class="num pnl">{{ '{:.2f}'.format(p.unrealized_pnl_pct) }}%</td>
                                 <td class="num pnl">₪{{ '{:,.2f}'.format(p.unrealized_pnl) }}</td>
                                 <td class="num {% if p.unrealized_pnl >= 0 %}negative{% else %}positive{% endif %}">
@@ -338,6 +341,10 @@
 
         {% if closed %}
         <div class="card">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ t.closed_title }}</span>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal('trades_closed', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
+            </div>
             <div class="table-wrapper">
                 <table class="sortable">
                     <caption class="visually-hidden">{{ t.closed_title }}</caption>

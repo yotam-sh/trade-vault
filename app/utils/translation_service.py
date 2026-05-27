@@ -97,6 +97,40 @@ def fetch_name_from_tase(tase_id):
     return data['name'] if data else None
 
 
+def fetch_bizportal_name_he(tase_id):
+    """Fetch a readable Hebrew fund name from the Bizportal <h1> tag.
+
+    For funds, this returns a clean, human-readable Hebrew name such as
+    "אי בי אי סל Nasdaq 100" rather than the garbled IBI/TASE shorthand
+    like "NASDAQ 100.IBI".
+
+    Args:
+        tase_id: TASE security ID (int or str)
+
+    Returns:
+        Hebrew name string, or None on failure
+    """
+    import requests
+    import re
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept-Language': 'he-IL,he;q=0.9',
+    }
+    for url in [
+        f'https://www.bizportal.co.il/capitalmarket/quote/mutuelfund/{tase_id}',
+        f'https://www.bizportal.co.il/tradedfund/quote/generalview/{tase_id}',
+    ]:
+        try:
+            r = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
+            if r.status_code == 200 and len(r.text) > 500:
+                m = re.search(r'class="paper_h1"[^>]*>\s*(.*?)\s*</h1>', r.text, re.DOTALL)
+                if m:
+                    return m.group(1).strip()
+        except Exception:
+            pass
+    return None
+
+
 def fetch_info_from_yfinance(yfinance_symbol):
     """Fetch stock information from Yahoo Finance.
 

@@ -118,7 +118,6 @@
             <button class="lang-option layout-discard-btn" id="discardLayoutBtn">{{ t.btn_discard_layout }}</button>
             <button class="lang-option layout-reset-btn" id="resetLayoutBtn">{{ t.btn_reset_layout }}</button>
             <button class="lang-option" id="editLayoutBtn">{{ t.btn_edit_layout }}</button>
-            <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}" style="font-size:1.1rem;">&#9881;</button>
         </div>
 
         {% if snapshots %}
@@ -144,8 +143,8 @@
                 <span>{{ t.chart_monthly_return }}</span>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <div class="lang-options" id="returnModeToggle">
-                        <button class="lang-option active" data-mode="cumulative" aria-pressed="true">{{ t.chart_mode_cumulative }}</button>
-                        <button class="lang-option" data-mode="standalone" aria-pressed="false">{{ t.chart_mode_standalone }}</button>
+                        <button class="lang-option lang-option-sm active" data-mode="cumulative" aria-pressed="true">{{ t.chart_mode_cumulative }}</button>
+                        <button class="lang-option lang-option-sm" data-mode="standalone" aria-pressed="false">{{ t.chart_mode_standalone }}</button>
                     </div>
                     <div class="chart-edit-controls">
                         <button class="chart-ctrl-btn lock-btn">🔓</button>
@@ -244,10 +243,11 @@
             <div class="card-header">
                 <span>{{ t.chart_top_positions }}</span>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <div class="lang-options" id="topPosModeToggle">
+                    <div class="unit-switch" id="topPosModeToggle" data-active="ils">
                         <button class="lang-option active" data-mode="ils" aria-pressed="true">₪</button>
                         <button class="lang-option" data-mode="pct" aria-pressed="false">%</button>
                     </div>
+                    <button class="table-settings-btn" onclick="openDisplayPrefsModal('graphs_pnl', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
                     <div class="chart-edit-controls">
                         <button class="chart-ctrl-btn lock-btn">🔓</button>
                         <button class="chart-ctrl-btn width-btn" title="toggle width">⬜⬜</button>
@@ -416,7 +416,30 @@
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: {
-                        labels: { color: css('--text-primary') }
+                        labels: {
+                            color: css('--text-primary'),
+                            usePointStyle: true,
+                            generateLabels: function(chart) {
+                                var items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                if (depositDates.length) {
+                                    items.push({
+                                        text: T.th_deposits,
+                                        strokeStyle: 'rgba(255,200,0,0.85)',
+                                        fillStyle: 'transparent',
+                                        lineWidth: 1.5,
+                                        lineDash: [4, 4],
+                                        hidden: false,
+                                        pointStyle: 'line',
+                                        datasetIndex: -1,
+                                    });
+                                }
+                                return items;
+                            }
+                        },
+                        onClick: function(e, legendItem, legend) {
+                            if (legendItem.datasetIndex === undefined || legendItem.datasetIndex < 0) return;
+                            Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+                        }
                     },
                     tooltip: {
                         callbacks: {
@@ -1206,7 +1229,32 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { labels: { color: css('--text-primary') } },
+                    legend: {
+                        labels: {
+                            color: css('--text-primary'),
+                            usePointStyle: true,
+                            generateLabels: function(chart) {
+                                var items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                if (depositDates.length) {
+                                    items.push({
+                                        text: T.th_deposits,
+                                        strokeStyle: 'rgba(255,200,0,0.85)',
+                                        fillStyle: 'transparent',
+                                        lineWidth: 1.5,
+                                        lineDash: [4, 4],
+                                        hidden: false,
+                                        pointStyle: 'line',
+                                        datasetIndex: -1,
+                                    });
+                                }
+                                return items;
+                            }
+                        },
+                        onClick: function(e, legendItem, legend) {
+                            if (legendItem.datasetIndex === undefined || legendItem.datasetIndex < 0) return;
+                            Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
@@ -1340,15 +1388,15 @@
 
         document.querySelectorAll('#topPosModeToggle .lang-option').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var mode = btn.getAttribute('data-mode');
-                if (mode === topActiveMode) return;
-                topActiveMode = mode;
+                topActiveMode = topActiveMode === 'ils' ? 'pct' : 'ils';
+                document.getElementById('topPosModeToggle').setAttribute('data-active', topActiveMode);
                 document.querySelectorAll('#topPosModeToggle .lang-option').forEach(function(b) {
-                    b.classList.toggle('active', b === btn);
-                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                    var on = b.getAttribute('data-mode') === topActiveMode;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
                 });
-                currentSorted = getSortedForMode(mode);
-                var data = dataFor(currentSorted, mode);
+                currentSorted = getSortedForMode(topActiveMode);
+                var data = dataFor(currentSorted, topActiveMode);
                 var cols = topBarColors(data);
                 chartG.data.labels                      = labelsFor(currentSorted);
                 chartG.data.datasets[0].data            = data;
@@ -1417,7 +1465,7 @@
                     legend: {
                         display: true,
                         position: 'top',
-                        labels: { color: css('--text-primary') },
+                        labels: { color: css('--text-primary'), usePointStyle: true },
                     },
                     tooltip: {
                         callbacks: {

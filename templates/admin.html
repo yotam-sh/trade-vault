@@ -172,32 +172,75 @@
             if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
         }
 
+        function showRunning(data) {
+            const done = data.updated + data.failed;
+            const total = data.total || '…';
+            statusBox.style.display = 'block';
+            statusText.textContent = '⏳ ' + done + ' / ' + total;
+            taseBtn.disabled = true;
+        }
+
+        function showDone(data) {
+            stopPolling();
+            let msg = '✓ ' + data.updated + ' / ' + data.total + ' updated';
+            if (data.bp_updated > 0)
+                msg += ' — ' + data.bp_updated + ' fund name' + (data.bp_updated !== 1 ? 's' : '') + ' from Bizportal';
+            if (data.failed > 0)
+                msg += ', ' + data.failed + ' failed';
+            statusBox.style.display = 'block';
+            statusText.textContent = msg;
+            taseBtn.disabled = false;
+        }
+
         function pollStatus() {
             fetch('/admin/refresh-status', { credentials: 'same-origin' })
                 .then(r => r.json())
                 .then(data => {
                     if (data.running) {
-                        statusBox.style.display = 'block';
-                        statusText.textContent = '⏳ ' + (data.updated + data.failed) + ' / …';
-                        taseBtn.disabled = true;
-                    } else if (data.done) {
-                        stopPolling();
-                        statusBox.style.display = 'block';
-                        statusText.textContent = '✓ ' + data.updated + ' updated, ' + data.failed + ' failed';
-                        taseBtn.disabled = false;
+                        showRunning(data);
+                    } else if (data.done && data.total > 0) {
+                        showDone(data);
                     }
                 })
                 .catch(stopPolling);
         }
 
-        // Start polling when the page loads if a refresh is already running
-        pollStatus();
+        // On page load: resume live counter if a refresh is already running
+        fetch('/admin/refresh-status', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.running) {
+                    showRunning(data);
+                    pollTimer = setInterval(pollStatus, 1500);
+                }
+            });
 
-        document.getElementById('tase-form').addEventListener('submit', function () {
-            // Brief delay to let the server start the thread before we poll
-            setTimeout(function () {
-                pollTimer = setInterval(pollStatus, 2000);
-            }, 500);
+        document.getElementById('tase-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch('/admin/refresh-tase-names', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.started) {
+                    taseBtn.disabled = true;
+                    statusBox.style.display = 'block';
+                    statusText.textContent = '⏳ 0 / …';
+                    pollTimer = setInterval(pollStatus, 1500);
+                } else {
+                    statusBox.style.display = 'block';
+                    statusText.textContent = data.reason === 'already_running'
+                        ? '⚠ Already running'
+                        : '⚠ Failed to start';
+                }
+            })
+            .catch(function () {
+                statusBox.style.display = 'block';
+                statusText.textContent = '⚠ Failed to start';
+            });
         });
     })();
     </script>

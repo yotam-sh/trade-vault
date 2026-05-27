@@ -2,9 +2,9 @@
     <div class="card-header">
         <span>{{ t.chart_daily_pnl }}</span>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-            <div class="lang-options" id="pnlUnitToggle">
-                <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
-                <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
+            <div class="unit-switch" id="pnlUnitToggle" data-active="ils">
+                <button class="lang-option active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option" data-unit="pct" aria-pressed="false">%</button>
             </div>
             <div class="chart-edit-controls">
                 <button class="chart-ctrl-btn lock-btn">🔓</button>
@@ -68,6 +68,8 @@
         var init = getDailyData(getActiveData(), activeUnit);
         var initCols = buildColors(init.values);
 
+        var yMinWidth = 0;
+
         var chart = new Chart(ctx.getContext('2d'), {
             type: 'bar',
             data: {
@@ -89,10 +91,32 @@
                 },
                 scales: {
                     x: { ticks: { color: css('--text-secondary'), maxRotation: 45, maxTicksLimit: 20 }, grid: { color: css('--bg-tertiary') } },
-                    y: { ticks: { color: css('--text-secondary'), callback: function(v) { return fmtTick(v); } }, grid: { color: css('--bg-tertiary') } }
+                    y: {
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return fmtTick(v); } },
+                        grid: { color: css('--bg-tertiary') },
+                        afterFit: function(s) {
+                            if (yMinWidth === 0) {
+                                var curW = 0;
+                                (s.ticks || []).forEach(function(tk) {
+                                    var w = s.ctx.measureText(tk.label || '').width;
+                                    if (w > curW) curW = w;
+                                });
+                                var maxOther = Math.max.apply(null, allDailyData.map(function(d) {
+                                    return Math.abs(activeUnit === 'ils' ? (d.change_pct || 0) : (d.daily_pnl || 0));
+                                }).concat([0]));
+                                var otherLbl = activeUnit === 'ils'
+                                    ? maxOther.toFixed(1) + '%'
+                                    : '₪' + maxOther.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                var otherW = s.ctx.measureText(otherLbl).width;
+                                yMinWidth = Math.ceil(Math.max(curW, otherW)) + 16;
+                            }
+                            if (s.width < yMinWidth) s.width = yMinWidth;
+                        }
+                    }
                 }
             }
         });
+        chart.update('none');
 
         function refreshChart() {
             var d = getDailyData(getActiveData(), activeUnit);
@@ -106,12 +130,12 @@
 
         document.querySelectorAll('#pnlUnitToggle .lang-option').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var unit = btn.getAttribute('data-unit');
-                if (unit === activeUnit) return;
-                activeUnit = unit;
+                activeUnit = activeUnit === 'ils' ? 'pct' : 'ils';
+                document.getElementById('pnlUnitToggle').setAttribute('data-active', activeUnit);
                 document.querySelectorAll('#pnlUnitToggle .lang-option').forEach(function(b) {
-                    b.classList.toggle('active', b === btn);
-                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                    var on = b.getAttribute('data-unit') === activeUnit;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
                 });
                 refreshChart();
             });

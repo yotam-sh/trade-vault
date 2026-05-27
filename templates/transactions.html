@@ -5,7 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ t.nav_transactions }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+    (function(){
+        function gc(n){var v='; '+document.cookie,p=v.split('; '+n+'=');if(p.length===2)return p.pop().split(';').shift();return null;}
+        var t=gc('theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);
+    })();
+    </script>
+    <script>var T = {{ t_json|safe }};</script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
@@ -188,7 +196,7 @@
             <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                 <span>{{ t.transactions_title }}</span>
                 <div class="add-btn-wrap">
-                    <button type="button" class="admin-action-btn" id="add-btn">{{ t.btn_add }}</button>
+                    <button type="button" class="admin-action-btn" id="add-btn" style="padding:4px 12px;font-size:0.82rem;font-weight:500;">{{ t.btn_add }}</button>
                     <div class="add-dropdown-menu" id="add-dropdown-menu" role="menu">
                         <div class="add-dropdown-item" data-modal="modal-deposit" role="menuitem">{{ t.add_deposit_title }}</div>
                         <div class="add-dropdown-item" data-modal="modal-withdrawal" role="menuitem">{{ t.add_withdrawal_title }}</div>
@@ -445,7 +453,6 @@
         });
     })();
     </script>
-    <script>var T = {{ t_json|safe }};</script>
     <script src="/static/app.js"></script>
 </body>
 </html>

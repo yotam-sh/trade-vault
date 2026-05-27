@@ -143,7 +143,7 @@ def _run_startup():
 
 # ── Background TASE refresh state ─────────────────────────────────────────────
 _tase_lock = threading.Lock()
-_tase_status: dict = {'running': False, 'updated': 0, 'failed': 0, 'done': True}
+_tase_status: dict = {'running': False, 'updated': 0, 'failed': 0, 'bp_updated': 0, 'total': 0, 'done': True}
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'daily_data')
@@ -210,6 +210,8 @@ _DEFAULT_DISPLAY_PREFS_HE = {
     'trades_name':               'name_tase_he',
     'trades_symbol':             'symbol',
     'trades_closed_name':        'name_tase_he',
+    'trades_tax_name':           'name_tase_he',
+    'daily_details_pivot_name':  'name_tase_he',
     'graphs_pnl_labels':         'symbol',
     'graphs_treemap_labels':     'symbol',
 }
@@ -228,6 +230,8 @@ _DEFAULT_DISPLAY_PREFS_EN = {
     'trades_name':               'name_tase_en',
     'trades_symbol':             'symbol_en',
     'trades_closed_name':        'name_tase_en',
+    'trades_tax_name':           'name_tase_en',
+    'daily_details_pivot_name':  'name_tase_en',
     'graphs_pnl_labels':         'symbol_en',
     'graphs_treemap_labels':     'symbol_en',
 }
@@ -1207,42 +1211,63 @@ def admin_db_import():
 
 
 def _tase_refresh_worker():
-    """Fetch TASE data for all holdings and write results to DB.
+    """Fetch TASE data (and Bizportal names for funds) for all holdings and write to DB.
 
     HTTP calls are parallelised (up to 5 concurrent); DB writes are sequential
     so TinyDB's CachingMiddleware is never written from two threads at once.
+    Funds get name_tase_he from Bizportal <h1>; stocks get it from TASE lang=0.
     """
     from app.holdings import list_holdings, update_holding
     from app.settings import get_setting, set_setting
-    from app.utils.translation_service import fetch_data_from_tase
-
-    with _tase_lock:
-        _tase_status.update({'running': True, 'updated': 0, 'failed': 0, 'done': False})
+    from app.utils.translation_service import fetch_data_from_tase, fetch_bizportal_name_he
 
     holdings = list_holdings(active_only=False)
-    fetch_results: dict = {}  # doc_id -> (holding, data_or_None)
+    fund_doc_ids = {h.doc_id for h in holdings if h.get('security_type') == 'mutual_fund'}
 
-    # Phase 1: parallel HTTP fetches (no DB writes)
+    with _tase_lock:
+        _tase_status.update({'running': True, 'updated': 0, 'failed': 0,
+                              'bp_updated': 0, 'total': len(holdings), 'done': False})
+
+    tase_results: dict = {}  # doc_id -> (holding, data_or_None)
+    bp_results: dict = {}    # doc_id -> name_he_or_None
+
+    # Phase 1: parallel HTTP fetches — TASE for all, Bizportal for funds
     try:
         with ThreadPoolExecutor(max_workers=5) as pool:
-            futures = {pool.submit(fetch_data_from_tase, h['tase_id']): h for h in holdings}
-            for future in as_completed(futures):
-                h = futures[future]
-                try:
-                    fetch_results[h.doc_id] = (h, future.result())
-                except Exception:
-                    fetch_results[h.doc_id] = (h, None)
+            tase_futs = {pool.submit(fetch_data_from_tase, h['tase_id']): h for h in holdings}
+            bp_futs = {pool.submit(fetch_bizportal_name_he, h['tase_id']): h
+                       for h in holdings if h.doc_id in fund_doc_ids}
+            for future in as_completed(list(tase_futs) + list(bp_futs)):
+                if future in tase_futs:
+                    h = tase_futs[future]
+                    try:
+                        tase_results[h.doc_id] = (h, future.result())
+                    except Exception:
+                        tase_results[h.doc_id] = (h, None)
+                else:
+                    h = bp_futs[future]
+                    try:
+                        bp_results[h.doc_id] = future.result()
+                    except Exception:
+                        bp_results[h.doc_id] = None
     except Exception:
         app.logger.exception('TASE parallel fetch failed')
 
     # Phase 2: sequential DB writes
-    updated, failed = 0, 0
+    updated, failed, bp_updated = 0, 0, 0
     try:
         yf_map = get_setting('yfinance_map', {}) or {}
-        for doc_id, (h, data) in fetch_results.items():
+        for doc_id, (h, data) in tase_results.items():
             if data:
                 field_updates = {'name_tase_en': data['name']}
-                if data.get('name_tase_he'):
+                if doc_id in fund_doc_ids:
+                    bp_name = bp_results.get(doc_id)
+                    if bp_name:
+                        field_updates['name_tase_he'] = bp_name
+                        bp_updated += 1
+                    elif data.get('name_tase_he'):
+                        field_updates['name_tase_he'] = data['name_tase_he']
+                elif data.get('name_tase_he'):
                     field_updates['name_tase_he'] = data['name_tase_he']
                 if data.get('tase_symbol_en'):
                     field_updates['tase_symbol_en'] = data['tase_symbol_en']
@@ -1258,19 +1283,25 @@ def _tase_refresh_worker():
         app.logger.exception('TASE DB write phase failed')
 
     with _tase_lock:
-        _tase_status.update({'running': False, 'updated': updated, 'failed': failed, 'done': True})
+        _tase_status.update({'running': False, 'updated': updated, 'failed': failed,
+                              'bp_updated': bp_updated, 'total': len(holdings), 'done': True})
 
 
 @app.route('/admin/refresh-tase-names', methods=['POST'])
 @require_admin
 def admin_refresh_tase_names():
     lang = request.cookies.get('lang', 'he')
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     with _tase_lock:
         if _tase_status.get('running'):
+            if is_ajax:
+                return jsonify({'started': False, 'reason': 'already_running'})
             flash(_t('admin_tase_refresh_running', lang), 'info')
             return redirect(url_for('admin'))
     thread = threading.Thread(target=_tase_refresh_worker, daemon=True, name='tase-refresh')
     thread.start()
+    if is_ajax:
+        return jsonify({'started': True})
     flash(_t('admin_tase_refresh_started', lang), 'info')
     return redirect(url_for('admin'))
 

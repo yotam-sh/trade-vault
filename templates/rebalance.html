@@ -201,11 +201,6 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
-        <h1 style="display:flex;align-items:center;gap:8px;">
-            {{ t.page_title_rebalance }}
-            <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
-        </h1>
-
         {% if group_data %}
 
         {# ── One card per security type group ── #}
@@ -263,6 +258,7 @@
                     </span>
                 </div>
 
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal(null, this);event.stopPropagation();" title="{{ t.nav_display_settings }}">&#9881;</button>
                 <button class="group-toggle-btn" aria-label="{{ t.rebalance_collapse }}" tabindex="-1">▾</button>
             </div>
 

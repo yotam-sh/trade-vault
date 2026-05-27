@@ -19,12 +19,13 @@ def get_portfolio_value():
         enriched = enrich_position_with_holding(pos)
         positions.append(enriched)
 
+    net_invested = get_total_deposits() - get_total_withdrawals()
     return {
         'date': snap['date'],
         'total_value': snap['total_market_value'],
-        'total_cost': snap['total_cost_basis'],
-        'unrealized_pnl': snap['total_unrealized_pnl'],
-        'unrealized_pnl_pct': snap['total_unrealized_pnl_pct'],
+        'total_cost': net_invested,
+        'unrealized_pnl': snap['total_market_value'] - net_invested,
+        'unrealized_pnl_pct': ((snap['total_market_value'] - net_invested) / net_invested * 100) if net_invested else 0,
         'daily_pnl': snap['total_daily_pnl'],
         'num_positions': snap['num_positions'],
         'positions': positions,

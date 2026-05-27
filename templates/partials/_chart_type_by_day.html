@@ -2,9 +2,9 @@
     <div class="card-header">
         <span>{{ t.chart_type_by_day }}</span>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-            <div class="lang-options" id="typeUnitToggle" style="visibility:hidden;">
-                <button class="lang-option lang-option-sm active" data-unit="ils" aria-pressed="true">₪</button>
-                <button class="lang-option lang-option-sm" data-unit="pct" aria-pressed="false">%</button>
+            <div class="unit-switch" id="typeUnitToggle" data-active="ils" style="visibility:hidden;">
+                <button class="lang-option active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option" data-unit="pct" aria-pressed="false">%</button>
             </div>
             <div class="chart-edit-controls">
                 <button class="chart-ctrl-btn lock-btn">🔓</button>
@@ -28,6 +28,7 @@
     var typeLabels = [T.type_stock, T.type_mutual_fund, T.type_etf, T.type_bond, T.type_other];
     var activePeriod = 7;
     var activeUnit = localStorage.getItem('typeByDay_unit') || 'ils';
+    var yMinWidth = 0;
 
     function getSlice(period) {
         if (period === 0) return allTypeData;
@@ -44,9 +45,8 @@
                 label: typeLabels[i],
                 data: slice.map(function(d, di) {
                     if (unit === 'pct') {
-                        var tot = types.reduce(function(s, t2) { return s + (d[t2] || 0); }, 0);
-                        var absTot = Math.abs(tot);
-                        return absTot > 0 ? (d[t] || 0) / absTot * 100 : 0;
+                        var tv = d.total_value || 0;
+                        return tv > 0 ? (d[t] || 0) / tv * 100 : 0;
                     }
                     return d[t] || 0;
                 }),
@@ -96,15 +96,44 @@
                             color: css('--text-secondary'),
                             callback: function(v) {
                                 return activeUnit === 'pct'
-                                    ? v.toFixed(0) + '%'
+                                    ? v.toFixed(2) + '%'
                                     : '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         },
-                        grid: { color: css('--bg-tertiary') }
+                        grid: { color: css('--bg-tertiary') },
+                        afterFit: function(s) {
+                            if (yMinWidth === 0) {
+                                var curW = 0;
+                                (s.ticks || []).forEach(function(tk) {
+                                    var w = s.ctx.measureText(tk.label || '').width;
+                                    if (w > curW) curW = w;
+                                });
+                                var maxOther = 0;
+                                allTypeData.forEach(function(d) {
+                                    types.forEach(function(t) {
+                                        var v;
+                                        if (activeUnit === 'ils') {
+                                            var tv = d.total_value || 0;
+                                            v = tv > 0 ? Math.abs((d[t] || 0) / tv * 100) : 0;
+                                        } else {
+                                            v = Math.abs(d[t] || 0);
+                                        }
+                                        if (v > maxOther) maxOther = v;
+                                    });
+                                });
+                                var otherLbl = activeUnit === 'ils'
+                                    ? maxOther.toFixed(2) + '%'
+                                    : '₪' + maxOther.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                var otherW = s.ctx.measureText(otherLbl).width;
+                                yMinWidth = Math.ceil(Math.max(curW, otherW)) + 16;
+                            }
+                            if (s.width < yMinWidth) s.width = yMinWidth;
+                        }
                     }
                 }
             }
         });
+        chart.update('none');
 
         function refreshChart() {
             var s = getSlice(activePeriod);
@@ -113,7 +142,9 @@
             chart.update();
         }
 
-        document.getElementById('typeUnitToggle').style.visibility = '';
+        var typeToggleEl = document.getElementById('typeUnitToggle');
+        typeToggleEl.style.visibility = '';
+        typeToggleEl.setAttribute('data-active', activeUnit);
         document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(btn) {
             if (btn.getAttribute('data-unit') === activeUnit) {
                 btn.classList.add('active');
@@ -123,13 +154,13 @@
                 btn.setAttribute('aria-pressed', 'false');
             }
             btn.addEventListener('click', function() {
-                var unit = btn.getAttribute('data-unit');
-                if (unit === activeUnit) return;
-                activeUnit = unit;
-                localStorage.setItem('typeByDay_unit', unit);
+                activeUnit = activeUnit === 'ils' ? 'pct' : 'ils';
+                localStorage.setItem('typeByDay_unit', activeUnit);
+                typeToggleEl.setAttribute('data-active', activeUnit);
                 document.querySelectorAll('#typeUnitToggle .lang-option').forEach(function(b) {
-                    b.classList.toggle('active', b === btn);
-                    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+                    var on = b.getAttribute('data-unit') === activeUnit;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
                 });
                 refreshChart();
             });

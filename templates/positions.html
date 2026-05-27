@@ -110,7 +110,7 @@
         <div class="card">
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>{{ t.positions_open }}</span>
-                <button class="table-settings-btn" onclick="openDisplayPrefsModal()" title="{{ t.nav_display_settings }}">&#9881;</button>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal(null, this)" title="{{ t.nav_display_settings }}">&#9881;</button>
             </div>
             {% if data.open %}
             <table class="sortable">
@@ -163,7 +163,10 @@
 
         <!-- Closed Positions -->
         <div class="card">
-            <div class="card-header">{{ t.positions_closed }}</div>
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ t.positions_closed }}</span>
+                <button class="table-settings-btn" onclick="openDisplayPrefsModal(null, this)" title="{{ t.nav_display_settings }}">&#9881;</button>
+            </div>
             {% if data.closed %}
             <table class="sortable">
                 <caption class="visually-hidden">{{ t.positions_closed }}</caption>

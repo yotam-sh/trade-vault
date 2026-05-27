@@ -249,6 +249,58 @@ nav a:hover, nav a.active {
     font-size: 11px;
 }
 
+/* ── Sliding binary toggle (₪ / %) ── */
+.unit-switch {
+    position: relative;
+    display: inline-flex;
+    direction: ltr;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px;
+    gap: 0;
+}
+.unit-switch::before {
+    content: '';
+    position: absolute;
+    top: 2px; bottom: 2px; left: 2px;
+    width: calc(50% - 2px);
+    border-radius: 16px;
+    background: var(--accent);
+    transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+.unit-switch[data-active="pct"]::before {
+    transform: translateX(100%);
+}
+.unit-switch .lang-option {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    min-width: 28px;
+    text-align: center;
+    transition: color 0.15s;
+    white-space: nowrap;
+}
+.unit-switch .lang-option.active {
+    color: white;
+    background: transparent;
+    border-color: transparent;
+}
+.unit-switch .lang-option:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-primary);
+}
+
 .ctrl-sep {
     color: var(--border);
     padding: 0 2px;
@@ -599,7 +651,7 @@ tr.group-header {
     display: flex;
     flex-direction: row;
     gap: 20px;
-    align-items: flex-start;
+    align-items: stretch;
     margin-bottom: 24px;
 }
 .two-col-charts > .card {
@@ -608,7 +660,6 @@ tr.group-header {
     margin-bottom: 0;
 }
 .two-col-charts > .card.table-card {
-    /* canvas(300) + card padding(40) + header(40) + canvas margin(16) = 396px */
     max-height: 396px;
     display: flex;
     flex-direction: column;
@@ -833,7 +884,7 @@ tr.group-header {
 }
 
 .date-preset {
-    padding: 4px 10px;
+    padding: 3px 10px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--bg-tertiary);
@@ -1095,7 +1146,7 @@ pre {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 12px;
+    padding: 3px 10px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--bg-tertiary);
@@ -1235,12 +1286,12 @@ a.admin-action-btn, button.admin-action-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 9px 20px;
+    padding: 8px 18px;
     border: none;
     border-radius: 8px;
     background: var(--accent);
     color: #fff;
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;
@@ -1257,12 +1308,12 @@ a.admin-danger-btn, button.admin-danger-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 9px 20px;
+    padding: 8px 18px;
     border: none;
     border-radius: 8px;
     background: var(--negative);
     color: #fff;
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;
@@ -1279,12 +1330,12 @@ a.admin-file-btn, span.admin-file-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 9px 20px;
+    padding: 8px 18px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--bg-tertiary);
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
@@ -1425,6 +1476,7 @@ th[tabindex]:focus-visible,
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    margin-bottom: 0;
 }
 .graphs-grid .card[data-width="100"] {
     grid-column: 1 / -1;
@@ -1663,7 +1715,7 @@ body.graphs-edit-mode .chart-edit-controls { display: flex; }
     border-radius: 4px;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     padding: 2px 6px;
     line-height: 1.4;
 }
@@ -1763,16 +1815,60 @@ body.graphs-edit-mode .hidden-charts-tray { display: block; }
     transition: color 0.15s; line-height: 1;
 }
 .table-settings-btn:hover { color: var(--text-primary); }
-.prefs-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.prefs-table th, .prefs-table td { padding: 6px 8px; text-align: start; border-bottom: 1px solid var(--border); }
-.prefs-table th:first-child, .prefs-table td:first-child { width: 55%; }
-.prefs-table tbody tr:last-child td { border-bottom: none; }
 .pref-select { width: 100%; box-sizing: border-box; }
-.modal-body { padding: 4px 0; }
-.modal-footer { margin-top: 16px; display: flex; justify-content: flex-end; }
+
+/* ── Display prefs dropdown ── */
+.disp-dropdown {
+    position: fixed;
+    z-index: 9999;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-width: 240px;
+    max-width: 320px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+    overflow: hidden;
+}
+.disp-dropdown-body {
+    padding: 6px 0;
+    max-height: 340px;
+    overflow-y: auto;
+}
+.disp-row {
+    padding: 5px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.disp-row-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.disp-section-label {
+    padding: 6px 12px 2px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+.disp-section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+}
+.disp-dropdown-footer {
+    padding: 6px 12px 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+}
 .btn-primary {
     background: var(--accent); color: #fff; border: none;
-    padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+    padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 0.875rem;
     transition: opacity 0.15s;
 }
 .btn-primary:hover { opacity: 0.85; }
