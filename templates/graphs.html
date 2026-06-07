@@ -356,7 +356,12 @@
 
         // ── Chart A: Portfolio Value vs Net Invested ──────────────────────────
         var snapLabels   = snapshots.map(function(s) { return s.date; });
-        var snapValues   = snapshots.map(function(s) { return s.total_market_value; });
+        // Portfolio value = securities + idle cash (total_equity).  Using equity rather
+        // than securities-only market value keeps buy/sell cash redeployment from showing
+        // as artificial dips/spikes.  Fall back to market value for any legacy snapshot.
+        var snapValues   = snapshots.map(function(s) {
+            return s.total_equity != null ? s.total_equity : s.total_market_value;
+        });
         var snapInvested = snapshots.map(function(s) { return s.net_invested; });
 
         // Benchmark data from server (raw index closing prices aligned to snapshot dates)
@@ -645,10 +650,11 @@
         });
 
         // ── Chart D: Drawdown from Peak ───────────────────────────────────────
+        // Drawdown on equity (securities + cash) so cash redeployment isn't a false dip.
         var peak = -Infinity;
-        var drawdowns = snapshots.map(function(s) {
-            if (s.total_market_value > peak) peak = s.total_market_value;
-            return peak > 0 ? +((s.total_market_value - peak) / peak * 100).toFixed(3) : 0;
+        var drawdowns = snapValues.map(function(v) {
+            if (v > peak) peak = v;
+            return peak > 0 ? +((v - peak) / peak * 100).toFixed(3) : 0;
         });
 
         var ctxD = document.getElementById('drawdownChart').getContext('2d');
@@ -1194,9 +1200,9 @@
 
         // ── Chart F: Asset Allocation Over Time ───────────────────────────────
         var allocLabels  = allocationHistory.map(function(d) { return d.date; });
-        var allocTypes   = ['stock', 'etf', 'mutual_fund', 'bond', 'other'];
-        var allocColors  = ['--accent', '--positive', '--text-primary', '--text-secondary', '--bg-tertiary'];
-        var allocLabelKeys = ['label_stock', 'label_etf', 'label_mutual_fund', 'label_bond', 'label_other'];
+        var allocTypes   = ['stock', 'etf', 'mutual_fund', 'bond', 'other', 'cash'];
+        var allocColors  = ['--accent', '--positive', '--text-primary', '--text-secondary', '--bg-tertiary', '--warning'];
+        var allocLabelKeys = ['label_stock', 'label_etf', 'label_mutual_fund', 'label_bond', 'label_other', 'label_cash'];
 
         // Only include types that have non-zero data in at least one snapshot
         var usedTypes = allocTypes.filter(function(type) {

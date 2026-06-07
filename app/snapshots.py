@@ -15,6 +15,72 @@ def _cumulative_cashflows(up_to_date):
     return total_dep, total_wit
 
 
+def _raw_cash_balance(up_to_date):
+    """Return the idle-cash balance derived purely from transactions, as of up_to_date.
+
+    Derived from transaction history:
+        cash = deposits + sells + dividends - withdrawals - buys
+
+    Trade ``total_amount`` is ``shares * price`` and does not include commission,
+    so commission is added to buy outflow and netted from sell inflow.  Computed
+    raw (not clamped) — early periods with incomplete history may go slightly
+    negative; that is surfaced rather than hidden.
+    """
+    from app.transactions import list_transactions
+
+    def _comm(t):
+        return t.get('commission') or 0
+
+    cash = 0.0
+    for t in list_transactions(type_='deposit', end_date=up_to_date):
+        cash += t.get('total_amount', 0) or 0
+    for t in list_transactions(type_='dividend', end_date=up_to_date):
+        cash += t.get('total_amount', 0) or 0
+    for t in list_transactions(type_='withdrawal', end_date=up_to_date):
+        cash -= t.get('total_amount', 0) or 0
+    for t in list_transactions(type_='sell', end_date=up_to_date):
+        cash += (t.get('total_amount', 0) or 0) - _comm(t)
+    for t in list_transactions(type_='buy', end_date=up_to_date):
+        cash -= (t.get('total_amount', 0) or 0) + _comm(t)
+    return round(cash, 2)
+
+
+def _cumulative_cash_balance(up_to_date):
+    """Return the idle-cash balance as of up_to_date (inclusive), anchored if configured.
+
+    The raw transaction-derived balance omits untracked brokerage fees, so it drifts
+    from the real statement balance.  When a ``cash_anchor`` setting
+    (``{'date', 'amount'}``) is present, the series is shifted by a constant offset so
+    that the anchor date reads exactly the authoritative balance; the per-date deltas
+    (transaction amounts) are preserved.  Without an anchor the raw value is returned.
+    """
+    from app.settings import get_setting
+
+    raw = _raw_cash_balance(up_to_date)
+    anchor = get_setting('cash_anchor')
+    if anchor and anchor.get('date') is not None and anchor.get('amount') is not None:
+        offset = anchor['amount'] - _raw_cash_balance(anchor['date'])
+        return round(raw + offset, 2)
+    return raw
+
+
+def set_cash_anchor(amount, date=None):
+    """Record the authoritative cash balance as of a date and re-sync all snapshots.
+
+    ``date`` defaults to the last import date, else today.  Stores the anchor and runs
+    ``repair_net_invested`` so every snapshot's cash_balance/total_equity reflects the
+    new offset.  Returns the resolved ``{'date', 'amount'}``.
+    """
+    from app.settings import get_setting, set_setting
+    from app.schemas import today_iso
+
+    resolved_date = date or get_setting('last_import_date') or today_iso()
+    anchor = {'date': resolved_date, 'amount': round(float(amount), 2)}
+    set_setting('cash_anchor', anchor)
+    repair_net_invested()
+    return anchor
+
+
 def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
                     positions, **kwargs):
     """Create a portfolio snapshot. Returns doc_id."""
@@ -29,6 +95,7 @@ def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
         total_withdrawals = kwargs.get('total_withdrawals', 0)
         unrealized = total_market_value - total_cost_basis
         unrealized_pct = (unrealized / total_cost_basis * 100) if total_cost_basis else 0
+        cash_balance = _cumulative_cash_balance(date)
         updates = {
             'total_market_value': total_market_value,
             'total_cost_basis': total_cost_basis,
@@ -40,6 +107,8 @@ def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
             'total_deposits': total_deposits,
             'total_withdrawals': total_withdrawals,
             'net_invested': total_deposits - total_withdrawals,
+            'cash_balance': cash_balance,
+            'total_equity': round(total_market_value + cash_balance, 2),
         }
         updates.update({k: v for k, v in kwargs.items()
                         if k not in ('total_deposits', 'total_withdrawals')})
@@ -52,6 +121,7 @@ def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
     total_deposits = kwargs.get('total_deposits', 0)
     total_withdrawals = kwargs.get('total_withdrawals', 0)
     net_invested = total_deposits - total_withdrawals
+    cash_balance = _cumulative_cash_balance(date)
 
     record = {
         'date': date,
@@ -64,6 +134,8 @@ def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
         'total_deposits': total_deposits,
         'total_withdrawals': total_withdrawals,
         'net_invested': net_invested,
+        'cash_balance': cash_balance,
+        'total_equity': round(total_market_value + cash_balance, 2),
         'num_positions': len([p for p in positions if p.get('quantity', 0) > 0]),
         'total_return_pct': kwargs.get('total_return_pct'),
         'positions': positions,
@@ -79,10 +151,13 @@ def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
 
 
 def repair_net_invested():
-    """Recompute net_invested for all snapshots from the authoritative transactions table.
+    """Recompute cashflow-derived fields for all snapshots from the transactions table.
 
     Historical snapshots may have net_invested=0 if deposits were imported after the
-    snapshot was first written (common when transaction history is bulk-loaded later).
+    snapshot was first written (common when transaction history is bulk-loaded later),
+    and snapshots written before cash tracking existed lack cash_balance/total_equity.
+    This recomputes net_invested, deposits/withdrawals, and the cash fields from the
+    authoritative transactions table.
 
     This function is idempotent: snapshots that already have the correct value are
     left untouched.  Returns the count of snapshots that were updated.
@@ -98,14 +173,20 @@ def repair_net_invested():
         net = round(total_dep - total_wit, 2)
         total_dep = round(total_dep, 2)
         total_wit = round(total_wit, 2)
+        cash_balance = _cumulative_cash_balance(date)
+        total_equity = round((snap.get('total_market_value', 0) or 0) + cash_balance, 2)
         if (snap.get('net_invested') != net
                 or snap.get('total_deposits') != total_dep
-                or snap.get('total_withdrawals') != total_wit):
+                or snap.get('total_withdrawals') != total_wit
+                or snap.get('cash_balance') != cash_balance
+                or snap.get('total_equity') != total_equity):
             table.update(
                 {
                     'net_invested': net,
                     'total_deposits': total_dep,
                     'total_withdrawals': total_wit,
+                    'cash_balance': cash_balance,
+                    'total_equity': total_equity,
                 },
                 doc_ids=[snap.doc_id],
             )

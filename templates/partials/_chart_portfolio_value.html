@@ -42,7 +42,12 @@
         if (!el || !snapshots.length) return;
 
         var labels   = snapshots.map(function(s) { return s.date; });
-        var values   = snapshots.map(function(s) { return s.total_market_value; });
+        // Portfolio value = securities + idle cash (total_equity) so buy/sell cash
+        // redeployment doesn't show as artificial dips/spikes.  Fall back to market
+        // value for any legacy snapshot missing the field.
+        var values   = snapshots.map(function(s) {
+            return s.total_equity != null ? s.total_equity : s.total_market_value;
+        });
         var invested = snapshots.map(function(s) { return s.net_invested; });
 
         var chart = new Chart(el.getContext('2d'), {

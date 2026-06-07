@@ -105,6 +105,8 @@ PORTFOLIO_SNAPSHOT_SCHEMA = {
     'total_deposits': (float, True),
     'total_withdrawals': (float, True),
     'net_invested': (float, True),
+    'cash_balance': (float, False),
+    'total_equity': (float, False),
     'num_positions': (int, True),
     'total_return_pct': (float, False),
     'positions': (list, True),

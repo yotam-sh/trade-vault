@@ -37,9 +37,9 @@
         }
     };
 
-    var allocTypes     = ['stock', 'etf', 'mutual_fund', 'bond', 'other'];
-    var allocColors    = ['--accent', '--positive', '--text-primary', '--text-secondary', '--bg-tertiary'];
-    var allocLabelKeys = ['label_stock', 'label_etf', 'label_mutual_fund', 'label_bond', 'label_other'];
+    var allocTypes     = ['stock', 'etf', 'mutual_fund', 'bond', 'other', 'cash'];
+    var allocColors    = ['--accent', '--positive', '--text-primary', '--text-secondary', '--bg-tertiary', '--warning'];
+    var allocLabelKeys = ['label_stock', 'label_etf', 'label_mutual_fund', 'label_bond', 'label_other', 'label_cash'];
 
     var usedTypes = allocTypes.filter(function(type) {
         return allocationHistory.some(function(d) { return d[type] > 0; });

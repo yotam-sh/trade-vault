@@ -124,6 +124,7 @@
 
         <!-- Summary stat cards -->
         <div class="dashboard-grid">
+            {% include 'partials/_card_cash.html' %}
             <div class="stat-card">
                 <div class="stat-label">{{ t.summary_total_deposits }}</div>
                 <div class="stat-value">₪{{ '{:,.0f}'.format(summary.total_deposits) }}</div>
@@ -201,6 +202,7 @@
                         <div class="add-dropdown-item" data-modal="modal-deposit" role="menuitem">{{ t.add_deposit_title }}</div>
                         <div class="add-dropdown-item" data-modal="modal-withdrawal" role="menuitem">{{ t.add_withdrawal_title }}</div>
                         <div class="add-dropdown-item" data-modal="modal-dividend" role="menuitem">{{ t.add_dividend_title }}</div>
+                        <div class="add-dropdown-item" data-modal="modal-set-cash" role="menuitem">{{ t.set_cash_title }}</div>
                     </div>
                 </div>
             </div>
@@ -405,6 +407,50 @@
                     <label>{{ t.label_notes_optional }}</label>
                     <input type="text" name="notes">
                     <button type="submit">{{ t.btn_add_dividend }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Set Cash Balance Modal -->
+    <div class="modal-overlay" id="modal-set-cash" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-set-cash-title">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-set-cash-title">{{ t.set_cash_title }}</span>
+                <button type="button" class="modal-close" aria-label="{{ t.modal_close_btn }}">&times;</button>
+            </div>
+            <form action="/set-cash" method="post" class="upload-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="upload-row">
+                    <label>{{ t.label_amount }}</label>
+                    <input type="number" name="amount" step="0.01" min="0" required dir="ltr"
+                           value="{{ '%.2f'|format(current_cash) if current_cash is not none else '' }}">
+                    <label>{{ t.label_date }}</label>
+                    <input type="hidden" name="date" id="set-cash-date">
+                    <div class="calendar-picker" data-input="set-cash-date" data-mode="single" data-default="today">
+                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
+                        <div class="date-picker-dropdown">
+                            <div class="calendar-header">
+                                <button type="button" class="next-month">&#9654;</button>
+                                <span class="month-label"></span>
+                                <button type="button" class="prev-month">&#9664;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="day-header">{{ t.day_sun }}</div>
+                                <div class="day-header">{{ t.day_mon }}</div>
+                                <div class="day-header">{{ t.day_tue }}</div>
+                                <div class="day-header">{{ t.day_wed }}</div>
+                                <div class="day-header">{{ t.day_thu }}</div>
+                                <div class="day-header">{{ t.day_fri }}</div>
+                                <div class="day-header">{{ t.day_sat }}</div>
+                            </div>
+                            <div class="selected-dates">{{ t.no_date_selected }}</div>
+                            <div class="date-picker-actions">
+                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit">{{ t.btn_set_cash }}</button>
                 </div>
             </form>
         </div>

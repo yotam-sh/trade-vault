@@ -108,6 +108,7 @@
 
     <div class="container" id="main-content" role="main">
 
+        {% set cash_show_sub = false %}
         <div class="filters">
             <label>{{ t.label_tax_year }}</label>
             <select id="year-filter">
@@ -159,6 +160,7 @@
         <div class="tax-summary-grid">
             {% if sales_summary.total_gains > 0 %}{% include 'partials/_chart_tax_donut.html' %}{% endif %}
             <div class="dashboard-grid tax-stat-cards">
+                {% include 'partials/_card_cash.html' %}
                 <div class="stat-card green">
                     <div class="stat-label">{{ t.stat_gains }}</div>
                     <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.total_gains) }}</div>
@@ -197,13 +199,15 @@
                 {% endif %}
             </div>
         </div>
-        {% endif %}
-        {% if potential_tax_data and potential_tax_data.potential_tax > 0 and not sales_summary %}
+        {% else %}
         <div class="dashboard-grid">
+            {% include 'partials/_card_cash.html' %}
+            {% if potential_tax_data and potential_tax_data.potential_tax > 0 %}
             <div class="stat-card">
                 <div class="stat-label">{{ t.stat_potential_tax }}</div>
                 <div class="stat-value">₪{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
             </div>
+            {% endif %}
         </div>
         {% endif %}
 

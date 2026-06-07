@@ -349,6 +349,18 @@ def upload_daily():
     return redirect(url_for('index'))
 
 
+def _cash_card_context():
+    """Context for the shared cash status card (latest snapshot)."""
+    from app.snapshots import get_latest_snapshot
+    snap = get_latest_snapshot()
+    if not snap:
+        return {'current_cash': None, 'cash_pct': None, 'cash_as_of': None}
+    cash = snap.get('cash_balance')
+    equity = snap.get('total_equity') or 0
+    pct = (cash / equity * 100) if (cash is not None and equity) else None
+    return {'current_cash': cash, 'cash_pct': pct, 'cash_as_of': snap.get('date')}
+
+
 @app.route('/transactions')
 def transactions_view():
     from app.snapshots import list_snapshots
@@ -377,7 +389,7 @@ def transactions_view():
     return render_template('transactions.html', log=log, summary=summary,
                            start=start, end=end, snapshots=snapshots,
                            allocation_history=allocation_history,
-                           deposit_dates=deposit_dates)
+                           deposit_dates=deposit_dates, **_cash_card_context())
 
 
 @app.route('/add-deposit', methods=['POST'])
@@ -417,6 +429,47 @@ def add_deposit_route():
     except Exception:
         app.logger.exception('Add deposit failed')
         flash(_t('flash_deposit_error', lang), 'error')
+
+    flush_db()
+    return redirect(url_for('transactions_view'))
+
+
+@app.route('/set-cash', methods=['POST'])
+def set_cash_route():
+    """Record the authoritative idle-cash balance (anchors the cash series)."""
+    lang = _get_lang()
+    amount_str = request.form.get('amount', '').strip()
+    date_str = request.form.get('date', '').strip()
+
+    if not amount_str:
+        flash(_t('flash_no_amount', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    try:
+        amount = float(amount_str)
+    except ValueError:
+        flash(_t('flash_invalid_amount', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    if not math.isfinite(amount) or amount < 0:
+        flash(_t('flash_invalid_amount', lang), 'error')
+        return redirect(url_for('transactions_view'))
+
+    if date_str:
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            flash(_t('flash_invalid_date', lang), 'error')
+            return redirect(url_for('transactions_view'))
+
+    try:
+        from app.snapshots import set_cash_anchor
+        anchor = set_cash_anchor(amount, date=date_str or None)
+        flash(_t('flash_cash_success', lang,
+                 amount=f'{amount:,.2f}', date=anchor['date']), 'success')
+    except Exception:
+        app.logger.exception('Set cash balance failed')
+        flash(_t('flash_cash_error', lang), 'error')
 
     flush_db()
     return redirect(url_for('transactions_view'))
@@ -695,7 +748,7 @@ def trades_view():
                            selected_year=selected_year,
                            start=start, end=end,
                            potential_tax_data=potential_tax_data,
-                           open_positions=open_positions)
+                           open_positions=open_positions, **_cash_card_context())
 
 
 @app.route('/api/graph-layout', methods=['GET'])

@@ -698,6 +698,8 @@ tr.group-header {
 .stat-card.green .stat-value { color: var(--positive); }
 .stat-card.red { border-right-color: var(--negative); }
 .stat-card.red .stat-value { color: var(--negative); }
+.stat-card.cash { border-right-color: var(--warning); }
+.stat-card .stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
 
 /* Date picker styles */
 .calendar-picker {
@@ -1137,6 +1139,7 @@ pre {
 }
 [dir="ltr"] .stat-card.green { border-left-color: var(--positive); border-right: none; }
 [dir="ltr"] .stat-card.red { border-left-color: var(--negative); border-right: none; }
+[dir="ltr"] .stat-card.cash { border-left-color: var(--warning); border-right: none; }
 [dir="ltr"] .date-picker-dropdown {
     right: auto;
     left: 0;

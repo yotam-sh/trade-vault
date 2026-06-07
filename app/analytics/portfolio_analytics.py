@@ -89,6 +89,10 @@ def get_allocation_history():
             'etf': round(totals['etf'], 2),
             'bond': round(totals['bond'], 2),
             'other': round(totals['other'], 2),
+            # Idle cash as its own band so the stack totals to portfolio equity.
+            # Floored at 0 for display — early periods with incomplete history
+            # may compute a slightly negative cash balance.
+            'cash': round(max(0.0, snap.get('cash_balance', 0) or 0), 2),
         })
 
     return result
