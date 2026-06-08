@@ -17,7 +17,7 @@ def get_daily_summary(start_date=None, end_date=None):
 
     Returns list of daily summary records with top/bottom performers.
     """
-    from app.utils.data_enrichment import enrich_positions_batch
+    from app.utils.data_enrichment import enrich_positions_batch, display_name_fields
     from app.analytics.series import daily_changes
 
     filtered = list_snapshots(start_date, end_date)
@@ -41,11 +41,7 @@ def get_daily_summary(start_date=None, end_date=None):
 
             enriched = enriched_positions[i]
             pos_info = {
-                'ticker': enriched.get('symbol', ''),  # TASE symbol (Hebrew)
-                'name_he': enriched.get('name_he', ''),
-                'name_en': enriched.get('name_en'),
-                'symbol': enriched.get('symbol', ''),  # TASE symbol
-                'symbol_en': enriched.get('symbol_en'),  # English TASE symbol
+                **display_name_fields(enriched),
                 'holding_id': pos.get('holding_id'),
                 'daily_pnl': pnl,
                 'daily_pnl_pct': round(pnl / pos.get('market_value', 1) * 100, 2) if pos.get('market_value') else 0,
@@ -87,7 +83,7 @@ def get_daily_details(start_date=None, end_date=None):
     """
     from app.daily_prices import list_dates
     from app.connection import get_table, DAILY_PRICES
-    from app.utils.data_enrichment import enrich_positions_batch
+    from app.utils.data_enrichment import enrich_positions_batch, display_name_fields
     from tinydb import Query
 
     table = get_table(DAILY_PRICES)
@@ -132,12 +128,9 @@ def get_daily_details(start_date=None, end_date=None):
         result.append({
             'date': rec['date'],
             'security_type': holding.get('security_type', ''),
-            'name': enriched_data.get('name_he', ''),
-            'name_en': enriched_data.get('name_en'),
+            'name': enriched_data.get('name_he', ''),  # legacy key (sort + fallback)
+            **display_name_fields(enriched_data),
             'tase_id': holding.get('tase_id', ''),
-            'symbol': enriched_data.get('symbol', ''),
-            'symbol_en': enriched_data.get('symbol_en'),
-            'ticker': enriched_data.get('ticker'),
             'change_ils': rec.get('daily_pnl', 0),
             'change_pct': rec.get('price_change_pct', 0),
             'market_value': rec.get('market_value', 0),
@@ -178,6 +171,7 @@ def get_pivot_by_security(start_date=None, end_date=None):
     Groups by security type with subtotals.
     Groups by holding_id to properly aggregate even when tickers change.
     """
+    from app.utils.data_enrichment import display_name_fields
     details = get_daily_details(start_date, end_date)
 
     # Group by holding_id (stable identifier for the same security)
@@ -192,11 +186,8 @@ def get_pivot_by_security(start_date=None, end_date=None):
             change = d.get('change_ils', 0) or 0
             by_security[holding_id] = {
                 'holding_id': holding_id,
-                'name': d['name'],
-                'name_en': d.get('name_en'),
-                'ticker': d.get('ticker'),  # Will use most recent ticker
-                'symbol': d.get('symbol', ''),
-                'symbol_en': d.get('symbol_en'),
+                'name': d['name'],   # legacy key (fallback)
+                **display_name_fields(d),
                 'security_type': d['security_type'],
                 'total_change_ils': 0,
                 'max_change_ils': None,
@@ -209,10 +200,7 @@ def get_pivot_by_security(start_date=None, end_date=None):
         entry = by_security[holding_id]
 
         # Update to most recent enriched data (in case it changed)
-        entry['name_en'] = d.get('name_en')
-        entry['ticker'] = d.get('ticker')
-        entry['symbol'] = d.get('symbol', '')
-        entry['symbol_en'] = d.get('symbol_en')
+        entry.update(display_name_fields(d))
 
         change_ils = d.get('change_ils', 0) or 0
         change_pct = d.get('change_pct', 0) or 0

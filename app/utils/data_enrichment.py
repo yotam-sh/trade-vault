@@ -2,6 +2,19 @@
 
 from app.holdings import get_holding
 
+# Canonical set of name/symbol fields every table may display (selected via the
+# per-table display preference). Row builders should pass this whole set through —
+# dropping any of these makes the table silently fall back to a different name field.
+DISPLAY_NAME_FIELDS = (
+    'name_he', 'name_en', 'name_tase_he', 'name_tase_en',
+    'name_yf_long', 'name_yf_short', 'symbol', 'symbol_en', 'ticker',
+)
+
+
+def display_name_fields(src):
+    """Return the canonical display name/symbol fields from an enriched record."""
+    return {k: src.get(k) for k in DISPLAY_NAME_FIELDS}
+
 
 def enrich_position_with_holding(position, holding_id=None):
     """Enrich a position record with holding name and symbol.

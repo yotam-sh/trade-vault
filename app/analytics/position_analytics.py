@@ -7,7 +7,7 @@ from app.transactions import list_transactions
 from app.connection import get_table, DAILY_PRICES, TAX_LOTS
 from app.analytics.portfolio_analytics import get_portfolio_value
 from app.analytics.trade_analytics import get_closed_positions, get_trade_history
-from app.utils.data_enrichment import enrich_position_with_holding
+from app.utils.data_enrichment import enrich_position_with_holding, display_name_fields
 from app.utils.translation_service import (
     get_yfinance_mapping,
     ensure_yfinance_info_cached,
@@ -43,11 +43,7 @@ def get_positions_list():
             )
             open_positions.append({
                 'holding_id': pos['holding_id'],
-                'name_he': pos.get('name_he', ''),
-                'name_en': pos.get('name_en'),
-                'symbol': pos.get('symbol', ''),
-                'symbol_en': pos.get('symbol_en'),
-                'ticker': pos.get('ticker'),
+                **display_name_fields(pos),
                 'security_type': pos.get('security_type', ''),
                 'quantity': pos.get('quantity', 0),
                 'market_value': pos.get('market_value', 0),
@@ -89,10 +85,7 @@ def get_top_positions_pnl():
             unrealized = pos.get('market_value', 0) - pos.get('cost_basis', 0)
             combined[hid] = {
                 'holding_id': hid,
-                'name_he': pos.get('name_he', ''),
-                'name_en': pos.get('name_en'),
-                'symbol': pos.get('symbol', ''),
-                'symbol_en': pos.get('symbol_en'),
+                **display_name_fields(pos),
                 'total_pnl': unrealized,
                 'cost_basis': pos.get('cost_basis', 0),
             }

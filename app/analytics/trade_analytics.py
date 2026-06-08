@@ -5,7 +5,7 @@ from datetime import date as _date
 from app.holdings import get_holding
 from app.transactions import list_transactions
 from app.analytics.daily_analytics import get_daily_details
-from app.utils.data_enrichment import enrich_trade_with_holding
+from app.utils.data_enrichment import enrich_trade_with_holding, display_name_fields
 
 
 def _realized_pnl_from_lots(sell_lot_details):
@@ -195,13 +195,7 @@ def get_closed_positions():
 
         closed.append({
             'holding_id': hid,
-            'name_he': most_recent.get('name_he', ''),
-            'name_en': most_recent.get('name_en'),
-            'name_tase_he': holding.get('name_tase_he') if holding else None,
-            'name_tase_en': holding.get('name_tase_en') if holding else None,
-            'symbol': most_recent.get('symbol', ''),
-            'symbol_en': holding.get('symbol_en') if holding else None,
-            'ticker': most_recent.get('ticker'),
+            **display_name_fields(most_recent),
             'security_type': security_type,
             'total_shares': total_buy_shares,
             'avg_buy_price': round(avg_buy, 2),
