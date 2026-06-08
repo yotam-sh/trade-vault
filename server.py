@@ -435,7 +435,8 @@ def add_deposit_route():
         app.logger.exception('Add deposit failed')
         flash(_t('flash_deposit_error', lang), 'error')
 
-    flush_db()
+    from app.recompute import recompute_cash
+    recompute_cash()  # refresh snapshot cash/equity (also flushes)
     return redirect(url_for('transactions_view'))
 
 
@@ -518,7 +519,8 @@ def add_withdrawal_route():
         app.logger.exception('Add withdrawal failed')
         flash(_t('flash_withdrawal_error', lang), 'error')
 
-    flush_db()
+    from app.recompute import recompute_cash
+    recompute_cash()
     return redirect(url_for('transactions_view'))
 
 
@@ -588,7 +590,8 @@ def add_dividend_route():
         app.logger.exception('Add dividend failed')
         flash(_t('flash_dividend_error', lang), 'error')
 
-    flush_db()
+    from app.recompute import recompute_cash
+    recompute_cash()
     return redirect(url_for('transactions_view'))
 
 
@@ -658,7 +661,8 @@ def update_transaction_price_route(doc_id):
     ok = update_transaction_price(doc_id, price)
     if not ok:
         return jsonify({'error': 'transaction not found'}), 404
-    flush_db()
+    from app.recompute import recompute_after_trade_change
+    recompute_after_trade_change()  # FIFO replay + cash refresh (also flushes)
     return jsonify({'success': True})
 
 
@@ -669,7 +673,8 @@ def delete_transaction_route(doc_id):
     ok = delete_transaction(doc_id)
     if not ok:
         return jsonify({'error': 'transaction not found'}), 404
-    flush_db()
+    from app.recompute import recompute_after_trade_change
+    recompute_after_trade_change()  # rebuild lots/P&L + cash after the delete
     return jsonify({'success': True})
 
 

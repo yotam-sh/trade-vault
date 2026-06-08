@@ -238,12 +238,20 @@ def get_pivot_by_date(start_date=None, end_date=None):
         by_date[date]['total_market_value'] += d.get('market_value', 0) or 0
         by_date[date]['count'] += 1
 
+    from app.analytics.series import daily_changes
+    changes = daily_changes()
+
     result = sorted(by_date.values(), key=lambda r: r['date'])
     for r in result:
         r['total_change_ils'] = round(r['total_change_ils'], 2)
-        # Compute portfolio-level pct: change / morning_value
-        morning = r['total_market_value'] - r['total_change_ils']
-        r['total_change_pct'] = round(r['total_change_ils'] / morning * 100, 2) if morning else 0
+        # Portfolio-level pct from the canonical daily-change source so this view
+        # agrees with the daily summary / historical performance charts.
+        dc = changes.get(r['date'])
+        if dc:
+            r['total_change_pct'] = round(dc['change_pct'], 2)
+        else:
+            morning = r['total_market_value'] - r['total_change_ils']
+            r['total_change_pct'] = round(r['total_change_ils'] / morning * 100, 2) if morning else 0
 
     # Compute profiting/losing days statistics
     profiting = sum(1 for r in result if r['total_change_ils'] > 0)

@@ -2,7 +2,7 @@
 
 from tinydb import Query
 from app.connection import get_table, SETTINGS
-from app.schemas import now_iso
+from app.schemas import now_iso, validate_update
 
 
 def get_setting(key, default=None):
@@ -21,6 +21,9 @@ def set_setting(key, value):
     S = Query()
     existing = table.search(S.key == key)
     record = {'key': key, 'value': value, 'updated_at': now_iso()}
+    valid, errors = validate_update('settings', record)
+    if not valid:
+        raise ValueError(f"Invalid setting update: {errors}")
     if existing:
         table.update(record, S.key == key)
     else:

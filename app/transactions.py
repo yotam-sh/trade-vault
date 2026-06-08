@@ -2,7 +2,7 @@
 
 from tinydb import Query
 from app.connection import get_table, TRANSACTIONS
-from app.schemas import now_iso, validate_record
+from app.schemas import now_iso, validate_record, validate_update
 
 
 def add_transaction(type_, date, total_amount, currency, source, **kwargs):
@@ -118,6 +118,9 @@ def update_transaction_price(doc_id, new_price):
         'edited': True,
         'updated_at': now_iso(),
     }
+    valid, errors = validate_update('transactions', updates)
+    if not valid:
+        raise ValueError(f"Invalid transaction update: {errors}")
     table.update(updates, doc_ids=[doc_id])
     if existing.get('type') == 'buy':
         from app.connection import get_table as _gt, TAX_LOTS

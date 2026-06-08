@@ -2,7 +2,7 @@
 
 from tinydb import Query
 from app.connection import get_table, PORTFOLIO_SNAPSHOTS
-from app.schemas import now_iso, validate_record
+from app.schemas import now_iso, validate_record, validate_update
 
 
 def _cumulative_cashflows(up_to_date):
@@ -112,6 +112,9 @@ def create_snapshot(date, total_market_value, total_cost_basis, total_daily_pnl,
         }
         updates.update({k: v for k, v in kwargs.items()
                         if k not in ('total_deposits', 'total_withdrawals')})
+        valid, errors = validate_update('portfolio_snapshots', updates)
+        if not valid:
+            raise ValueError(f"Invalid snapshot update: {errors}")
         table.update(updates, doc_ids=[doc_id])
         return doc_id
 

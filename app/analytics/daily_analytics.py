@@ -18,18 +18,11 @@ def get_daily_summary(start_date=None, end_date=None):
     Returns list of daily summary records with top/bottom performers.
     """
     from app.utils.data_enrichment import enrich_positions_batch
+    from app.analytics.series import daily_changes
 
-    # Load all snapshots (not just filtered range) so we can use prev_value
-    all_snapshots = list_snapshots()
     filtered = list_snapshots(start_date, end_date)
-    filtered_dates = {s['date'] for s in filtered}
-
-    # Build prev_value map: date -> previous day's closing value
-    prev_value_map = {}
-    sorted_snaps = sorted(all_snapshots, key=lambda s: s['date'])
-    for i, snap in enumerate(sorted_snaps):
-        if i > 0:
-            prev_value_map[snap['date']] = sorted_snaps[i - 1]['total_market_value']
+    # Canonical daily change (morning value + change %) shared with all other views.
+    changes = daily_changes()
 
     result = []
     for snap in filtered:
@@ -63,23 +56,15 @@ def get_daily_summary(start_date=None, end_date=None):
             if worst is None or pnl < worst['daily_pnl']:
                 worst = pos_info
 
-        prev_close = prev_value_map.get(snap['date'])
-
         deposits_today = 0
         day_txns = list_transactions(type_='deposit', start_date=snap['date'], end_date=snap['date'])
         deposits_today = sum(t['total_amount'] for t in day_txns)
 
-        # Daily P&L: use the file-reported value (sum of IBI's שינוי יומי).
-        # Change %: relative to the previous day's closing value when available,
-        # so that sold positions don't inflate the denominator.
-        daily_pnl = snap['total_daily_pnl']
-
-        if prev_close is not None and prev_close > 0:
-            morning_value = prev_close
-        else:
-            morning_value = snap['total_market_value'] - snap['total_daily_pnl']
-
-        change_pct = (daily_pnl / morning_value * 100) if morning_value else 0
+        # Canonical daily P&L / morning value / change % (see app.analytics.series).
+        dc = changes.get(snap['date'], {})
+        daily_pnl = dc.get('daily_pnl', snap['total_daily_pnl'])
+        morning_value = dc.get('morning_value', snap['total_market_value'] - snap['total_daily_pnl'])
+        change_pct = dc.get('change_pct', 0)
 
         result.append({
             'date': snap['date'],
@@ -167,33 +152,22 @@ def get_daily_type_chart_data(start_date=None, end_date=None):
     """Return daily change ILS aggregated by security type for the stacked bar chart.
 
     Returns a list of {date, stock, mutual_fund, etf, bond, other, total_value} dicts.
-    total_value is the sum of all holdings' market_value that day, used as % denominator.
+    total_value is the snapshot's market value that day (the % denominator) — the same
+    figure the allocation and portfolio-value charts use.
     """
-    details = get_daily_details(start_date, end_date)
-
-    # Collect all dates in order
-    from collections import OrderedDict
-    by_date = OrderedDict()
-    for d in details:
-        dt = d['date']
-        if dt not in by_date:
-            by_date[dt] = {'stock': 0, 'mutual_fund': 0, 'etf': 0, 'bond': 0, 'other': 0, 'total_value': 0}
-        sec_type = d.get('security_type') or 'other'
-        if sec_type not in by_date[dt]:
-            sec_type = 'other'
-        by_date[dt][sec_type] += d.get('change_ils', 0) or 0
-        by_date[dt]['total_value'] += d.get('market_value', 0) or 0
+    from app.analytics.series import daily_positions_by_type
 
     result = []
-    for dt, totals in by_date.items():
+    for row in daily_positions_by_type(start_date, end_date):
+        c = row['change']
         result.append({
-            'date': dt,
-            'stock': round(totals['stock'], 2),
-            'mutual_fund': round(totals['mutual_fund'], 2),
-            'etf': round(totals['etf'], 2),
-            'bond': round(totals['bond'], 2),
-            'other': round(totals['other'], 2),
-            'total_value': round(totals['total_value'], 2),
+            'date': row['date'],
+            'stock': c['stock'],
+            'mutual_fund': c['mutual_fund'],
+            'etf': c['etf'],
+            'bond': c['bond'],
+            'other': c['other'],
+            'total_value': row['total_value'],
         })
     return result
 
@@ -313,25 +287,21 @@ def get_historical_performance():
     Returns {'by_day': [...], 'by_week': [...], 'by_month': [...]}
     Each list contains {label, avg_pct, count} dicts.
     """
-    all_snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
+    from app.analytics.series import daily_changes
 
-    # Build prev_value map so we can compute change% vs prior close
-    prev_value_map = {}
-    for i, snap in enumerate(all_snapshots):
-        if i > 0:
-            prev_value_map[snap['date']] = all_snapshots[i - 1]['total_market_value']
+    all_snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
+    changes = daily_changes()  # canonical morning value + change %
 
     day_buckets = defaultdict(list)    # 0=Mon .. 6=Sun
     week_buckets = defaultdict(list)   # 1..53
     month_buckets = defaultdict(list)  # 1..12
 
     for snap in all_snapshots:
-        daily_pnl = snap.get('total_daily_pnl', 0) or 0
-        prev_close = prev_value_map.get(snap['date'])
-        morning_value = prev_close if prev_close else (snap['total_market_value'] - daily_pnl)
+        dc = changes.get(snap['date'], {})
+        morning_value = dc.get('morning_value', 0)
         if not morning_value or morning_value <= 0:
             continue
-        pct = daily_pnl / morning_value * 100
+        pct = dc.get('change_pct', 0)
 
         dt = datetime.fromisoformat(snap['date'])
         day_buckets[dt.weekday()].append(pct)

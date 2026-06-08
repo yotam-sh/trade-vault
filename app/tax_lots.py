@@ -124,6 +124,73 @@ def sell_fifo(ticker, shares_to_sell, sell_price, sell_date):
     return sell_details
 
 
+def rebuild_tax_lots():
+    """Rebuild the entire tax_lots table from the transaction log (FIFO replay).
+
+    Clears all lots, then replays every buy/sell in chronological order through the
+    same ``create_lot``/``sell_fifo`` engine the live import path uses, rewriting
+    each sell transaction's embedded ``sell_lot_details``. This is the authoritative
+    recompute after any transaction edit/delete — it subsumes per-case cascade logic.
+
+    Ticker is normalized to the holding's current ticker so historical ticker drift
+    (renames) doesn't break FIFO matching. A sell that cannot be matched (e.g. a
+    position seeded outside the transaction log) keeps its existing details rather
+    than being wiped; such cases are surfaced by the reconcile report.
+
+    Returns a dict summary {buys, sells, unmatched_sells}.
+    """
+    from app.connection import get_table, TAX_LOTS, TRANSACTIONS
+    from app.holdings import get_holding
+
+    lot_table = get_table(TAX_LOTS)
+    txn_table = get_table(TRANSACTIONS)
+
+    trades = [t for t in txn_table.all() if t.get('type') in ('buy', 'sell')]
+    trades.sort(key=lambda t: (t.get('date', ''), t.doc_id))
+
+    _ticker_cache = {}
+
+    def _ticker_for(txn):
+        hid = txn.get('holding_id')
+        if hid in _ticker_cache:
+            return _ticker_cache[hid]
+        holding = get_holding(hid) if hid else None
+        ticker = ((holding.get('ticker') if holding else None)
+                  or txn.get('ticker') or txn.get('symbol') or f'hid:{hid}')
+        _ticker_cache[hid] = ticker
+        return ticker
+
+    lot_table.truncate()
+
+    buys = sells = unmatched = 0
+    for txn in trades:
+        ticker = _ticker_for(txn)
+        shares = txn.get('shares') or 0
+        price = txn.get('price_per_share') or 0
+        if txn['type'] == 'buy':
+            create_lot(
+                holding_id=txn.get('holding_id'),
+                ticker=ticker,
+                buy_transaction_id=txn.doc_id,
+                buy_date=txn['date'],
+                buy_price=price,
+                shares=shares,
+                currency=txn.get('currency', 'ILS'),
+                commission=txn.get('commission') or 0,
+            )
+            buys += 1
+        else:  # sell
+            try:
+                details = sell_fifo(ticker, shares, price, txn['date'])
+                txn_table.update({'sell_lot_details': details}, doc_ids=[txn.doc_id])
+                sells += 1
+            except ValueError:
+                # Can't match against rebuilt lots — preserve existing details.
+                unmatched += 1
+
+    return {'buys': buys, 'sells': sells, 'unmatched_sells': unmatched}
+
+
 def repair_lot_states():
     """Reconstruct correct lot state for every lot by replaying all sell transactions.
 

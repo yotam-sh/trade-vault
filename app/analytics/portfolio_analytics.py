@@ -61,38 +61,29 @@ def get_pnl_summary():
 def get_allocation_history():
     """Return per-date security-type market value breakdown for stacked area chart.
 
-    Returns list of {date, stock, mutual_fund, etf, bond, other} dicts sorted by date.
+    Built from the canonical per-day position source so the type values sum to the
+    snapshot's market value (and match the by-type daily chart). A cash band is
+    appended so the stack totals to portfolio equity.
+
+    Returns list of {date, stock, mutual_fund, etf, bond, other, cash} dicts.
     """
-    snapshots = sorted(list_snapshots(), key=lambda s: s['date'])
-    holdings_cache = {}
+    from app.analytics.series import daily_positions_by_type
+    cash_by_date = {s['date']: (s.get('cash_balance', 0) or 0) for s in list_snapshots()}
+
     result = []
-
-    for snap in snapshots:
-        totals = {'stock': 0.0, 'mutual_fund': 0.0, 'etf': 0.0, 'bond': 0.0, 'other': 0.0}
-        for pos in snap.get('positions', []):
-            hid = pos.get('holding_id')
-            mv = pos.get('market_value', 0) or 0
-            if mv <= 0:
-                continue
-            if hid not in holdings_cache:
-                holdings_cache[hid] = get_holding(hid)
-            holding = holdings_cache.get(hid) or {}
-            sec_type = holding.get('security_type', 'other')
-            if sec_type not in totals:
-                sec_type = 'other'
-            totals[sec_type] += mv
-
+    for row in daily_positions_by_type():
+        v = row['value']
         result.append({
-            'date': snap['date'],
-            'stock': round(totals['stock'], 2),
-            'mutual_fund': round(totals['mutual_fund'], 2),
-            'etf': round(totals['etf'], 2),
-            'bond': round(totals['bond'], 2),
-            'other': round(totals['other'], 2),
+            'date': row['date'],
+            'stock': v['stock'],
+            'mutual_fund': v['mutual_fund'],
+            'etf': v['etf'],
+            'bond': v['bond'],
+            'other': v['other'],
             # Idle cash as its own band so the stack totals to portfolio equity.
             # Floored at 0 for display — early periods with incomplete history
             # may compute a slightly negative cash balance.
-            'cash': round(max(0.0, snap.get('cash_balance', 0) or 0), 2),
+            'cash': round(max(0.0, cash_by_date.get(row['date'], 0)), 2),
         })
 
     return result

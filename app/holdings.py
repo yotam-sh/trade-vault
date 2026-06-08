@@ -2,7 +2,7 @@
 
 from tinydb import Query
 from app.connection import get_table, HOLDINGS
-from app.schemas import now_iso, validate_record
+from app.schemas import now_iso, validate_record, validate_update
 
 
 def add_holding(tase_id, tase_symbol, name_he, security_type, currency,
@@ -77,6 +77,9 @@ def update_holding(doc_id, **kwargs):
     """Update a holding's fields."""
     table = get_table(HOLDINGS)
     kwargs['updated_at'] = now_iso()
+    valid, errors = validate_update('holdings', kwargs)
+    if not valid:
+        raise ValueError(f"Invalid holding update: {errors}")
     table.update(kwargs, doc_ids=[doc_id])
 
 

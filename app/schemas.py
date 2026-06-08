@@ -71,6 +71,10 @@ TRANSACTION_SCHEMA = {
     'import_id': (int, False),
     'notes': (str, False),
     'tags': (list, False),
+    'edited': (bool, False),
+    'balance': (float, False),
+    'cost_change_pct': (float, False),
+    'cost_change_ils': (float, False),
     'created_at': (str, True),
     'updated_at': (str, True),
 }
@@ -238,5 +242,58 @@ def validate_record(table_name, record):
                 errors.append(
                     f"Field '{field}' must be one of {sorted(allowed)}, got '{value}'"
                 )
+
+    return len(errors) == 0, errors
+
+
+def validate_update(table_name, partial):
+    """Validate a partial update dict against a table schema.
+
+    Unlike validate_record this does not require all required fields (it's a
+    partial update), but it DOES reject unknown keys and applies the same
+    type / enum / date / non-negative checks to every provided field.
+
+    Returns (is_valid, errors).
+    """
+    schema = SCHEMAS.get(table_name)
+    if schema is None:
+        return False, [f"Unknown table: {table_name}"]
+
+    errors = []
+    for field, value in partial.items():
+        if field not in schema:
+            errors.append(f"Unknown field for {table_name}: '{field}'")
+            continue
+
+        if value is None:
+            continue
+
+        expected_type = schema[field][0]
+        if expected_type is not None and not isinstance(value, expected_type):
+            if expected_type is float and isinstance(value, int) and not isinstance(value, bool):
+                pass  # int acceptable where float is expected
+            else:
+                errors.append(
+                    f"Field '{field}' expected {expected_type.__name__}, "
+                    f"got {type(value).__name__}"
+                )
+                continue
+
+        if field in _DATE_FIELDS and isinstance(value, str):
+            try:
+                datetime.strptime(value[:10], '%Y-%m-%d')
+            except ValueError:
+                errors.append(
+                    f"Field '{field}' must be a valid ISO date (YYYY-MM-DD), got '{value}'"
+                )
+
+        if field in _NON_NEGATIVE_FIELDS and isinstance(value, (int, float)):
+            if value < 0:
+                errors.append(f"Field '{field}' must be >= 0, got {value}")
+
+        if field in _ENUM_FIELDS and value not in _ENUM_FIELDS[field]:
+            errors.append(
+                f"Field '{field}' must be one of {sorted(_ENUM_FIELDS[field])}, got '{value}'"
+            )
 
     return len(errors) == 0, errors

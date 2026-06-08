@@ -149,6 +149,13 @@ def cmd_add(args):
 
     else:
         print(f"Unknown action: {args.action}")
+        close_db()
+        return
+
+    # Refresh snapshot cash/equity so the change shows without a restart.
+    # (Lots are created inline above for buy/sell, so a cash refresh suffices.)
+    from app.recompute import recompute_cash
+    recompute_cash()
 
     close_db()
 
