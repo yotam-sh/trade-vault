@@ -8,8 +8,10 @@ import server
 
 @pytest.fixture
 def auth(monkeypatch):
+    from app import auth_store
+    monkeypatch.delenv('TOTP_SECRET', raising=False)
     secret = pyotp.random_base32()
-    monkeypatch.setattr(server, '_TOTP_SECRET', secret)
+    auth_store.set_totp_secret(secret)  # enable the gate via the sidecar store
     monkeypatch.setitem(server.app.config, 'WTF_CSRF_ENABLED', False)
     server._login_failures.clear()
     return server.app.test_client(), secret

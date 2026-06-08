@@ -81,6 +81,7 @@
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
+                        <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
                         <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
@@ -154,6 +155,9 @@
                         </div>
                     </div>
                     <button type="submit">{{ t.btn_import }}</button>
+                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--text-secondary);">
+                        <input type="checkbox" name="force" value="on"> {{ t.upload_force_label }}
+                    </label>
                 </div>
             </form>
         </div>

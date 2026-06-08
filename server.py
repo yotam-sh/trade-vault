@@ -84,8 +84,14 @@ import time as _time
 import pyotp
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
+from app import auth_store
 
-_TOTP_SECRET = os.environ.get('TOTP_SECRET', '').strip()
+
+def _totp_secret():
+    """Active TOTP secret (env var, else web-managed sidecar), or None if disabled."""
+    return auth_store.get_totp_secret()
+
+
 _SESSION_HOURS = int(os.environ.get('SESSION_LIFETIME_HOURS', '12') or 12)
 _TRUST_PROXY = os.environ.get('TRUST_PROXY', 'false').lower() == 'true'
 _COOKIE_SECURE = os.environ.get(
@@ -117,9 +123,9 @@ _login_failures = {}            # ip -> {'count': int, 'until': float}
 _LOGIN_MAX_FAILS = 5
 _LOGIN_LOCKOUT_SECONDS = 300
 
-if not _TOTP_SECRET:
-    print("WARNING: TOTP_SECRET not set — per-session login is DISABLED. "
-          "Run `python main.py auth-setup` and set TOTP_SECRET to enable.",
+if not _totp_secret():
+    print("NOTE: per-session login is DISABLED (no TOTP secret configured). "
+          "Set it up from the web Maintenance page, or `python main.py auth-setup`.",
           file=sys.stderr)
 
 
@@ -131,8 +137,8 @@ def _session_valid():
 
 @app.before_request
 def _require_login():
-    if not _TOTP_SECRET:
-        return  # auth disabled (local dev)
+    if not _totp_secret():
+        return  # auth disabled (no secret configured)
     if (request.endpoint or '') in _AUTH_EXEMPT_ENDPOINTS:
         return
     if _session_valid():
@@ -148,7 +154,8 @@ def _require_login():
 @limiter.limit('10/minute;60/hour', exempt_when=lambda: request.method != 'POST')
 def login():
     lang = _get_lang()
-    if not _TOTP_SECRET:
+    secret = _totp_secret()
+    if not secret:
         return redirect(url_for('index'))
     if request.method == 'GET':
         if _session_valid():
@@ -164,7 +171,7 @@ def login():
             return redirect(url_for('login'))
 
     code = (request.form.get('code') or '').replace(' ', '').strip()
-    if code and pyotp.TOTP(_TOTP_SECRET).verify(code, valid_window=1):
+    if code and pyotp.TOTP(secret).verify(code, valid_window=1):
         session.clear()
         session['authed'] = True
         session['authed_at'] = now
@@ -190,7 +197,82 @@ def login():
 @app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
-    return redirect(url_for('login') if _TOTP_SECRET else url_for('index'))
+    return redirect(url_for('login') if _totp_secret() else url_for('index'))
+
+
+# ── Maintenance (web-managed security + data health) ──────────────────────────
+@app.route('/maintenance')
+def maintenance():
+    return render_template(
+        'maintenance.html',
+        totp_active=bool(_totp_secret()),
+        totp_env_managed=auth_store.is_env_managed(),
+    )
+
+
+@app.route('/maintenance/totp/begin', methods=['POST'])
+def maintenance_totp_begin():
+    """Generate a candidate secret + QR (SVG). Secret is kept pending until confirmed."""
+    if auth_store.is_env_managed():
+        return jsonify({'error': 'env_managed'}), 400
+    import io
+    import qrcode
+    import qrcode.image.svg
+    secret = pyotp.random_base32()
+    session['totp_pending'] = secret
+    issuer = os.environ.get('TOTP_ISSUER', 'TradeVault')
+    label = os.environ.get('TOTP_LABEL', 'tradevault')
+    uri = pyotp.TOTP(secret).provisioning_uri(name=label, issuer_name=issuer)
+    img = qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage)
+    buf = io.BytesIO()
+    img.save(buf)
+    return jsonify({'svg': buf.getvalue().decode('utf-8'), 'secret': secret})
+
+
+@app.route('/maintenance/totp/confirm', methods=['POST'])
+def maintenance_totp_confirm():
+    """Verify a code against the pending secret, then activate login."""
+    lang = _get_lang()
+    if auth_store.is_env_managed():
+        return jsonify({'ok': False, 'error': 'env_managed'}), 400
+    pending = session.get('totp_pending')
+    code = (request.form.get('code') or '').replace(' ', '').strip()
+    if not pending or not code or not pyotp.TOTP(pending).verify(code, valid_window=1):
+        return jsonify({'ok': False, 'error': _t('login_failed', lang)}), 400
+    auth_store.set_totp_secret(pending)
+    session.pop('totp_pending', None)
+    session['authed'] = True
+    session['authed_at'] = _time.time()
+    session.permanent = True
+    flush_db()
+    return jsonify({'ok': True})
+
+
+@app.route('/maintenance/totp/disable', methods=['POST'])
+def maintenance_totp_disable():
+    lang = _get_lang()
+    if not auth_store.clear_totp_secret():
+        flash(_t('totp_env_managed', lang), 'error')
+    else:
+        flash(_t('totp_disabled_msg', lang), 'success')
+    return redirect(url_for('maintenance'))
+
+
+@app.route('/maintenance/reconcile', methods=['POST'])
+def maintenance_reconcile():
+    from app.reconcile import reconcile
+    issues = [{'sev': s, 'date': d, 'msg': m} for s, d, m in reconcile()]
+    return jsonify({'issues': issues})
+
+
+@app.route('/maintenance/rebuild-lots', methods=['POST'])
+def maintenance_rebuild_lots():
+    lang = _get_lang()
+    from app.recompute import recompute_after_trade_change
+    summary = recompute_after_trade_change()
+    flash(f"{_t('rebuild_lots_done', lang)} "
+          f"({summary['buys']} buys, {summary['sells']} sells)", 'success')
+    return redirect(url_for('maintenance'))
 
 
 # ── Jinja2 template filters ───────────────────────────────────────────────────
@@ -453,7 +535,8 @@ def upload_daily():
 
     # Import into database
     try:
-        result = import_daily_portfolio(target_path, data_date=date_str)
+        force = request.form.get('force') in ('on', 'true', '1')
+        result = import_daily_portfolio(target_path, data_date=date_str, force=force)
         if result['status'] == 'duplicate':
             flash(f"{_t('flash_duplicate', lang)} ({date_str})", 'warning')
         elif result['status'] in ('failed', 'rejected'):

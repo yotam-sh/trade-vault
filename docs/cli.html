@@ -699,11 +699,12 @@
   <!-- auth-setup -->
   <section id="auth-setup">
     <h2><span class="cmd-badge">auth-setup</span> Set up per-session login (TOTP)</h2>
-    <p>Generates a TOTP secret and prints a QR code to scan with Google Authenticator (or any
-       compatible app), for the app's per-session login. The secret is printed only — it is
-       never written to the database. Add it to your <code>.env</code> as
-       <code>TOTP_SECRET</code> and restart the app to enable the login gate. When
-       <code>TOTP_SECRET</code> is unset, the gate is disabled (local-only dev).</p>
+    <p>Generates a TOTP secret + QR for the app's per-session login and saves it to a sidecar
+       file on the db volume (<code>db/auth.json</code>) — never inside the database, so it is
+       excluded from exports/backups. Login activates immediately (no restart). An explicit
+       <code>TOTP_SECRET</code> env var, if set, takes precedence. The <strong>primary</strong>
+       way to set this up is the web <em>Maintenance</em> page (Settings → Maintenance); this
+       command is a CLI fallback.</p>
 
     <h3>Syntax</h3>
     <pre><code><span class="kw">python</span> main.py auth-setup</code></pre>

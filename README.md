@@ -294,17 +294,20 @@ Reads the latest portfolio snapshot and syncs the `is_active` flag on all holdin
 
 ### Per-session login (TOTP)
 
+**Primary path — web UI:** open **Settings → Maintenance → Login & Security → Set up login**, scan the QR in Google Authenticator (or any compatible app), and enter a code to confirm. Login activates immediately (no restart). The secret is saved to a sidecar file on the db volume (`db/auth.json`), never inside the database, so it is excluded from exports/backups. Disable it from the same page.
+
+**CLI fallback:**
 ```bash
 python main.py auth-setup
 ```
-Generates a TOTP secret and prints a QR code to scan with Google Authenticator (or any compatible app). The secret is printed only — never written to the database. Add it to `.env` as `TOTP_SECRET` and restart the app to require a 6-digit code per browser session. When `TOTP_SECRET` is unset, the login gate is disabled (local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure cookies and per-IP rate limiting work correctly.
+Prints the QR + secret and saves it to the same sidecar store (activates immediately). An explicit `TOTP_SECRET` environment variable, if set, always takes precedence and can only be changed by editing the environment. When no secret is configured, the login gate is disabled (local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure cookies and per-IP rate limiting work correctly.
 
 ### Reconciling the database
 
 ```bash
 python main.py check
 ```
-Verifies the derived data is internally consistent: each snapshot's positions sum to its market value, `total_equity = market_value + cash`, and open tax-lot shares match current positions. Prints discrepancies and exits non-zero on hard errors (warnings, such as positions seeded without buy transactions, don't fail).
+Verifies the derived data is internally consistent: each snapshot's positions sum to its market value, `total_equity = market_value + cash`, and open tax-lot shares match current positions. Prints discrepancies and exits non-zero on hard errors (warnings, such as positions seeded without buy transactions, don't fail). The same check and the **Rebuild tax lots** fixer are available in the web UI under **Settings → Maintenance → Data Health**.
 
 ### Yahoo Finance integration
 

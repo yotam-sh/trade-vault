@@ -269,8 +269,19 @@ def cmd_auth_setup(args):
 
     print(f"\nCan't scan? Enter this secret manually: {secret}")
     print(f"\notpauth URI:\n  {uri}\n")
-    print("Then add this line to your .env and restart the app:")
-    print(f"  TOTP_SECRET={secret}\n")
+
+    # Persist to the shared sidecar store so login activates without an .env edit
+    # or restart (the web Maintenance page uses the same store). An explicit
+    # TOTP_SECRET env var, if set, still takes precedence.
+    from app import auth_store
+    if auth_store.is_env_managed():
+        print("NOTE: TOTP_SECRET is set in the environment and takes precedence; "
+              "to use this new secret, unset it. Otherwise add to .env:")
+        print(f"  TOTP_SECRET={secret}\n")
+    else:
+        auth_store.set_totp_secret(secret)
+        print("Saved. Per-session login is now ACTIVE (no restart needed).")
+        print("Tip: you can also set this up from the web Maintenance page.\n")
 
 
 def cmd_check(args):

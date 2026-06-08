@@ -18,6 +18,7 @@ db/db.json
 db/*.bak
 db/imports/
 db/backups/
+db/auth.json
 
 # Data files (personal brokerage exports)
 data/
