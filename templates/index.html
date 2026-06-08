@@ -84,7 +84,6 @@
                         <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
                 <div class="settings-version">v{{ app_version }}</div>
@@ -125,8 +124,14 @@
             <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="upload-row">
+                    <label>{{ t.label_import_type }}</label>
+                    <select name="import_type" id="import-type">
+                        <option value="daily">{{ t.import_type_daily }}</option>
+                        <option value="trades">{{ t.import_type_trades }}</option>
+                        <option value="morning-balance">{{ t.import_type_morning }}</option>
+                    </select>
                     <label>{{ t.label_file }}</label>
-                    <input type="file" name="file" id="file-input" accept=".xlsx,.xls" required hidden>
+                    <input type="file" name="file" id="file-input" accept=".xlsx,.xls" required hidden multiple>
                     <button type="button" class="file-picker-btn" onclick="document.getElementById('file-input').click()">{{ t.pick_file }}</button>
                     <span class="file-name">{{ t.no_file_selected }}</span>
                     <label>{{ t.label_date }}</label>

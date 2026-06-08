@@ -365,6 +365,16 @@
     <span class="chip chip-green">Cross-platform</span>
   </div>
 
+  <div class="callout callout-info">
+    <strong>The web UI is now the primary interface.</strong>
+    Every command here also has a web equivalent — imports and manual buy/sell on the dashboard
+    &amp; Account Overview; reconcile, rebuild-lots, sync-holdings, repair, refresh-yfinance,
+    check-libs, and TOTP login setup on <em>Settings → Maintenance</em>; ticker/yfinance mapping
+    on each position page; DB export/import on Admin. The CLI remains a fallback; the only
+    web-unavailable command is <code>upgrade-libs</code> (it changes the Python environment — in
+    Docker you rebuild the image).
+  </div>
+
   <!-- ── Overview ─────────────────────────────────────────── -->
   <section id="overview">
     <h2>Overview</h2>
@@ -482,34 +492,8 @@
   <!-- add -->
   <section id="add">
     <h2><span class="cmd-badge">add</span> Add a transaction</h2>
-    <p>Manually record a buy, sell, or cash deposit. Use this when a transaction is not
-       present in the IBI export or for correcting the database.</p>
-
-    <h3>Sub-commands</h3>
-
-    <h3>add buy</h3>
-    <pre><code><span class="kw">python</span> main.py add buy <span class="arg">&lt;ticker&gt;</span> <span class="arg">&lt;shares&gt;</span> <span class="arg">&lt;price&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
-    <table>
-      <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
-      <tr><td>ticker</td><td><span class="badge badge-req">required</span></td>
-          <td class="desc">Yahoo Finance ticker (e.g. <code>GNRS.TA</code>). The holding must already
-              exist in the database (imported via daily snapshot first).</td></tr>
-      <tr><td>shares</td><td><span class="badge badge-req">required</span></td>
-          <td class="desc">Number of shares purchased (decimal allowed).</td></tr>
-      <tr><td>price</td><td><span class="badge badge-req">required</span></td>
-          <td class="desc">Price per share in ILS.</td></tr>
-      <tr><td class="opt-col">--date</td><td><span class="badge badge-opt">optional</span></td>
-          <td class="desc">Transaction date. Defaults to today.</td></tr>
-    </table>
-    <div class="callout callout-info">
-      <strong>Tax lot created automatically</strong>
-      Every buy creates a FIFO tax lot. Subsequent sells will consume this lot in order.
-    </div>
-
-    <h3>add sell</h3>
-    <pre><code><span class="kw">python</span> main.py add sell <span class="arg">&lt;ticker&gt;</span> <span class="arg">&lt;shares&gt;</span> <span class="arg">&lt;price&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
-    <p>Same arguments as <code>add buy</code>. Sells are processed FIFO across all open tax lots
-       for the ticker. Realized P&amp;L is printed to console.</p>
+    <p>Record a cash deposit. (Buys and sells come from <code>import trades</code> and automatic
+       interpolation; use the Activity page to edit a price or delete a trade.)</p>
 
     <h3>add deposit</h3>
     <pre><code><span class="kw">python</span> main.py add deposit <span class="arg">&lt;amount&gt;</span> <span class="opt">[--date YYYY-MM-DD]</span></code></pre>
@@ -522,9 +506,7 @@
     </table>
 
     <h3>Examples</h3>
-    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py add buy GNRS.TA <span class="arg">100</span> <span class="arg">52.30</span> <span class="opt">--date 2026-03-15</span>
-<span class="prompt">$ </span><span class="kw">python</span> main.py add sell GNRS.TA <span class="arg">50</span> <span class="arg">58.00</span>
-<span class="prompt">$ </span><span class="kw">python</span> main.py add deposit <span class="arg">50000</span> <span class="opt">--date 2026-01-10</span></code></pre>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py add deposit <span class="arg">50000</span> <span class="opt">--date 2026-01-10</span></code></pre>
   </section>
 
   <!-- show -->

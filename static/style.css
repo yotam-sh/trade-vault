@@ -144,9 +144,14 @@ nav a {
     transition: background 0.2s;
 }
 
-nav a:hover, nav a.active {
+nav a:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+}
+
+nav a.active {
+    background: #ff8c00;
+    color: #1a1a1a;
 }
 
 /* Settings button */

@@ -92,6 +92,16 @@ def _totp_secret():
     return auth_store.get_totp_secret()
 
 
+def _admin_password():
+    """Bootstrap login password (ADMIN_PASSWORD env), or '' if unset."""
+    return os.environ.get('ADMIN_PASSWORD', '').strip()
+
+
+def _login_required():
+    """Auth is enforced when a TOTP secret OR a bootstrap password is configured."""
+    return bool(_totp_secret()) or bool(_admin_password())
+
+
 _SESSION_HOURS = int(os.environ.get('SESSION_LIFETIME_HOURS', '12') or 12)
 _TRUST_PROXY = os.environ.get('TRUST_PROXY', 'false').lower() == 'true'
 _COOKIE_SECURE = os.environ.get(
@@ -123,9 +133,10 @@ _login_failures = {}            # ip -> {'count': int, 'until': float}
 _LOGIN_MAX_FAILS = 5
 _LOGIN_LOCKOUT_SECONDS = 300
 
-if not _totp_secret():
-    print("NOTE: per-session login is DISABLED (no TOTP secret configured). "
-          "Set it up from the web Maintenance page, or `python main.py auth-setup`.",
+if not _login_required():
+    print("NOTE: login is DISABLED (no TOTP secret and no ADMIN_PASSWORD). "
+          "Set ADMIN_PASSWORD to gate the app, then set up TOTP from the web "
+          "Maintenance page (or `python main.py auth-setup`).",
           file=sys.stderr)
 
 
@@ -137,8 +148,8 @@ def _session_valid():
 
 @app.before_request
 def _require_login():
-    if not _totp_secret():
-        return  # auth disabled (no secret configured)
+    if not _login_required():
+        return  # auth disabled (no secret or password configured)
     if (request.endpoint or '') in _AUTH_EXEMPT_ENDPOINTS:
         return
     if _session_valid():
@@ -155,12 +166,16 @@ def _require_login():
 def login():
     lang = _get_lang()
     secret = _totp_secret()
-    if not secret:
+    password = _admin_password()
+    # TOTP takes over once configured; until then the admin password bootstraps login.
+    mode = 'totp' if secret else ('password' if password else None)
+    if mode is None:
         return redirect(url_for('index'))
+
     if request.method == 'GET':
         if _session_valid():
             return redirect(url_for('index'))
-        return render_template('login.html', next=request.args.get('next', ''))
+        return render_template('login.html', mode=mode, next=request.args.get('next', ''))
 
     ip = _client_ip()
     now = _time.time()
@@ -170,14 +185,24 @@ def login():
             flash(_t('login_locked', lang, seconds=int(st['until'] - now)), 'error')
             return redirect(url_for('login'))
 
-    code = (request.form.get('code') or '').replace(' ', '').strip()
-    if code and pyotp.TOTP(secret).verify(code, valid_window=1):
+    if mode == 'totp':
+        code = (request.form.get('code') or '').replace(' ', '').strip()
+        ok = bool(code) and pyotp.TOTP(secret).verify(code, valid_window=1)
+    else:  # password bootstrap
+        supplied = request.form.get('password') or ''
+        ok = bool(supplied) and hmac.compare_digest(supplied, password)
+
+    if ok:
         session.clear()
         session['authed'] = True
         session['authed_at'] = now
         session.permanent = True
         with _login_guard_lock:
             _login_failures.pop(ip, None)
+        if mode == 'password':
+            # Nudge the user to set up TOTP for subsequent logins.
+            flash(_t('login_totp_nudge', lang), 'success')
+            return redirect(url_for('maintenance'))
         nxt = request.form.get('next') or request.args.get('next')
         if nxt and nxt.startswith('/') and not nxt.startswith('//'):
             return redirect(nxt)
@@ -197,7 +222,7 @@ def login():
 @app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
-    return redirect(url_for('login') if _totp_secret() else url_for('index'))
+    return redirect(url_for('login') if _login_required() else url_for('index'))
 
 
 # ── Maintenance (web-managed security + data health) ──────────────────────────
@@ -275,6 +300,72 @@ def maintenance_rebuild_lots():
     return redirect(url_for('maintenance'))
 
 
+@app.route('/maintenance/sync-holdings', methods=['POST'])
+def maintenance_sync_holdings():
+    lang = _get_lang()
+    from app.holdings import sync_active_holdings
+    from app.recompute import recompute_cash
+    activated, deactivated = sync_active_holdings()
+    recompute_cash()
+    flash(_t('sync_holdings_done', lang, activated=activated, deactivated=deactivated), 'success')
+    return redirect(url_for('maintenance'))
+
+
+@app.route('/maintenance/repair/<target>', methods=['POST'])
+def maintenance_repair(target):
+    lang = _get_lang()
+    try:
+        if target == 'morning-balance':
+            from app.importers.repair_tools import repair_morning_balance_pnl
+            repair_morning_balance_pnl()
+        elif target == 'interpolated':
+            from app.importers.repair_tools import repair_interpolated_trades
+            from_date = (request.form.get('from_date') or '').strip() or None
+            repair_interpolated_trades(from_date) if from_date else repair_interpolated_trades()
+        else:
+            flash(_t('flash_trade_error', lang), 'error')
+            return redirect(url_for('maintenance'))
+        flush_db()
+        flash(_t('repair_done', lang, target=target), 'success')
+    except Exception:
+        app.logger.exception('Repair %s failed', target)
+        flash(_t('flash_trade_error', lang), 'error')
+    return redirect(url_for('maintenance'))
+
+
+@app.route('/maintenance/refresh-yfinance', methods=['POST'])
+def maintenance_refresh_yfinance():
+    lang = _get_lang()
+    try:
+        from app.utils.translation_service import refresh_info_from_mappings
+        results = refresh_info_from_mappings()
+        flush_db()
+        flash(_t('refresh_yf_done', lang, success=results.get('success', 0),
+                 failed=results.get('failed', 0)), 'success')
+    except Exception:
+        app.logger.exception('refresh-yfinance failed')
+        flash(_t('flash_trade_error', lang), 'error')
+    return redirect(url_for('maintenance'))
+
+
+@app.route('/maintenance/check-libs', methods=['POST'])
+def maintenance_check_libs():
+    import subprocess
+    try:
+        result = subprocess.run(
+            [sys.executable, '-m', 'pip', 'list', '--outdated', '--format=json'],
+            capture_output=True, text=True, timeout=60,
+        )
+        import json as _json
+        outdated = _json.loads(result.stdout or '[]')
+        return jsonify({'outdated': [
+            {'name': p.get('name'), 'version': p.get('version'),
+             'latest': p.get('latest_version')} for p in outdated]})
+    except Exception:
+        app.logger.exception('check-libs failed')
+        return jsonify({'outdated': [], 'error': True}), 500
+
+
 # ── Jinja2 template filters ───────────────────────────────────────────────────
 from app.i18n import format_date as _format_date
 app.add_template_filter(_format_date, 'format_date')
@@ -313,6 +404,13 @@ def _run_startup():
     startup_check()
     get_db()
     init_default_settings()
+
+    # Refuse to run an unauthenticated app in production (would be open to the web).
+    if _is_production and not _login_required():
+        raise RuntimeError(
+            "Refusing to start in production with no authentication. Set ADMIN_PASSWORD "
+            "(bootstrap login) and/or configure TOTP via the Maintenance page."
+        )
 
     # I18N-M4: assert every TRANSLATIONS key has both 'he' and 'en' entries
     from app.i18n import TRANSLATIONS as _TRANSLATIONS
@@ -488,10 +586,79 @@ def index():
     return render_template('index.html', portfolio=portfolio)
 
 
+def _upload_trades(lang):
+    """Save uploaded trade files (DDMMYYYY.xlsx) and import each."""
+    from werkzeug.utils import secure_filename
+    from app.importers import import_trades
+    from app.recompute import recompute_cash
+    files = [f for f in request.files.getlist('file') if f and f.filename]
+    if not files:
+        flash(_t('flash_no_file', lang), 'error')
+        return redirect(url_for('index'))
+    trades_dir = os.path.join(os.path.dirname(DATA_DIR), 'trades')
+    os.makedirs(trades_dir, exist_ok=True)
+    buys = sells = dups = errs = 0
+    for f in files:
+        if not f.filename.lower().endswith(('.xlsx', '.xls')):
+            errs += 1
+            continue
+        path = os.path.join(trades_dir, secure_filename(f.filename))
+        f.save(path)
+        try:
+            r = import_trades(path)
+            if r.get('status') == 'duplicate':
+                dups += 1
+            else:
+                buys += r.get('buys', 0)
+                sells += r.get('sells', 0)
+        except Exception:
+            app.logger.exception('Trade import failed for %s', f.filename)
+            errs += 1
+    recompute_cash()  # refresh snapshot cash from the new buys/sells (also flushes)
+    flash(_t('flash_trades_imported', lang, buys=buys, sells=sells, dups=dups, errors=errs),
+          'success' if not errs else 'warning')
+    return redirect(url_for('index'))
+
+
+def _upload_morning_balance(lang):
+    """Save uploaded morning-balance files to a temp folder and import the folder."""
+    import tempfile
+    from werkzeug.utils import secure_filename
+    from app.importers import import_morning_balance_folder
+    from app.recompute import recompute_cash
+    files = [f for f in request.files.getlist('file') if f and f.filename]
+    if not files:
+        flash(_t('flash_no_file', lang), 'error')
+        return redirect(url_for('index'))
+    tmpdir = tempfile.mkdtemp(prefix='mb-')
+    saved = 0
+    for f in files:
+        if not f.filename.lower().endswith(('.xlsx', '.xls')):
+            continue
+        f.save(os.path.join(tmpdir, secure_filename(f.filename)))
+        saved += 1
+    try:
+        result = import_morning_balance_folder(tmpdir)
+        recompute_cash()
+        flash(_t('flash_morning_imported', lang, count=saved,
+                 status=result.get('status', 'done')), 'success')
+    except Exception:
+        app.logger.exception('Morning-balance import failed')
+        flash(_t('flash_import_error', lang), 'error')
+    return redirect(url_for('index'))
+
+
 @app.route('/upload', methods=['POST'])
 def upload_daily():
-    """Upload a daily portfolio Excel file, save to data/daily_data/<month>/, and import."""
+    """Upload an Excel file (daily / trades / morning-balance) and import it."""
     lang = _get_lang()
+    import_type = request.form.get('import_type', 'daily')
+    if import_type == 'trades':
+        return _upload_trades(lang)
+    if import_type == 'morning-balance':
+        return _upload_morning_balance(lang)
+
+    # ── daily portfolio (default) ──
     file = request.files.get('file')
     date_str = request.form.get('date')
 
@@ -1235,6 +1402,15 @@ def api_update_holding_name(holding_id):
     if updates:
         update_holding(holding_id, **updates)
 
+    # Setting a ticker also registers the yfinance mapping (set-yfinance parity),
+    # so the bulk "Refresh Yahoo Finance data" action can find this holding.
+    if updates.get('ticker') and holding.get('tase_id'):
+        try:
+            from app.utils.translation_service import set_yfinance_mapping
+            set_yfinance_mapping(holding['tase_id'], updates['ticker'], update_info=False)
+        except Exception:
+            app.logger.exception('Failed to register yfinance mapping')
+
     return jsonify({'success': True})
 
 
@@ -1552,8 +1728,7 @@ def _tase_refresh_worker():
                               'bp_updated': bp_updated, 'total': len(holdings), 'done': True})
 
 
-@app.route('/admin/refresh-tase-names', methods=['POST'])
-@require_admin
+@app.route('/maintenance/refresh-tase-names', methods=['POST'])
 def admin_refresh_tase_names():
     lang = request.cookies.get('lang', 'he')
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -1562,17 +1737,16 @@ def admin_refresh_tase_names():
             if is_ajax:
                 return jsonify({'started': False, 'reason': 'already_running'})
             flash(_t('admin_tase_refresh_running', lang), 'info')
-            return redirect(url_for('admin'))
+            return redirect(url_for('maintenance'))
     thread = threading.Thread(target=_tase_refresh_worker, daemon=True, name='tase-refresh')
     thread.start()
     if is_ajax:
         return jsonify({'started': True})
     flash(_t('admin_tase_refresh_started', lang), 'info')
-    return redirect(url_for('admin'))
+    return redirect(url_for('maintenance'))
 
 
-@app.route('/admin/refresh-status')
-@require_admin
+@app.route('/maintenance/refresh-tase-status')
 def admin_refresh_status():
     """Return current TASE refresh status as JSON (for polling)."""
     with _tase_lock:

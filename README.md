@@ -176,6 +176,13 @@ TradeVault/
 
 ## CLI Reference
 
+> **The web UI is now the primary interface.** Every operation below also has a web
+> equivalent: imports (daily/trades/morning-balance) and manual buy/sell on the dashboard &
+> Account Overview; reconcile, rebuild-lots, sync-holdings, repair, refresh-yfinance, check-libs,
+> and TOTP login setup on **Settings → Maintenance**; ticker/yfinance mapping on each position
+> page; DB export/import on Admin. The CLI remains as a fallback. The only web-unavailable
+> command is `upgrade-libs` (it modifies the Python environment; in Docker you rebuild the image).
+
 ### Importing data
 
 **Import a daily portfolio file:**
@@ -219,17 +226,9 @@ Rebuilds every tax lot from the transaction ledger (FIFO replay) and refreshes s
 
 ### Adding transactions manually
 
-**Add a buy:**
-```bash
-python main.py add buy <ticker> <shares> <price> [--date YYYY-MM-DD]
-```
-Records a buy transaction and creates a FIFO tax lot. If `--date` is omitted, defaults to today.
-
-**Add a sell:**
-```bash
-python main.py add sell <ticker> <shares> <price> [--date YYYY-MM-DD]
-```
-Records a sell transaction and consumes tax lots using FIFO ordering. Calculates realized P&L per lot.
+> Buys and sells come from `import trades` (your IBI trade files) and from automatic
+> interpolation of daily position changes — there is no manual buy/sell entry. Use the Activity
+> page to edit a price or delete a trade.
 
 **Add a deposit:**
 ```bash

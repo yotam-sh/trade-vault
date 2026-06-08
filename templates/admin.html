@@ -79,7 +79,6 @@
                         <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
                         <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                        <a href="/docs/cli" class="settings-link" target="_blank" rel="noopener noreferrer" aria-label="{{ t.nav_cli_docs }} {{ t.opens_new_tab }}">{{ t.nav_cli_docs }}</a>
                     </div>
                 </div>
                 <div class="settings-version">v{{ app_version }}</div>
@@ -145,105 +144,8 @@
             </form>
         </div>
 
-        <div class="card">
-            <div class="card-header">{{ t.admin_tase_refresh_title }}</div>
-            <p style="color: var(--text-secondary); margin: 0 0 14px;">{{ t.admin_tase_refresh_desc }}</p>
-            <div id="tase-status" style="display:none; margin-bottom:10px;" role="status" aria-live="polite">
-                <span id="tase-status-text" style="color: var(--text-secondary);"></span>
-            </div>
-            <form method="POST" action="/admin/refresh-tase-names" id="tase-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="admin-action-btn" id="tase-btn"
-                        onclick="return confirm('{{ t.admin_tase_refresh_desc }}')">
-                    {{ t.admin_tase_refresh_btn }}
-                </button>
-            </form>
-        </div>
     </div>
 
     <script src="/static/app.js"></script>
-    <script>
-    (function () {
-        const statusBox = document.getElementById('tase-status');
-        const statusText = document.getElementById('tase-status-text');
-        const taseBtn = document.getElementById('tase-btn');
-        let pollTimer = null;
-
-        function stopPolling() {
-            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        }
-
-        function showRunning(data) {
-            const done = data.updated + data.failed;
-            const total = data.total || '…';
-            statusBox.style.display = 'block';
-            statusText.textContent = '⏳ ' + done + ' / ' + total;
-            taseBtn.disabled = true;
-        }
-
-        function showDone(data) {
-            stopPolling();
-            let msg = '✓ ' + data.updated + ' / ' + data.total + ' updated';
-            if (data.bp_updated > 0)
-                msg += ' — ' + data.bp_updated + ' fund name' + (data.bp_updated !== 1 ? 's' : '') + ' from Bizportal';
-            if (data.failed > 0)
-                msg += ', ' + data.failed + ' failed';
-            statusBox.style.display = 'block';
-            statusText.textContent = msg;
-            taseBtn.disabled = false;
-        }
-
-        function pollStatus() {
-            fetch('/admin/refresh-status', { credentials: 'same-origin' })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.running) {
-                        showRunning(data);
-                    } else if (data.done && data.total > 0) {
-                        showDone(data);
-                    }
-                })
-                .catch(stopPolling);
-        }
-
-        // On page load: resume live counter if a refresh is already running
-        fetch('/admin/refresh-status', { credentials: 'same-origin' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.running) {
-                    showRunning(data);
-                    pollTimer = setInterval(pollStatus, 1500);
-                }
-            });
-
-        document.getElementById('tase-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            fetch('/admin/refresh-tase-names', {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.started) {
-                    taseBtn.disabled = true;
-                    statusBox.style.display = 'block';
-                    statusText.textContent = '⏳ 0 / …';
-                    pollTimer = setInterval(pollStatus, 1500);
-                } else {
-                    statusBox.style.display = 'block';
-                    statusText.textContent = data.reason === 'already_running'
-                        ? '⚠ Already running'
-                        : '⚠ Failed to start';
-                }
-            })
-            .catch(function () {
-                statusBox.style.display = 'block';
-                statusText.textContent = '⚠ Failed to start';
-            });
-        });
-    })();
-    </script>
 </body>
 </html>

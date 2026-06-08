@@ -10,6 +10,7 @@ import server
 def auth(monkeypatch):
     from app import auth_store
     monkeypatch.delenv('TOTP_SECRET', raising=False)
+    monkeypatch.delenv('ADMIN_PASSWORD', raising=False)
     secret = pyotp.random_base32()
     auth_store.set_totp_secret(secret)  # enable the gate via the sidecar store
     monkeypatch.setitem(server.app.config, 'WTF_CSRF_ENABLED', False)
@@ -48,6 +49,25 @@ def test_invalid_code_is_rejected(auth):
     r = client.post('/login', data={'code': '000000'})
     assert r.status_code == 302 and '/login' in r.headers['Location']
     assert client.get('/transactions').status_code == 302  # still gated
+
+
+def test_password_bootstrap_then_totp_precedence(monkeypatch):
+    from app import auth_store
+    monkeypatch.delenv('TOTP_SECRET', raising=False)
+    monkeypatch.setenv('ADMIN_PASSWORD', 'pw123')
+    monkeypatch.setitem(server.app.config, 'WTF_CSRF_ENABLED', False)
+    server._login_failures.clear()
+
+    c = server.app.test_client()
+    assert c.get('/transactions').status_code == 302            # gated by password
+    assert b'name="password"' in c.get('/login').data           # password mode
+    assert c.post('/login', data={'password': 'wrong'}).status_code == 302
+    ok = c.post('/login', data={'password': 'pw123'})
+    assert '/maintenance' in ok.headers['Location']             # nudged to set up TOTP
+
+    # Once TOTP is configured it takes precedence; login switches to code entry.
+    auth_store.set_totp_secret(pyotp.random_base32())
+    assert b'name="code"' in server.app.test_client().get('/login').data
 
 
 def test_lockout_after_repeated_failures(auth):

@@ -9,7 +9,9 @@ from app import auth_store
 
 @pytest.fixture
 def client(monkeypatch):
+    # Simulate a clean first-run: no auth configured, so setup endpoints are reachable.
     monkeypatch.delenv('TOTP_SECRET', raising=False)
+    monkeypatch.delenv('ADMIN_PASSWORD', raising=False)
     monkeypatch.setitem(server.app.config, 'WTF_CSRF_ENABLED', False)
     return server.app.test_client()
 

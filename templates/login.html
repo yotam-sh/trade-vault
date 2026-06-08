@@ -24,12 +24,13 @@
             {% endwith %}
 
             <p style="color:var(--text-secondary);font-size:0.9rem;text-align:center;margin-bottom:16px;">
-                {{ t.login_prompt }}
+                {{ t.login_prompt if mode == 'totp' else t.login_password_prompt }}
             </p>
 
             <form method="post" action="{{ url_for('login') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="next" value="{{ next or '' }}">
+                {% if mode == 'totp' %}
                 <label for="code" style="display:block;font-size:0.82rem;color:var(--text-secondary);margin-bottom:6px;">
                     {{ t.login_code_label }}
                 </label>
@@ -39,6 +40,16 @@
                               border:1px solid var(--bg-tertiary);background:var(--bg-primary);
                               color:var(--text-primary);font-size:1.3rem;letter-spacing:0.3em;
                               text-align:center;margin-bottom:16px;">
+                {% else %}
+                <label for="password" style="display:block;font-size:0.82rem;color:var(--text-secondary);margin-bottom:6px;">
+                    {{ t.login_password_label }}
+                </label>
+                <input id="password" name="password" type="password" autocomplete="current-password"
+                       required autofocus dir="ltr"
+                       style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;
+                              border:1px solid var(--bg-tertiary);background:var(--bg-primary);
+                              color:var(--text-primary);font-size:1rem;margin-bottom:16px;">
+                {% endif %}
                 <button type="submit" class="btn-primary" style="width:100%;padding:10px;font-size:1rem;">
                     {{ t.login_submit }}
                 </button>

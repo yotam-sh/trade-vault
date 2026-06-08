@@ -21,6 +21,51 @@
                     </div>
                 </div>
                 <div class="settings-section">
+                    <div class="settings-label">{{ t.settings_theme }}</div>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="default" checked>
+                            <span class="theme-name">{{ t.theme_default }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #0d1117"></span>
+                                <span class="color-sample" style="background: #161b22"></span>
+                                <span class="color-sample" style="background: #58a6ff"></span>
+                                <span class="color-sample" style="background: #3fb950"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="crimson">
+                            <span class="theme-name">{{ t.theme_crimson }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #280905"></span>
+                                <span class="color-sample" style="background: #740A03"></span>
+                                <span class="color-sample" style="background: #C3110C"></span>
+                                <span class="color-sample" style="background: #E6501B"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="teal">
+                            <span class="theme-name">{{ t.theme_teal }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #432323"></span>
+                                <span class="color-sample" style="background: #2F5755"></span>
+                                <span class="color-sample" style="background: #5A9690"></span>
+                                <span class="color-sample" style="background: #E0D9D9"></span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="slate">
+                            <span class="theme-name">{{ t.theme_slate }}</span>
+                            <div class="theme-preview">
+                                <span class="color-sample" style="background: #37353E"></span>
+                                <span class="color-sample" style="background: #44444E"></span>
+                                <span class="color-sample" style="background: #715A5A"></span>
+                                <span class="color-sample" style="background: #D3DAD9"></span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
@@ -101,6 +146,42 @@
             </div>
             <div id="reconcile-result" style="margin-top:14px;"></div>
         </div>
+
+        <!-- Data & Integrations -->
+        <div class="card">
+            <div class="card-header">{{ t.ops_section }}</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <form method="POST" action="/maintenance/sync-holdings" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="admin-action-btn">{{ t.sync_holdings_btn }}</button>
+                </form>
+                <form method="POST" action="/maintenance/repair/morning-balance" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="admin-action-btn">{{ t.repair_mb_btn }}</button>
+                </form>
+                <form method="POST" action="/maintenance/refresh-yfinance" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="admin-action-btn">{{ t.refresh_yf_btn }}</button>
+                </form>
+                <button id="check-libs-btn" class="admin-action-btn">{{ t.check_libs_btn }}</button>
+                <button id="tase-btn" class="admin-action-btn">{{ t.admin_tase_refresh_btn }}</button>
+            </div>
+            <div id="tase-status" style="display:none;margin-top:10px;" role="status" aria-live="polite">
+                <span id="tase-status-text" style="color:var(--text-secondary);"></span>
+            </div>
+            <form method="POST" action="/maintenance/repair/interpolated"
+                  style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label style="font-size:0.82rem;color:var(--text-secondary);">{{ t.repair_from_date_label }}</label>
+                <input type="text" name="from_date" placeholder="YYYY-MM-DD" dir="ltr"
+                       style="padding:6px;border-radius:6px;border:1px solid var(--bg-tertiary);background:var(--bg-primary);color:var(--text-primary);">
+                <button type="submit" class="admin-action-btn">{{ t.repair_interp_btn }}</button>
+            </form>
+            <div id="check-libs-result" style="margin-top:14px;"></div>
+            <div style="margin-top:14px;font-size:0.85rem;">
+                <a href="{{ url_for('cli_docs') }}" target="_blank" rel="noopener noreferrer" class="position-link">{{ t.cli_reference_advanced }} &#8599;</a>
+            </div>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>
@@ -150,6 +231,68 @@
                     return '<tr><td>['+i.sev.toUpperCase()+']</td><td>'+i.date+'</td><td>'+i.msg+'</td></tr>';
                 }).join('');
                 out.innerHTML = '<table class="sortable"><tbody>'+rows+'</tbody></table>';
+            });
+        });
+
+        var libsBtn = document.getElementById('check-libs-btn');
+        libsBtn.addEventListener('click', function () {
+            var out = document.getElementById('check-libs-result');
+            out.textContent = '…';
+            post('/maintenance/check-libs').then(function(r){return r.json();}).then(function(d){
+                if (!d.outdated || !d.outdated.length) {
+                    out.innerHTML = '<div class="flash flash-success">{{ t.check_libs_clean }}</div>';
+                    return;
+                }
+                var rows = d.outdated.map(function(p){
+                    return '<tr><td>'+p.name+'</td><td>'+p.version+'</td><td>→ '+p.latest+'</td></tr>';
+                }).join('');
+                out.innerHTML = '<table class="sortable"><tbody>'+rows+'</tbody></table>';
+            });
+        });
+
+        // ── TASE / Bizportal name refresh (async with live counter) ──
+        var taseBtn = document.getElementById('tase-btn');
+        var taseBox = document.getElementById('tase-status');
+        var taseText = document.getElementById('tase-status-text');
+        var pollTimer = null;
+        function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+        function showRunning(d) {
+            taseBox.style.display = 'block';
+            taseText.textContent = '⏳ ' + (d.updated + d.failed) + ' / ' + (d.total || '…');
+            taseBtn.disabled = true;
+        }
+        function showDone(d) {
+            stopPolling();
+            var msg = '✓ ' + d.updated + ' / ' + d.total + ' updated';
+            if (d.bp_updated > 0) msg += ' — ' + d.bp_updated + ' from Bizportal';
+            if (d.failed > 0) msg += ', ' + d.failed + ' failed';
+            taseBox.style.display = 'block';
+            taseText.textContent = msg;
+            taseBtn.disabled = false;
+        }
+        function pollStatus() {
+            fetch('/maintenance/refresh-tase-status', {credentials:'same-origin'})
+                .then(function(r){return r.json();})
+                .then(function(d){ if (d.running) showRunning(d); else if (d.done && d.total > 0) showDone(d); })
+                .catch(stopPolling);
+        }
+        fetch('/maintenance/refresh-tase-status', {credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(d){ if (d.running) { showRunning(d); pollTimer = setInterval(pollStatus, 1500); } });
+        taseBtn.addEventListener('click', function () {
+            fetch('/maintenance/refresh-tase-names', {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest'}
+            }).then(function(r){return r.json();}).then(function(d){
+                if (d.started) {
+                    taseBtn.disabled = true;
+                    taseBox.style.display = 'block';
+                    taseText.textContent = '⏳ 0 / …';
+                    pollTimer = setInterval(pollStatus, 1500);
+                } else {
+                    taseBox.style.display = 'block';
+                    taseText.textContent = d.reason === 'already_running' ? '⚠ Already running' : '⚠ Failed to start';
+                }
             });
         });
     })();

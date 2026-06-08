@@ -19,9 +19,8 @@ from app.connection import get_db, close_db
 from app.settings import init_default_settings
 from app.lib_check import startup_check, run_check_libs, run_upgrade_libs
 from app.importers import import_daily_portfolio, import_trades, import_trades_folder, import_morning_balance_folder, repair_morning_balance_pnl, repair_interpolated_trades
-from app.holdings import list_holdings, get_holding_by_ticker, set_ticker
-from app.transactions import add_buy, add_sell, add_deposit
-from app.tax_lots import create_lot, sell_fifo
+from app.holdings import list_holdings, set_ticker
+from app.transactions import add_deposit
 from app.queries import get_portfolio_value, get_pnl_summary, get_trade_history, get_closed_positions
 from app.schemas import today_iso
 
@@ -72,90 +71,15 @@ def cmd_add(args):
     get_db()
     init_default_settings()
 
-    if args.action == 'buy':
-        ticker = args.ticker
-        holding = get_holding_by_ticker(ticker)
-        if not holding:
-            print(f"Holding not found for ticker: {ticker}")
-            print("Import a daily portfolio first or add the holding manually.")
-            close_db()
-            return
-
-        shares = float(args.shares)
-        price = float(args.price)
-        date = args.date or today_iso()
-
-        txn_id = add_buy(
-            ticker=ticker,
-            holding_id=holding.doc_id,
-            date=date,
-            shares=shares,
-            price_per_share=price,
-        )
-        lot_id = create_lot(
-            holding_id=holding.doc_id,
-            ticker=ticker,
-            buy_transaction_id=txn_id,
-            buy_date=date,
-            buy_price=price,
-            shares=shares,
-        )
-        print(f"Buy recorded: {shares} shares of {ticker} @ {price} on {date}")
-        print(f"  Transaction ID: {txn_id}, Tax lot created")
-
-    elif args.action == 'sell':
-        ticker = args.ticker
-        holding = get_holding_by_ticker(ticker)
-        if not holding:
-            print(f"Holding not found for ticker: {ticker}")
-            close_db()
-            return
-
-        shares = float(args.shares)
-        price = float(args.price)
-        date = args.date or today_iso()
-
-        # FIFO sell
-        try:
-            sell_details = sell_fifo(ticker, shares, price, date)
-        except ValueError as e:
-            print(f"Error: {e}")
-            close_db()
-            return
-
-        txn_id = add_sell(
-            ticker=ticker,
-            holding_id=holding.doc_id,
-            date=date,
-            shares=shares,
-            price_per_share=price,
-            sell_lot_details=sell_details,
-        )
-
-        total_realized = sum(d['realized_pnl'] for d in sell_details)
-        print(f"Sell recorded: {shares} shares of {ticker} @ {price} on {date}")
-        print(f"  Transaction ID: {txn_id}")
-        print(f"  Realized P&L: {total_realized:.2f} ILS")
-        for d in sell_details:
-            print(f"    Lot {d['lot_id']}: {d['shares_sold']} shares, "
-                  f"cost basis {d['cost_basis_per_share']:.2f}, "
-                  f"P&L {d['realized_pnl']:.2f}")
-
-    elif args.action == 'deposit':
+    if args.action == 'deposit':
         amount = float(args.amount)
         date = args.date or today_iso()
         txn_id = add_deposit(date=date, amount=amount)
         print(f"Deposit recorded: {amount} ILS on {date} (ID: {txn_id})")
-
+        from app.recompute import recompute_cash
+        recompute_cash()
     else:
         print(f"Unknown action: {args.action}")
-        close_db()
-        return
-
-    # Refresh snapshot cash/equity so the change shows without a restart.
-    # (Lots are created inline above for buy/sell, so a cash refresh suffices.)
-    from app.recompute import recompute_cash
-    recompute_cash()
 
     close_db()
 
@@ -548,18 +472,6 @@ def main():
     # add command
     p_add = subparsers.add_parser('add', help='Add a transaction')
     p_add_sub = p_add.add_subparsers(dest='action', help='Transaction type')
-
-    p_buy = p_add_sub.add_parser('buy', help='Record a buy')
-    p_buy.add_argument('ticker', help='Yahoo Finance ticker')
-    p_buy.add_argument('shares', help='Number of shares')
-    p_buy.add_argument('price', help='Price per share')
-    p_buy.add_argument('--date', help='Transaction date (YYYY-MM-DD)')
-
-    p_sell = p_add_sub.add_parser('sell', help='Record a sell')
-    p_sell.add_argument('ticker', help='Yahoo Finance ticker')
-    p_sell.add_argument('shares', help='Number of shares')
-    p_sell.add_argument('price', help='Price per share')
-    p_sell.add_argument('--date', help='Transaction date (YYYY-MM-DD)')
 
     p_dep = p_add_sub.add_parser('deposit', help='Record a deposit')
     p_dep.add_argument('amount', help='Deposit amount')

@@ -73,6 +73,27 @@ def list_holdings(active_only=True):
     return table.all()
 
 
+def sync_active_holdings():
+    """Set is_active per the latest snapshot's positions. Returns (activated, deactivated)."""
+    from app.snapshots import get_latest_snapshot
+    snapshot = get_latest_snapshot()
+    if not snapshot:
+        return 0, 0
+    current = {p.get('holding_id') for p in snapshot.get('positions', [])
+               if (p.get('quantity', 0) or 0) > 0 and p.get('holding_id')}
+    activated = deactivated = 0
+    for holding in list_holdings(active_only=False):
+        should = holding.doc_id in current
+        is_active = holding.get('is_active', False)
+        if should and not is_active:
+            update_holding(holding.doc_id, is_active=True)
+            activated += 1
+        elif not should and is_active:
+            update_holding(holding.doc_id, is_active=False)
+            deactivated += 1
+    return activated, deactivated
+
+
 def update_holding(doc_id, **kwargs):
     """Update a holding's fields."""
     table = get_table(HOLDINGS)
