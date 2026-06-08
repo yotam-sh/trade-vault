@@ -1,5 +1,6 @@
 """Database backup and restore utilities."""
 
+import glob
 import json
 import os
 import shutil
@@ -8,6 +9,42 @@ from app.connection import get_db, close_db, flush_db, DB_PATH, get_table, HOLDI
 
 # Dedicated directory for export backups and pre-import safety copies.
 IMPORTS_DIR = os.path.join(os.path.dirname(DB_PATH), 'imports')
+
+# Rolling on-startup backups. Lives under the persisted db/ volume so it survives
+# container recreate.
+BACKUPS_DIR = os.path.join(os.path.dirname(DB_PATH), 'backups')
+
+
+def rotate_backup(keep=20, min_interval_seconds=600):
+    """Snapshot db.json into db/backups/ and prune to the newest `keep` copies.
+
+    Skips if the newest existing backup is younger than `min_interval_seconds`, so
+    rapid successive CLI invocations don't churn the rotation. Idempotent and
+    best-effort: never raises into startup. Returns the backup path (or None if
+    skipped / nothing to back up / failed).
+    """
+    try:
+        if not os.path.exists(DB_PATH):
+            return None
+        os.makedirs(BACKUPS_DIR, exist_ok=True)
+        existing = sorted(glob.glob(os.path.join(BACKUPS_DIR, 'db_*.json')))
+        if existing and min_interval_seconds:
+            import time
+            if time.time() - os.path.getmtime(existing[-1]) < min_interval_seconds:
+                return None
+        flush_db()  # ensure cached writes are on disk before copying
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        dest = os.path.join(BACKUPS_DIR, f'db_{ts}.json')
+        shutil.copy2(DB_PATH, dest)
+        backups = sorted(glob.glob(os.path.join(BACKUPS_DIR, 'db_*.json')))
+        for old in backups[:-keep]:
+            try:
+                os.remove(old)
+            except OSError:
+                pass
+        return dest
+    except Exception:
+        return None
 
 # Increment this when a new migration step is added.
 SCHEMA_VERSION = 1

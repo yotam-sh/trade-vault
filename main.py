@@ -34,9 +34,12 @@ def cmd_import(args):
 
     if args.type == 'daily':
         data_date = args.date or today_iso()
-        result = import_daily_portfolio(args.file, data_date=data_date)
+        result = import_daily_portfolio(args.file, data_date=data_date,
+                                        force=getattr(args, 'force', False))
         if result['status'] == 'duplicate':
             print("Skipped: file already imported.")
+        elif result['status'] in ('failed', 'rejected'):
+            print(f"Import {result['status']}: {result.get('reason')}")
         else:
             print(f"Import complete: {result['status']}")
     elif args.type == 'trades':
@@ -472,6 +475,8 @@ def main():
                           help='Type of import')
     p_import.add_argument('file', help='Path to Excel file')
     p_import.add_argument('--date', help='Data date (YYYY-MM-DD), default: today')
+    p_import.add_argument('--force', action='store_true',
+                          help='Bypass the daily-import value-deviation guard')
     p_import.set_defaults(func=cmd_import)
 
     # add command
@@ -565,6 +570,9 @@ def main():
     if not args.command:
         parser.print_help()
         return
+
+    from app.connection import install_shutdown_handler
+    install_shutdown_handler()  # flush on SIGTERM (e.g. docker stop of a CLI run)
 
     # Show library reminder on every invocation (silent when check is recent)
     startup_check()

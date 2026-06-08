@@ -337,10 +337,15 @@ def upload_daily():
         result = import_daily_portfolio(target_path, data_date=date_str)
         if result['status'] == 'duplicate':
             flash(f"{_t('flash_duplicate', lang)} ({date_str})", 'warning')
+        elif result['status'] in ('failed', 'rejected'):
+            flash(_t('flash_import_rejected', lang, date=date_str,
+                     reason=result.get('reason', '')), 'error')
         else:
             imported = result['rows_imported']
             new_h = result['new_holdings']
             flash(_t('flash_import_success', lang, rows=imported, new=new_h, date=date_str), 'success')
+            if result.get('rows_skipped'):
+                flash(_t('flash_import_partial', lang, skipped=result['rows_skipped']), 'warning')
     except Exception:
         app.logger.exception('Daily import failed for %s', date_str)
         flash(_t('flash_import_error', lang), 'error')
@@ -1388,6 +1393,8 @@ def health_check():
 
 
 if __name__ == '__main__':
+    from app.connection import install_shutdown_handler
+    install_shutdown_handler()  # flush on SIGTERM (dev server; gunicorn handles its own)
     _run_startup()
     debug = os.environ.get('DEBUG', 'false').lower() == 'true'
     port = int(os.environ.get('PORT', 2501))

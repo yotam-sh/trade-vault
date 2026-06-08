@@ -18,7 +18,7 @@ _NON_NEGATIVE_FIELDS = {
 _ENUM_FIELDS = {
     'type': {'buy', 'sell', 'deposit', 'withdrawal', 'dividend'},
     'import_type': {'daily_portfolio', 'trade_import', 'morning_balance'},
-    'status': {'success', 'partial', 'duplicate', 'error'},
+    'status': {'success', 'partial', 'duplicate', 'error', 'failed', 'rejected'},
 }
 
 # Date fields that must be ISO YYYY-MM-DD or ISO datetime

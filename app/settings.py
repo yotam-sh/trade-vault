@@ -29,7 +29,9 @@ def set_setting(key, value):
 
 def init_default_settings():
     """Initialize default settings and run any pending schema migrations."""
-    from app.db_backup import migrate_db
+    from app.db_backup import migrate_db, rotate_backup
+    # Snapshot the current DB before any startup mutation (migrations/repairs).
+    rotate_backup()
     migrate_db()
 
     defaults = {

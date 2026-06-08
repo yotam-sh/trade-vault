@@ -4,8 +4,8 @@ import os
 import pandas as pd
 from app.column_map import DAILY_COLUMNS, get_security_type, clean_currency, clean_percent
 from app.daily_prices import add_daily_price
-from app.snapshots import generate_snapshot_from_prices
-from app.settings import set_setting
+from app.snapshots import generate_snapshot_from_prices, list_snapshots
+from app.settings import set_setting, get_setting
 from app.schemas import today_iso
 from app.utils.holding_resolver import find_or_create_holding
 from app.utils.file_utils import check_duplicate
@@ -13,13 +13,15 @@ from app.imports import create_import, find_by_date_and_type
 from app.importers.position_tracker import interpolate_position_changes
 
 
-def import_daily_portfolio(filepath, data_date=None, interpolate=True):
+def import_daily_portfolio(filepath, data_date=None, interpolate=True, force=False):
     """Import a daily portfolio Excel file (data.xlsx format).
 
     Args:
         filepath: Path to the Excel file
         data_date: Trading date this data represents (default: today)
         interpolate: If True, detect buys/sells by comparing with previous day
+        force: Bypass the value-deviation guard (CLI --force). The zero-rows guard
+            is never bypassable.
 
     Returns:
         dict with import results
@@ -136,6 +138,56 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True):
         except Exception as e:
             errors.append(f"Row {idx}: {str(e)}")
             rows_skipped += 1
+
+    # ── Integrity guards: never let a bad/partial file poison the time series ──
+    new_total = sum((dp.get('market_value') or 0)
+                    for dp in daily_prices_list if (dp.get('quantity') or 0) > 0)
+
+    # Guard 1 (non-bypassable): zero parsed rows usually means a wrong file or a
+    # broken column mapping. Record the failure, but write NO snapshot.
+    if rows_imported == 0:
+        create_import(
+            filename=os.path.basename(filepath),
+            filepath=os.path.basename(filepath),
+            file_hash=fhash,
+            data_date=data_date,
+            import_type='daily_portfolio',
+            status='failed',
+            rows_imported=0,
+            rows_skipped=rows_skipped,
+            errors=errors,
+        )
+        print(f"Import REJECTED for {data_date}: 0 rows parsed "
+              f"(check the file / column mapping). {rows_skipped} skipped.")
+        return {'status': 'failed', 'reason': 'no_rows', 'rows_imported': 0,
+                'rows_skipped': rows_skipped, 'errors': errors}
+
+    # Guard 2 (bypassable with force): reject if today's total deviates wildly from
+    # the most recent prior snapshot — a sign of a wrong-account/partial file.
+    prev_snaps = [s for s in list_snapshots() if s.get('date', '') < data_date]
+    if prev_snaps and not force:
+        prev_total = sorted(prev_snaps, key=lambda s: s['date'])[-1].get('total_market_value', 0) or 0
+        threshold = get_setting('import_deviation_threshold', 0.5) or 0.5
+        if prev_total > 0 and abs(new_total - prev_total) / prev_total > threshold:
+            create_import(
+                filename=os.path.basename(filepath),
+                filepath=os.path.basename(filepath),
+                file_hash=fhash,
+                data_date=data_date,
+                import_type='daily_portfolio',
+                status='rejected',
+                rows_imported=0,
+                rows_skipped=rows_skipped,
+                errors=errors,
+            )
+            dev_pct = abs(new_total - prev_total) / prev_total * 100
+            print(f"Import REJECTED for {data_date}: total ₪{new_total:,.0f} deviates "
+                  f"{dev_pct:.0f}% from prior ₪{prev_total:,.0f} "
+                  f"(threshold {threshold*100:.0f}%). Re-run with --force to override.")
+            return {'status': 'rejected', 'reason': 'deviation', 'new_total': new_total,
+                    'prev_total': prev_total, 'deviation_pct': round(dev_pct, 1),
+                    'rows_imported': rows_imported, 'rows_skipped': rows_skipped,
+                    'errors': errors}
 
     # Create import record
     import_id = create_import(

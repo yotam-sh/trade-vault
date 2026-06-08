@@ -17,6 +17,7 @@ notes
 db/db.json
 db/*.bak
 db/imports/
+db/backups/
 
 # Data files (personal brokerage exports)
 data/
