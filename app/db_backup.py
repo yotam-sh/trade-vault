@@ -88,6 +88,30 @@ def validate_backup(path):
     if missing:
         return False, f'Not a valid TradeVault backup — missing tables: {", ".join(sorted(missing))}'
 
+    # Record-level validation: every record in each known table must pass its schema
+    # before we overwrite the live DB. Tables without a schema are skipped.
+    from app.schemas import validate_record, SCHEMAS
+    invalid = 0
+    first_errors = []
+    for table_name, records in data.items():
+        if table_name == '_default' or table_name not in SCHEMAS:
+            continue
+        if not isinstance(records, dict):
+            return False, f"Table '{table_name}' must be an object of records"
+        for doc_id, record in records.items():
+            if not isinstance(record, dict):
+                invalid += 1
+                continue
+            ok_rec, errs = validate_record(table_name, record)
+            if not ok_rec:
+                invalid += 1
+                if len(first_errors) < 3:
+                    first_errors.append(f"{table_name}[{doc_id}]: {errs[0]}")
+
+    if invalid:
+        detail = '; '.join(first_errors)
+        return False, f'Backup has {invalid} invalid record(s). Examples — {detail}'
+
     return True, 'OK'
 
 

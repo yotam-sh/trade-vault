@@ -337,6 +337,8 @@
   <a href="#set-yfinance"><code>set-yfinance</code></a>
   <a href="#refresh-yfinance"><code>refresh-yfinance</code></a>
   <a href="#sync-holdings"><code>sync-holdings</code></a>
+  <a href="#auth-setup"><code>auth-setup</code></a>
+  <a href="#check"><code>check</code></a>
   <a href="#db"><code>db</code></a>
   <a href="#check-libs"><code>check-libs</code></a>
   <a href="#upgrade-libs"><code>upgrade-libs</code></a>
@@ -450,6 +452,13 @@
         <td class="desc">Override the data date (<code>YYYY-MM-DD</code>). Defaults to today
             for <code>daily</code> imports; parsed from filename for <code>trades</code> and
             <code>morning-balance</code> imports.</td>
+      </tr>
+      <tr>
+        <td class="opt-col">--force</td>
+        <td><span class="badge badge-flag">flag</span></td>
+        <td class="desc">Bypass the daily-import value-deviation guard, which otherwise
+            rejects a file whose total deviates more than 50% from the previous snapshot
+            (a wrong/partial file). The zero-rows guard is never bypassable.</td>
       </tr>
     </table>
 
@@ -679,6 +688,40 @@
 
     <h3>Example</h3>
     <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py sync-holdings</code></pre>
+  </section>
+
+  <!-- auth-setup -->
+  <section id="auth-setup">
+    <h2><span class="cmd-badge">auth-setup</span> Set up per-session login (TOTP)</h2>
+    <p>Generates a TOTP secret and prints a QR code to scan with Google Authenticator (or any
+       compatible app), for the app's per-session login. The secret is printed only — it is
+       never written to the database. Add it to your <code>.env</code> as
+       <code>TOTP_SECRET</code> and restart the app to enable the login gate. When
+       <code>TOTP_SECRET</code> is unset, the gate is disabled (local-only dev).</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py auth-setup</code></pre>
+
+    <h3>Example</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py auth-setup
+<span class="cmt"># scan the QR, then add to .env:</span>
+<span class="cmt">#   TOTP_SECRET=JBSWY3DPEHPK3PXP...</span></code></pre>
+  </section>
+
+  <!-- check -->
+  <section id="check">
+    <h2><span class="cmd-badge">check</span> Reconcile database invariants</h2>
+    <p>Verifies the derived data is internally consistent: each snapshot's positions sum to its
+       market value, <code>total_equity = market_value + cash</code>, and open tax-lot shares
+       match current positions. Prints any discrepancies and exits non-zero on hard errors
+       (warnings, e.g. positions seeded without buy transactions, do not fail).</p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">python</span> main.py check</code></pre>
+
+    <h3>Example</h3>
+    <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py check
+OK: all reconciliation checks passed.</code></pre>
   </section>
 
   <!-- db -->

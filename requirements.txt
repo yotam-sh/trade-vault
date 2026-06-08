@@ -8,3 +8,6 @@ deep-translator>=1.11,<2.0
 gunicorn>=22.0,<24.0
 holidays>=0.93
 python-dotenv>=1.2.2
+pyotp>=2.9,<3.0
+qrcode>=7.4,<9.0
+Flask-Limiter>=3.5,<4.0

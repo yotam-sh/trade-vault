@@ -251,6 +251,47 @@ def cmd_show(args):
     close_db()
 
 
+def cmd_auth_setup(args):
+    """Generate a TOTP secret + QR for Google Authenticator (per-session login)."""
+    import pyotp
+    import qrcode
+
+    secret = pyotp.random_base32()
+    issuer = os.environ.get('TOTP_ISSUER', 'TradeVault')
+    label = os.environ.get('TOTP_LABEL', 'tradevault')
+    uri = pyotp.TOTP(secret).provisioning_uri(name=label, issuer_name=issuer)
+
+    print("\nScan this QR code in Google Authenticator (or any TOTP app):\n")
+    qr = qrcode.QRCode(border=1)
+    qr.add_data(uri)
+    qr.make(fit=True)
+    qr.print_ascii(invert=True)
+
+    print(f"\nCan't scan? Enter this secret manually: {secret}")
+    print(f"\notpauth URI:\n  {uri}\n")
+    print("Then add this line to your .env and restart the app:")
+    print(f"  TOTP_SECRET={secret}\n")
+
+
+def cmd_check(args):
+    """Reconcile DB invariants and report discrepancies (non-zero exit on errors)."""
+    get_db()
+    init_default_settings()
+    from app.reconcile import reconcile
+    issues = reconcile()
+    errors = [i for i in issues if i[0] == 'error']
+    warns = [i for i in issues if i[0] == 'warn']
+    if not issues:
+        print("OK: all reconciliation checks passed.")
+    else:
+        for sev, date, msg in issues:
+            print(f"[{sev.upper()}] {date}: {msg}")
+        print(f"\n{len(errors)} error(s), {len(warns)} warning(s).")
+    close_db()
+    if errors:
+        sys.exit(1)
+
+
 def cmd_repair(args):
     """Handle repair subcommand."""
     get_db()
@@ -561,6 +602,16 @@ def main():
                              help='Required flag to confirm destructive replace')
 
     p_db.set_defaults(func=cmd_db)
+
+    # auth-setup command
+    p_auth = subparsers.add_parser('auth-setup',
+                                   help='Generate a TOTP secret + QR for per-session login')
+    p_auth.set_defaults(func=cmd_auth_setup)
+
+    # check (reconcile) command
+    p_reconcile = subparsers.add_parser('check',
+                                        help='Reconcile DB invariants (snapshots, lots, cash)')
+    p_reconcile.set_defaults(func=cmd_check)
 
     # check-libs command
     p_check = subparsers.add_parser('check-libs',

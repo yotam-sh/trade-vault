@@ -182,7 +182,7 @@ TradeVault/
 ```bash
 python main.py import daily <filepath> --date YYYY-MM-DD
 ```
-Parses an IBI daily portfolio Excel export. Creates/updates holdings, records daily prices for each security, and generates a portfolio snapshot for that date. Automatically detects and interpolates position changes (new buys or sells) compared to the previous day.
+Parses an IBI daily portfolio Excel export. Creates/updates holdings, records daily prices for each security, and generates a portfolio snapshot for that date. Automatically detects and interpolates position changes (new buys or sells) compared to the previous day. The import is rejected (no snapshot written) if zero rows parse, or if the day's total deviates more than 50% from the previous snapshot — pass `--force` to override the deviation guard.
 
 **Import trade files:**
 ```bash
@@ -286,6 +286,20 @@ Assigns a ticker symbol to a holding. `<search>` can be a TASE ID (number) or a 
 python main.py sync-holdings
 ```
 Reads the latest portfolio snapshot and syncs the `is_active` flag on all holdings: sets it to `true` for securities with a current position (quantity > 0) and `false` for holdings no longer held. Useful after a bulk import or manual DB correction to ensure the positions list and holdings registry are in agreement.
+
+### Per-session login (TOTP)
+
+```bash
+python main.py auth-setup
+```
+Generates a TOTP secret and prints a QR code to scan with Google Authenticator (or any compatible app). The secret is printed only — never written to the database. Add it to `.env` as `TOTP_SECRET` and restart the app to require a 6-digit code per browser session. When `TOTP_SECRET` is unset, the login gate is disabled (local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure cookies and per-IP rate limiting work correctly.
+
+### Reconciling the database
+
+```bash
+python main.py check
+```
+Verifies the derived data is internally consistent: each snapshot's positions sum to its market value, `total_equity = market_value + cash`, and open tax-lot shares match current positions. Prints discrepancies and exits non-zero on hard errors (warnings, such as positions seeded without buy transactions, don't fail).
 
 ### Yahoo Finance integration
 

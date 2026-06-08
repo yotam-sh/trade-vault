@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file, Response, g
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file, Response, g, session
 from flask_wtf.csrf import CSRFProtect
 from app.connection import get_db, close_db, flush_db
 from app.settings import init_default_settings
@@ -73,6 +73,125 @@ debug_mode = os.environ.get('DEBUG', 'false').lower() == 'true'
 app.jinja_env.auto_reload = debug_mode
 
 csrf = CSRFProtect(app)
+
+# ── Per-session TOTP authentication ───────────────────────────────────────────
+# App-native login (Google Authenticator). Enabled when TOTP_SECRET is set
+# (generate via `python main.py auth-setup`). Designed to sit behind the existing
+# Cloudflare Tunnel: ProxyFix honors X-Forwarded-Proto so Secure cookies engage,
+# and the client IP for rate-limiting comes from CF-Connecting-IP.
+from datetime import timedelta
+import time as _time
+import pyotp
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_limiter import Limiter
+
+_TOTP_SECRET = os.environ.get('TOTP_SECRET', '').strip()
+_SESSION_HOURS = int(os.environ.get('SESSION_LIFETIME_HOURS', '12') or 12)
+_TRUST_PROXY = os.environ.get('TRUST_PROXY', 'false').lower() == 'true'
+_COOKIE_SECURE = os.environ.get(
+    'SESSION_COOKIE_SECURE', 'true' if _TRUST_PROXY else 'false').lower() == 'true'
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=_COOKIE_SECURE,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=_SESSION_HOURS),
+)
+
+if _TRUST_PROXY:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+
+def _client_ip():
+    """Real client IP behind Cloudflare/cloudflared (for rate-limit + logging)."""
+    return (request.headers.get('CF-Connecting-IP')
+            or request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+            or request.remote_addr or 'unknown')
+
+
+limiter = Limiter(key_func=_client_ip, app=app, storage_uri='memory://')
+
+_AUTH_EXEMPT_ENDPOINTS = {'login', 'logout', 'health_check', 'static'}
+_login_guard_lock = threading.Lock()
+_login_failures = {}            # ip -> {'count': int, 'until': float}
+_LOGIN_MAX_FAILS = 5
+_LOGIN_LOCKOUT_SECONDS = 300
+
+if not _TOTP_SECRET:
+    print("WARNING: TOTP_SECRET not set — per-session login is DISABLED. "
+          "Run `python main.py auth-setup` and set TOTP_SECRET to enable.",
+          file=sys.stderr)
+
+
+def _session_valid():
+    if not session.get('authed'):
+        return False
+    return (_time.time() - session.get('authed_at', 0)) <= _SESSION_HOURS * 3600
+
+
+@app.before_request
+def _require_login():
+    if not _TOTP_SECRET:
+        return  # auth disabled (local dev)
+    if (request.endpoint or '') in _AUTH_EXEMPT_ENDPOINTS:
+        return
+    if _session_valid():
+        return
+    session.clear()
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'authentication required'}), 401
+    nxt = request.full_path.rstrip('?') if request.method == 'GET' else None
+    return redirect(url_for('login', next=nxt) if nxt else url_for('login'))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10/minute;60/hour', exempt_when=lambda: request.method != 'POST')
+def login():
+    lang = _get_lang()
+    if not _TOTP_SECRET:
+        return redirect(url_for('index'))
+    if request.method == 'GET':
+        if _session_valid():
+            return redirect(url_for('index'))
+        return render_template('login.html', next=request.args.get('next', ''))
+
+    ip = _client_ip()
+    now = _time.time()
+    with _login_guard_lock:
+        st = _login_failures.get(ip)
+        if st and st['until'] > now:
+            flash(_t('login_locked', lang, seconds=int(st['until'] - now)), 'error')
+            return redirect(url_for('login'))
+
+    code = (request.form.get('code') or '').replace(' ', '').strip()
+    if code and pyotp.TOTP(_TOTP_SECRET).verify(code, valid_window=1):
+        session.clear()
+        session['authed'] = True
+        session['authed_at'] = now
+        session.permanent = True
+        with _login_guard_lock:
+            _login_failures.pop(ip, None)
+        nxt = request.form.get('next') or request.args.get('next')
+        if nxt and nxt.startswith('/') and not nxt.startswith('//'):
+            return redirect(nxt)
+        return redirect(url_for('index'))
+
+    with _login_guard_lock:
+        st = _login_failures.setdefault(ip, {'count': 0, 'until': 0})
+        st['count'] += 1
+        if st['count'] >= _LOGIN_MAX_FAILS:
+            st['until'] = now + _LOGIN_LOCKOUT_SECONDS
+            st['count'] = 0
+    app.logger.warning('Failed login attempt from %s', ip)
+    flash(_t('login_failed', lang), 'error')
+    return redirect(url_for('login'))
+
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return redirect(url_for('login') if _TOTP_SECRET else url_for('index'))
+
 
 # ── Jinja2 template filters ───────────────────────────────────────────────────
 from app.i18n import format_date as _format_date

@@ -1,7 +1,6 @@
 """Base importer class with common import logic."""
 
 from app.imports import create_import
-from app.settings import get_setting
 from app.utils.file_utils import check_duplicate
 
 
@@ -15,7 +14,6 @@ class BaseImporter:
             filepath: Path to Excel file to import
         """
         self.filepath = filepath
-        self.ticker_map = get_setting('ticker_map', {})
         self.errors = []
         self.rows_skipped = 0
         self.rows_imported = 0
@@ -54,14 +52,3 @@ class BaseImporter:
             **{k: v for k, v in kwargs.items() if k not in ('rows_imported', 'rows_skipped', 'errors')}
         )
 
-    def get_ticker_for_holding(self, tase_symbol, name_he):
-        """Get ticker from ticker map.
-
-        Args:
-            tase_symbol: TASE symbol
-            name_he: Hebrew name
-
-        Returns:
-            Ticker string or None
-        """
-        return self.ticker_map.get(tase_symbol) or self.ticker_map.get(name_he)

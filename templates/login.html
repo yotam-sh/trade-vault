@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.login_title }} - TradeVault</title>
+    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="stylesheet" href="/static/style.css">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+        <div class="card" style="max-width:360px;width:100%;">
+            <div style="text-align:center;margin-bottom:20px;">
+                <img src="/static/logo_with_name.svg" alt="TradeVault" style="height:40px;">
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <p style="color:var(--text-secondary);font-size:0.9rem;text-align:center;margin-bottom:16px;">
+                {{ t.login_prompt }}
+            </p>
+
+            <form method="post" action="{{ url_for('login') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ next or '' }}">
+                <label for="code" style="display:block;font-size:0.82rem;color:var(--text-secondary);margin-bottom:6px;">
+                    {{ t.login_code_label }}
+                </label>
+                <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                       pattern="[0-9 ]*" maxlength="9" required autofocus dir="ltr"
+                       style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;
+                              border:1px solid var(--bg-tertiary);background:var(--bg-primary);
+                              color:var(--text-primary);font-size:1.3rem;letter-spacing:0.3em;
+                              text-align:center;margin-bottom:16px;">
+                <button type="submit" class="btn-primary" style="width:100%;padding:10px;font-size:1rem;">
+                    {{ t.login_submit }}
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

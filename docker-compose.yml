@@ -13,6 +13,11 @@ services:
       - DB_PATH=/data/db/db.json
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
+      # Per-session TOTP login (see .env.example). Empty TOTP_SECRET disables the gate.
+      - TOTP_SECRET=${TOTP_SECRET:-}
+      - SESSION_LIFETIME_HOURS=${SESSION_LIFETIME_HOURS:-12}
+      - TRUST_PROXY=${TRUST_PROXY:-true}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
     volumes:
       # Persistent database — survives container restarts and upgrades
       - tradevault_db:/data/db
