@@ -302,6 +302,13 @@ def cmd_repair(args):
     elif args.target == 'interpolated':
         from_date = args.from_date or '2026-02-02'
         repair_interpolated_trades(from_date)
+    elif args.target == 'lots':
+        from app.recompute import recompute_after_trade_change
+        summary = recompute_after_trade_change()
+        print(f"Tax lots rebuilt from the transaction ledger: {summary}")
+        from app.reconcile import reconcile
+        warns = [i for i in reconcile() if i[0] == 'warn']
+        print(f"Remaining lot/position warnings: {len(warns)}")
     else:
         print(f"Unknown repair target: {args.target}")
 
@@ -559,8 +566,8 @@ def main():
 
     # repair command
     p_repair = subparsers.add_parser('repair', help='Repair data issues')
-    p_repair.add_argument('target', choices=['morning-balance', 'interpolated'],
-                          help='What to repair')
+    p_repair.add_argument('target', choices=['morning-balance', 'interpolated', 'lots'],
+                          help='What to repair (lots = rebuild tax lots from the ledger)')
     p_repair.add_argument('--from-date', dest='from_date',
                           help='[interpolated] Start date (YYYY-MM-DD), default: 2026-02-02')
     p_repair.set_defaults(func=cmd_repair)

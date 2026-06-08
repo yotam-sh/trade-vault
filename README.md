@@ -212,6 +212,11 @@ python main.py repair interpolated [--from-date YYYY-MM-DD]
 ```
 Clears all interpolated buy/sell transactions from the given date onwards, reverses their tax lot effects, then re-runs position-change inference with the latest logic. Use this after upgrading to a newer version of the interpolation engine. Default start date: `2026-02-02`. Safe to re-run.
 
+```bash
+python main.py repair lots
+```
+Rebuilds every tax lot from the transaction ledger (FIFO replay) and refreshes snapshot cash/equity. Clears orphan or duplicate lots so open-lot shares match held positions — use this to fix the lot/position warnings reported by `python main.py check`. Idempotent.
+
 ### Adding transactions manually
 
 **Add a buy:**

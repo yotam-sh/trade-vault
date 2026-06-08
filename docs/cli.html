@@ -588,6 +588,11 @@
           <td class="desc">Clear all interpolated buy/sell transactions from a given date onwards
               and re-detect them by comparing consecutive daily snapshots. Use after bulk
               re-imports or if interpolated trades are incorrect.</td></tr>
+      <tr><td>lots</td>
+          <td class="desc">Rebuild every tax lot from the transaction ledger (FIFO replay) and
+              refresh snapshot cash/equity. Clears orphan/duplicate lots so open-lot shares
+              match held positions — fixes the lot/position warnings reported by
+              <code>check</code>.</td></tr>
     </table>
 
     <h3>Options</h3>
@@ -604,7 +609,8 @@
     <h3>Examples</h3>
     <pre><code><span class="prompt">$ </span><span class="kw">python</span> main.py repair morning-balance
 <span class="prompt">$ </span><span class="kw">python</span> main.py repair interpolated
-<span class="prompt">$ </span><span class="kw">python</span> main.py repair interpolated <span class="opt">--from-date 2026-01-01</span></code></pre>
+<span class="prompt">$ </span><span class="kw">python</span> main.py repair interpolated <span class="opt">--from-date 2026-01-01</span>
+<span class="prompt">$ </span><span class="kw">python</span> main.py repair lots</code></pre>
     <div class="callout callout-warn">
       <strong>Destructive operation</strong>
       <code>repair interpolated</code> deletes and re-creates interpolated transactions. Run
