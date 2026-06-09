@@ -1,23 +1,23 @@
-"""App settings (key/value store) using TinyDB."""
+"""App settings (key/value store) using TinyDB.
+
+Per-portfolio settings live in each portfolio's `settings` table (get_setting /
+set_setting). Market-data facts that are identical across portfolios — the yfinance
+ticker map and the benchmark series cache — use the *shared* store accessors so they
+are fetched once and seen by every portfolio.
+"""
 
 from tinydb import Query
-from app.connection import get_table, SETTINGS
+from app.connection import get_table, get_shared_table, flush_shared, SETTINGS
 from app.schemas import now_iso, validate_update
 
 
-def get_setting(key, default=None):
-    """Get a setting value by key."""
-    table = get_table(SETTINGS)
+def _get(table, key, default):
     S = Query()
     result = table.search(S.key == key)
-    if result:
-        return result[0]['value']
-    return default
+    return result[0]['value'] if result else default
 
 
-def set_setting(key, value):
-    """Set a setting value. Creates or updates."""
-    table = get_table(SETTINGS)
+def _set(table, key, value):
     S = Query()
     existing = table.search(S.key == key)
     record = {'key': key, 'value': value, 'updated_at': now_iso()}
@@ -28,6 +28,27 @@ def set_setting(key, value):
         table.update(record, S.key == key)
     else:
         table.insert(record)
+
+
+def get_setting(key, default=None):
+    """Get a per-portfolio setting value by key."""
+    return _get(get_table(SETTINGS), key, default)
+
+
+def set_setting(key, value):
+    """Set a per-portfolio setting value. Creates or updates."""
+    _set(get_table(SETTINGS), key, value)
+
+
+def get_shared_setting(key, default=None):
+    """Get a setting from the shared market-data store (all portfolios)."""
+    return _get(get_shared_table(SETTINGS), key, default)
+
+
+def set_shared_setting(key, value):
+    """Set a setting in the shared market-data store and flush it."""
+    _set(get_shared_table(SETTINGS), key, value)
+    flush_shared()
 
 
 def init_default_settings():

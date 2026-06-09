@@ -23,13 +23,14 @@ _SETTINGS_KEY = 'benchmark_cache_v2'
 
 
 def _load_cache():
-    from app.settings import get_setting
-    return get_setting(_SETTINGS_KEY) or {}
+    # Benchmark indices are market facts — shared across all portfolios.
+    from app.settings import get_shared_setting
+    return get_shared_setting(_SETTINGS_KEY) or {}
 
 
 def _save_cache(data):
-    from app.settings import set_setting
-    set_setting(_SETTINGS_KEY, data)
+    from app.settings import set_shared_setting
+    set_shared_setting(_SETTINGS_KEY, data)
 
 
 def _fetch_history(symbol, start_date, end_date):

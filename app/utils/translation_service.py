@@ -5,7 +5,7 @@ then fetches English stock names from yfinance.
 """
 
 from app.holdings import update_holding, get_holding_by_tase_id
-from app.settings import get_setting, set_setting
+from app.settings import get_setting, set_setting, get_shared_setting, set_shared_setting
 from app.yfinance_cache import get_yfinance_cache, upsert_yfinance_cache
 
 
@@ -214,10 +214,10 @@ def set_yfinance_mapping(tase_id, yfinance_symbol, update_info=True):
 
     result['holding_id'] = holding.doc_id
 
-    # Store the yfinance symbol mapping
-    yfinance_map = get_setting('yfinance_map', {})
+    # Store the yfinance symbol mapping (shared across portfolios)
+    yfinance_map = get_shared_setting('yfinance_map', {})
     yfinance_map[str(tase_id)] = yfinance_symbol
-    set_setting('yfinance_map', yfinance_map)
+    set_shared_setting('yfinance_map', yfinance_map)
 
     # Optionally fetch stock info from yfinance
     if update_info:
@@ -257,7 +257,7 @@ def get_yfinance_mapping(tase_id=None):
         >>> get_yfinance_mapping()
         {'1156926': 'GNRS.TA', '1410631': 'TEVA.TA'}
     """
-    yfinance_map = get_setting('yfinance_map', {})
+    yfinance_map = get_shared_setting('yfinance_map', {})
 
     if tase_id is not None:
         return yfinance_map.get(str(tase_id))
@@ -292,7 +292,7 @@ def refresh_info_from_mappings(tase_ids=None):
         'errors': []
     }
 
-    yfinance_map = get_setting('yfinance_map', {})
+    yfinance_map = get_shared_setting('yfinance_map', {})
 
     # Filter mappings if specific tase_ids provided
     if tase_ids:

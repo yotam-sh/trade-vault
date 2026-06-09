@@ -5,14 +5,20 @@ import json
 import os
 import shutil
 from datetime import datetime
-from app.connection import get_db, close_db, flush_db, DB_PATH, get_table, HOLDINGS, DAILY_PRICES, IMPORTS, SETTINGS, YFINANCE_CACHE
+from app.connection import (
+    get_db, close_db, flush_db, forget_path, active_db_path, get_shared_table,
+    get_table, HOLDINGS, DAILY_PRICES, IMPORTS, SETTINGS, YFINANCE_CACHE, CHART_CACHE,
+)
 
-# Dedicated directory for export backups and pre-import safety copies.
-IMPORTS_DIR = os.path.join(os.path.dirname(DB_PATH), 'imports')
+# Export/backup directories live next to the *active* portfolio's db file, so each
+# portfolio keeps its own imports/ and backups/.
 
-# Rolling on-startup backups. Lives under the persisted db/ volume so it survives
-# container recreate.
-BACKUPS_DIR = os.path.join(os.path.dirname(DB_PATH), 'backups')
+def _imports_dir():
+    return os.path.join(os.path.dirname(active_db_path()), 'imports')
+
+
+def _backups_dir():
+    return os.path.join(os.path.dirname(active_db_path()), 'backups')
 
 
 def rotate_backup(keep=20, min_interval_seconds=600):
@@ -24,19 +30,21 @@ def rotate_backup(keep=20, min_interval_seconds=600):
     skipped / nothing to back up / failed).
     """
     try:
-        if not os.path.exists(DB_PATH):
+        db_path = active_db_path()
+        backups_dir = _backups_dir()
+        if not os.path.exists(db_path):
             return None
-        os.makedirs(BACKUPS_DIR, exist_ok=True)
-        existing = sorted(glob.glob(os.path.join(BACKUPS_DIR, 'db_*.json')))
+        os.makedirs(backups_dir, exist_ok=True)
+        existing = sorted(glob.glob(os.path.join(backups_dir, 'db_*.json')))
         if existing and min_interval_seconds:
             import time
             if time.time() - os.path.getmtime(existing[-1]) < min_interval_seconds:
                 return None
         flush_db()  # ensure cached writes are on disk before copying
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        dest = os.path.join(BACKUPS_DIR, f'db_{ts}.json')
-        shutil.copy2(DB_PATH, dest)
-        backups = sorted(glob.glob(os.path.join(BACKUPS_DIR, 'db_*.json')))
+        dest = os.path.join(backups_dir, f'db_{ts}.json')
+        shutil.copy2(db_path, dest)
+        backups = sorted(glob.glob(os.path.join(backups_dir, 'db_*.json')))
         for old in backups[:-keep]:
             try:
                 os.remove(old)
@@ -56,19 +64,20 @@ REQUIRED_TABLES = {'holdings', 'transactions', 'settings'}
 
 
 def export_db(output_path=None):
-    """Flush cache and copy db.json to output_path. Returns the output path."""
+    """Flush cache and copy the active portfolio's db to output_path."""
     flush_db()
+    imports_dir = _imports_dir()
     if output_path is None:
         try:
-            os.makedirs(IMPORTS_DIR, exist_ok=True)
+            os.makedirs(imports_dir, exist_ok=True)
         except PermissionError as e:
             raise PermissionError(
-                f'Cannot create exports directory {IMPORTS_DIR}: {e}. '
+                f'Cannot create exports directory {imports_dir}: {e}. '
                 'Check volume mount permissions or provide an explicit output path.'
             ) from e
         date_str = datetime.now().strftime('%Y-%m-%d')
-        output_path = os.path.join(IMPORTS_DIR, f'db_backup_{date_str}.json')
-    shutil.copy2(DB_PATH, output_path)
+        output_path = os.path.join(imports_dir, f'db_backup_{date_str}.json')
+    shutil.copy2(active_db_path(), output_path)
     return output_path
 
 
@@ -141,7 +150,7 @@ def migrate_db():
 
     # ── 1. yfinance_data → yfinance_cache ────────────────────────────────────
     holdings_table = get_table(HOLDINGS)
-    cache_table = get_table(YFINANCE_CACHE)
+    cache_table = get_shared_table(YFINANCE_CACHE)  # yfinance cache is shared
     from tinydb import Query
     C = Query()
 
@@ -193,6 +202,11 @@ def migrate_db():
     else:
         summary['dividends_table_dropped'] = False
 
+    # Drop the derived chart cache — it is regenerated on demand and must not be
+    # carried across a restore (its stored version may not match the restored data).
+    if CHART_CACHE in db.tables():
+        db.drop_table(CHART_CACHE)
+
     # ── 5. Remove ticker_map from settings ────────────────────────────────────
     settings_table = get_table(SETTINGS)
     S = Query()
@@ -221,22 +235,25 @@ def import_db(source_path):
     if not ok:
         raise ValueError(msg)
 
+    db_path = active_db_path()
+    imports_dir = _imports_dir()
+
     # Backup current db before replacing
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
     backup_path = None
-    if os.path.exists(DB_PATH):
+    if os.path.exists(db_path):
         try:
-            os.makedirs(IMPORTS_DIR, exist_ok=True)
-            backup_path = os.path.join(IMPORTS_DIR, f'db.pre_import_{ts}.bak')
+            os.makedirs(imports_dir, exist_ok=True)
+            backup_path = os.path.join(imports_dir, f'db.pre_import_{ts}.bak')
         except PermissionError:
             import tempfile
             backup_path = os.path.join(tempfile.gettempdir(), f'db.pre_import_{ts}.bak')
-        shutil.copy2(DB_PATH, backup_path)
+        shutil.copy2(db_path, backup_path)
 
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    close_db()
-    shutil.copy2(source_path, DB_PATH)
-    get_db()  # re-initialize singleton
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    forget_path(db_path)  # release the active portfolio's file handle
+    shutil.copy2(source_path, db_path)
+    get_db()  # re-open the active portfolio from the restored file
 
     migration_summary = migrate_db()
     return backup_path, migration_summary

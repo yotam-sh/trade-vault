@@ -1,0 +1,74 @@
+{# Portfolio switcher dropdown — included in every page's nav-left. #}
+<div class="portfolio-switcher">
+    <button class="portfolio-btn" id="portfolio-toggle" aria-haspopup="true" aria-expanded="false">
+        {{ t.portfolio_label }}: {{ active_portfolio.name if active_portfolio else '—' }} ▾
+    </button>
+    <div class="settings-dropdown portfolio-dropdown" id="portfolio-dropdown">
+        <div class="settings-section">
+            <div class="settings-label">{{ t.portfolio_switch_to }}</div>
+            <div class="settings-links">
+                {% for p in portfolio_list %}
+                <form method="post" action="{{ url_for('portfolio_switch') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="portfolio_id" value="{{ p.id }}">
+                    <button type="submit" class="settings-link portfolio-item{% if active_portfolio and p.id == active_portfolio.id %} active{% endif %}">
+                        {{ p.name }}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-label">{{ t.portfolio_new }}</div>
+            <form method="post" action="{{ url_for('portfolio_new') }}" class="portfolio-new-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="name" placeholder="{{ t.portfolio_new_placeholder }}"
+                       maxlength="40" required>
+                <button type="submit" class="settings-link">{{ t.portfolio_create }}</button>
+            </form>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-links">
+                <a href="/settings/portfolios" class="settings-link">{{ t.portfolio_manage }}</a>
+            </div>
+        </div>
+
+        {% if active_portfolio and active_portfolio.id != 'default' %}
+        <div class="settings-section">
+            <form method="post" action="{{ url_for('portfolio_delete') }}"
+                  onsubmit="return confirm('{{ t.portfolio_delete_confirm }}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="portfolio_id" value="{{ active_portfolio.id }}">
+                <button type="submit" class="settings-link portfolio-danger">
+                    {{ t.portfolio_delete }} “{{ active_portfolio.name }}”
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+(function () {
+    var btn = document.getElementById('portfolio-toggle');
+    var dd = document.getElementById('portfolio-dropdown');
+    if (!btn || !dd) return;
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = dd.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open);
+    });
+    dd.addEventListener('click', function (e) { e.stopPropagation(); });
+    document.addEventListener('click', function () {
+        dd.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            dd.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    });
+})();
+</script>

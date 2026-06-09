@@ -392,6 +392,15 @@
       All data is in Hebrew. On Windows, the CLI forces UTF-8 output automatically.
       On Linux/macOS, ensure your terminal locale is UTF-8 (usually the default).
     </div>
+    <div class="callout callout-info">
+      <strong>Multiple portfolios</strong>
+      Each portfolio is an isolated database file under <code>db/</code> (the original
+      <code>db.json</code> is the default portfolio). Every command accepts an optional global
+      <code>--portfolio &lt;name|id&gt;</code> placed before the subcommand to target a specific
+      portfolio; omit it to use the default. Example:
+      <code>python main.py --portfolio "IBI" show portfolio</code>. Market-data caches are shared
+      across portfolios; holdings, transactions, snapshots and preferences are per-portfolio.
+    </div>
   </section>
 
   <!-- ── Quick start ──────────────────────────────────────── -->

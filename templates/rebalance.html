@@ -7,6 +7,7 @@
     <title>{{ t.page_title_rebalance }} - TradeVault</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
         /* ── Group header row ── */
         .rebalance-group-header {
@@ -113,6 +114,7 @@
     <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
     <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
         <div class="nav-left">
+            {% include 'partials/_portfolio_switcher.html' %}
             <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
                 {{ t.settings }}
             </button>
@@ -172,6 +174,7 @@
                 <div class="settings-section">
                     <div class="settings-label">{{ t.settings_pages }}</div>
                     <div class="settings-links">
+                        <a href="/settings/portfolios" class="settings-link">{{ t.nav_portfolios }}</a>
                         <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
                         <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
                         <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
@@ -202,6 +205,85 @@
 
     <div class="container" id="main-content" role="main">
         {% if group_data %}
+
+        {# ── Summary hero ── #}
+        <div class="card rebal-hero">
+            <div class="rebal-hero-stat">
+                <span class="rebal-hero-label">{% if lang == 'he' %}שווי תיק{% else %}Portfolio value{% endif %}</span>
+                <strong>₪{{ '{:,.0f}'.format(total_value) }}</strong>
+            </div>
+            <div class="rebal-hero-stat">
+                <span class="rebal-hero-label">{{ t.rebalance_groups_drift }}</span>
+                <strong id="rebal-drift-count">—</strong>
+            </div>
+            <div class="rebal-hero-stat">
+                <span class="rebal-hero-label">{{ t.label_total_targeted }}</span>
+                <strong id="total-group-targeted" class="{% if total_group_targeted > 100 %}over100{% endif %}">{{ '{:.1f}'.format(total_group_targeted) }}%</strong>
+                <span id="rebal-unallocated" class="rebal-hero-sub">
+                    {% if total_group_targeted > 100 %}{{ t.rebalance_targets_over100 }}
+                    {% elif total_group_targeted < 100 %}({{ '{:.1f}'.format(100 - total_group_targeted) }}% {{ t.label_unallocated }}){% endif %}
+                </span>
+            </div>
+            <span id="save-feedback">{{ t.rebalance_saved }}</span>
+        </div>
+
+        {# ── Allocation donuts ── #}
+        <div class="card">
+            <div class="card-header">{{ t.rebalance_allocation_title }}</div>
+            <div class="rebal-donuts">
+                <div class="rebal-donut">
+                    <div class="rebal-donut-title">{{ t.col_current_weight }}</div>
+                    <canvas id="donut-current" height="220"></canvas>
+                </div>
+                <div class="rebal-donut">
+                    <div class="rebal-donut-title" id="donut-target-title">{{ t.col_target_weight }}</div>
+                    <canvas id="donut-target" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {# ── Optimizer panel ── #}
+        <div class="card" id="optimize-card">
+            <div class="card-header">{{ t.optimize_title }}</div>
+            <div class="opt-controls">
+                <label>{{ t.optimize_mode }}
+                    <select id="opt-mode">
+                        <option value="full">{{ t.optimize_mode_full }}</option>
+                        <option value="within">{{ t.optimize_mode_within }}</option>
+                    </select>
+                </label>
+                <label>{{ t.optimize_method }}
+                    <select id="opt-method">
+                        <option value="min_variance">{{ t.method_min_variance }}</option>
+                        <option value="risk_parity">{{ t.method_risk_parity }}</option>
+                        <option value="max_sharpe">{{ t.method_max_sharpe }}</option>
+                    </select>
+                </label>
+                <label>{{ t.optimize_lookback }}
+                    <select id="opt-lookback">
+                        <option value="1">1y</option>
+                        <option value="2" selected>2y</option>
+                        <option value="3">3y</option>
+                        <option value="30">{{ t.optimize_lookback_max }}</option>
+                    </select>
+                </label>
+                <label>{{ t.optimize_max_weight }}
+                    <input type="number" id="opt-maxweight" value="30" min="1" max="100" step="1" style="width:60px;">%
+                </label>
+                <button type="button" id="opt-suggest" class="admin-action-btn">{{ t.optimize_suggest }}</button>
+                <button type="button" id="opt-apply" class="admin-action-btn" style="display:none;">{{ t.optimize_apply }}</button>
+            </div>
+            <div id="opt-status" class="opt-status" style="display:none;" role="status" aria-live="polite"></div>
+            <div id="opt-results" class="opt-results" style="display:none;">
+                <div id="opt-compare" class="opt-compare"></div>
+                <div class="opt-scatter-wrap">
+                    <div class="rebal-donut-title">{{ t.optimize_riskreturn }}</div>
+                    <canvas id="opt-scatter" height="200"></canvas>
+                </div>
+            </div>
+            <div id="opt-metrics" class="opt-metrics" style="display:none;"></div>
+            <div id="opt-excluded" class="opt-excluded" style="display:none;"></div>
+        </div>
 
         {# ── One card per security type group ── #}
         {% for grp in group_data %}
@@ -323,29 +405,6 @@
             </div>
         </div>
         {% endfor %}
-
-        {# ── Global summary card ── #}
-        <div class="card" id="rebalance-summary">
-            <span>
-                {{ t.label_total_targeted }}:
-                <strong id="total-group-targeted"
-                        class="{% if total_group_targeted > 100 %}over100{% endif %}">
-                    {{ '{:.1f}'.format(total_group_targeted) }}%
-                </strong>
-                {% if total_group_targeted > 100 %}
-                    <span class="over100"> — {{ t.rebalance_targets_over100 }}</span>
-                {% elif total_group_targeted < 100 %}
-                    <span style="color:var(--text-secondary);font-size:0.85rem;">
-                        ({{ '{:.1f}'.format(100 - total_group_targeted) }}% {{ t.label_unallocated }})
-                    </span>
-                {% endif %}
-            </span>
-            <span>
-                {% if lang == 'he' %}שווי תיק:{% else %}Portfolio value:{% endif %}
-                <strong>₪{{ '{:,.0f}'.format(total_value) }}</strong>
-            </span>
-            <span id="save-feedback">{{ t.rebalance_saved }}</span>
-        </div>
 
         {% else %}
         <div class="card">
@@ -539,6 +598,245 @@
             header.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); }
             });
+        });
+
+        // ── Optimizer (suggestions only — never mutates holdings) ──
+        (function () {
+            var card = document.getElementById('optimize-card');
+            if (!card) return;
+            var suggestBtn = document.getElementById('opt-suggest');
+            var applyBtn = document.getElementById('opt-apply');
+            var statusEl = document.getElementById('opt-status');
+            var metricsEl = document.getElementById('opt-metrics');
+            var excludedEl = document.getElementById('opt-excluded');
+            var last = null;
+            var TOL = 1.0;
+            var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+            function pct(x) { return (x * 100).toFixed(1) + '%'; }
+
+            function clearPreview() {
+                document.querySelectorAll('.opt-suggested').forEach(function (e) { e.remove(); });
+                document.querySelectorAll('.opt-aligned').forEach(function (e) { e.classList.remove('opt-aligned'); });
+            }
+
+            function badge(text, aligned) {
+                var s = document.createElement('span');
+                s.className = 'opt-suggested' + (aligned ? ' opt-suggested-ok' : '');
+                s.textContent = T.optimize_suggested + ': ' + text + (aligned ? ' ✓' : '');
+                return s;
+            }
+
+            function renderPreview(res) {
+                clearPreview();
+                Object.keys(res.holdings).forEach(function (hid) {
+                    var inp = document.querySelector('.holding-target-input[data-holding-id="' + hid + '"]');
+                    if (!inp) return;
+                    var sug = res.holdings[hid];
+                    var cur = res.current ? res.current[hid] : undefined;
+                    var aligned = (cur !== undefined && Math.abs(cur - sug) <= TOL);
+                    (inp.closest('td') || inp.parentNode).appendChild(badge(sug.toFixed(1) + '%', aligned));
+                    if (aligned) { var row = inp.closest('tr'); if (row) row.classList.add('opt-aligned'); }
+                });
+                Object.keys(res.groups || {}).forEach(function (gt) {
+                    var inp = document.querySelector('.group-target-input[data-group-type="' + gt + '"]');
+                    if (!inp) return;
+                    var sug = res.groups[gt];
+                    var cur = res.current_groups ? res.current_groups[gt] : undefined;
+                    var aligned = (cur !== undefined && Math.abs(cur - sug) <= TOL);
+                    (inp.closest('label') || inp.parentNode).appendChild(badge(sug.toFixed(1) + '%', aligned));
+                });
+            }
+
+            function renderMetrics(res) {
+                var m = res.metrics || {};
+                metricsEl.style.display = '';
+                metricsEl.innerHTML =
+                    '<span>' + T.optimize_metric_return + ': <strong>' + pct(m.ret || 0) + '</strong></span>' +
+                    '<span>' + T.optimize_metric_vol + ': <strong>' + pct(m.vol || 0) + '</strong></span>' +
+                    '<span>' + T.optimize_metric_sharpe + ': <strong>' + (m.sharpe || 0).toFixed(2) + '</strong></span>' +
+                    (document.getElementById('opt-method').value === 'max_sharpe'
+                        ? '<span class="opt-caveat">' + T.optimize_noisy_caveat + '</span>' : '');
+                var ex = res.excluded || [];
+                if (ex.length) {
+                    excludedEl.style.display = '';
+                    excludedEl.textContent = T.optimize_excluded + ': ' +
+                        ex.map(function (e) { return e.name; }).join(', ');
+                } else { excludedEl.style.display = 'none'; }
+            }
+
+            suggestBtn.addEventListener('click', function () {
+                statusEl.style.display = ''; statusEl.className = 'opt-status'; statusEl.textContent = T.optimize_running;
+                suggestBtn.disabled = true; applyBtn.style.display = 'none';
+                fetch('/api/rebalance-optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({
+                        mode: document.getElementById('opt-mode').value,
+                        method: document.getElementById('opt-method').value,
+                        lookback_years: parseFloat(document.getElementById('opt-lookback').value),
+                        max_weight: parseFloat(document.getElementById('opt-maxweight').value)
+                    })
+                }).then(function (r) { return r.json(); }).then(function (res) {
+                    suggestBtn.disabled = false;
+                    if (!res.ok) {
+                        statusEl.className = 'opt-status opt-error';
+                        statusEl.textContent = res.error === 'insufficient_data' || res.error === 'empty_portfolio'
+                            ? T.optimize_insufficient : T.optimize_error;
+                        return;
+                    }
+                    last = res;
+                    statusEl.style.display = 'none';
+                    renderMetrics(res);
+                    renderPreview(res);
+                    applyBtn.style.display = '';
+                    document.dispatchEvent(new CustomEvent('optimize:result', { detail: res }));
+                }).catch(function () {
+                    suggestBtn.disabled = false;
+                    statusEl.className = 'opt-status opt-error'; statusEl.textContent = T.optimize_error;
+                });
+            });
+
+            applyBtn.addEventListener('click', function () {
+                if (!last) return;
+                Object.keys(last.holdings).forEach(function (hid) {
+                    var inp = document.querySelector('.holding-target-input[data-holding-id="' + hid + '"]');
+                    if (inp) inp.value = last.holdings[hid].toFixed(1);
+                });
+                Object.keys(last.groups || {}).forEach(function (gt) {
+                    var inp = document.querySelector('.group-target-input[data-group-type="' + gt + '"]');
+                    if (inp) inp.value = last.groups[gt].toFixed(1);
+                });
+                saveTargets();  // recompute deltas + persist target_allocations_v2 only
+                statusEl.style.display = ''; statusEl.className = 'opt-status opt-ok';
+                statusEl.textContent = T.optimize_applied;
+                document.dispatchEvent(new CustomEvent('optimize:applied'));
+            });
+        })();
+    })();
+    </script>
+
+    {# ── Allocation donuts + risk/return scatter (Chart.js) ── #}
+    <script>
+    var REBAL = {
+        total_value: {{ total_value | tojson }},
+        groups: [
+            {% for grp in group_data %}
+            { type: {{ grp.type | tojson }}, current: {{ grp.current_pct }}, target: {{ grp.target_pct }}, delta: {{ grp.delta_pct }} }{{ ',' if not loop.last }}
+            {% endfor %}
+        ]
+    };
+    (function () {
+        if (typeof Chart === 'undefined' || !REBAL.groups.length) return;
+        var css = getComputedStyle(document.documentElement);
+        var textColor = (css.getPropertyValue('--text-secondary') || '#999').trim();
+        var TYPE_LABELS = {
+            stock: T.type_stock, etf: T.type_etf_long,
+            mutual_fund: T.type_mutual_fund_long, bond: T.type_bond, other: T.type_other || 'Other'
+        };
+        var PALETTE = { stock: '#ff8c00', etf: '#58a6ff', mutual_fund: '#3fb950', bond: '#a371f7', other: '#8b949e' };
+        function labelOf(t) { return TYPE_LABELS[t] || t; }
+        function colorOf(t) { return PALETTE[t] || '#8b949e'; }
+
+        function donutData(key) {
+            var rows = REBAL.groups.filter(function (g) { return (g[key] || 0) > 0; });
+            return {
+                labels: rows.map(function (g) { return labelOf(g.type); }),
+                datasets: [{
+                    data: rows.map(function (g) { return Math.round((g[key] || 0) * 10) / 10; }),
+                    backgroundColor: rows.map(function (g) { return colorOf(g.type); }),
+                    borderColor: (css.getPropertyValue('--bg-secondary') || '#161b22').trim(),
+                    borderWidth: 2
+                }]
+            };
+        }
+        var donutOpts = {
+            responsive: true, maintainAspectRatio: false, cutout: '58%',
+            plugins: {
+                legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 11 } } },
+                tooltip: { callbacks: { label: function (c) { return c.label + ': ' + c.parsed + '%'; } } }
+            }
+        };
+        var donutCurrent = new Chart(document.getElementById('donut-current'),
+            { type: 'doughnut', data: donutData('current'), options: donutOpts });
+        var donutTarget = new Chart(document.getElementById('donut-target'),
+            { type: 'doughnut', data: donutData('target'), options: donutOpts });
+        var scatter = null;
+
+        // Drift count (groups out of balance by >0.1%)
+        var drift = REBAL.groups.filter(function (g) { return Math.abs(g.delta || 0) > 0.1; }).length;
+        var dc = document.getElementById('rebal-drift-count');
+        if (dc) dc.textContent = drift;
+
+        function setTargetDonut(map, titleKey) {
+            var rows = Object.keys(map).map(function (t) { return { type: t, v: map[t] }; })
+                .filter(function (r) { return r.v > 0; });
+            donutTarget.data.labels = rows.map(function (r) { return labelOf(r.type); });
+            donutTarget.data.datasets[0].data = rows.map(function (r) { return Math.round(r.v * 10) / 10; });
+            donutTarget.data.datasets[0].backgroundColor = rows.map(function (r) { return colorOf(r.type); });
+            donutTarget.update();
+            var tt = document.getElementById('donut-target-title');
+            if (tt && titleKey) tt.textContent = titleKey;
+        }
+
+        function pct(x) { return (x * 100).toFixed(1) + '%'; }
+        function renderCompare(res) {
+            var cur = res.current_metrics || {}, sug = res.metrics || {};
+            function card(label, c, s, isPct, decimals) {
+                var fmt = function (v) { return isPct ? pct(v || 0) : (v || 0).toFixed(decimals); };
+                return '<div class="opt-card"><div class="opt-card-label">' + label + '</div>' +
+                    '<div class="opt-card-vals"><span class="opt-card-cur">' + fmt(c) + '</span>' +
+                    '<span class="opt-card-arrow">→</span><span class="opt-card-sug">' + fmt(s) + '</span></div></div>';
+            }
+            var el = document.getElementById('opt-compare');
+            el.innerHTML =
+                card(T.optimize_metric_return, cur.ret, sug.ret, true, 1) +
+                card(T.optimize_metric_vol, cur.vol, sug.vol, true, 1) +
+                card(T.optimize_metric_sharpe, cur.sharpe, sug.sharpe, false, 2);
+        }
+
+        function renderScatter(res) {
+            var cur = res.current_metrics || {}, sug = res.metrics || {};
+            var ctx = document.getElementById('opt-scatter');
+            if (scatter) scatter.destroy();
+            scatter = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: T.optimize_current || 'Current', data: [{ x: (cur.vol || 0) * 100, y: (cur.ret || 0) * 100 }],
+                          backgroundColor: '#8b949e', pointRadius: 7 },
+                        { label: T.optimize_suggested, data: [{ x: (sug.vol || 0) * 100, y: (sug.ret || 0) * 100 }],
+                          backgroundColor: '#ff8c00', pointRadius: 8, pointStyle: 'star' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: T.optimize_metric_vol + ' %', color: textColor }, ticks: { color: textColor } },
+                        y: { title: { display: true, text: T.optimize_metric_return + ' %', color: textColor }, ticks: { color: textColor } }
+                    },
+                    plugins: { legend: { labels: { color: textColor, usePointStyle: true } } }
+                }
+            });
+        }
+
+        document.addEventListener('optimize:result', function (e) {
+            var res = e.detail;
+            document.getElementById('opt-results').style.display = '';
+            if (res.mode === 'full' && res.groups && Object.keys(res.groups).length) {
+                setTargetDonut(res.groups, T.optimize_suggested);
+            }
+            renderCompare(res);
+            renderScatter(res);
+        });
+        document.addEventListener('optimize:applied', function () {
+            // Reflect applied targets in the Target donut from the current inputs.
+            var map = {};
+            document.querySelectorAll('.group-target-input').forEach(function (inp) {
+                var v = parseFloat(inp.value);
+                if (!isNaN(v) && v > 0) map[inp.getAttribute('data-group-type')] = v;
+            });
+            if (Object.keys(map).length) setTargetDonut(map, '{{ t.col_target_weight }}');
         });
     })();
     </script>

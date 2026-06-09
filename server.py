@@ -295,6 +295,7 @@ def maintenance_rebuild_lots():
     lang = _get_lang()
     from app.recompute import recompute_after_trade_change
     summary = recompute_after_trade_change()
+    _spawn_chart_warm()
     flash(f"{_t('rebuild_lots_done', lang)} "
           f"({summary['buys']} buys, {summary['sells']} sells)", 'success')
     return redirect(url_for('maintenance'))
@@ -549,6 +550,11 @@ def inject_translations():
         saved_all = get_setting('display_name_prefs', {}) or {}
         saved_prefs = saved_all.get(lang, {}) if isinstance(saved_all, dict) else {}
         g.display_prefs = {**_default_display_prefs(lang), **saved_prefs}
+    from app import portfolios
+    if not hasattr(g, 'portfolio_list'):
+        g.portfolio_list = portfolios.list_portfolios()
+    pid = getattr(g, 'active_portfolio_id', None) or portfolios.default_id()
+    active = next((p for p in g.portfolio_list if p['id'] == pid), None)
     return {
         't': get_translations(lang),
         't_json': get_translations_json(lang),
@@ -556,12 +562,31 @@ def inject_translations():
         'dir': 'ltr' if lang == 'en' else 'rtl',
         'app_version': APP_VERSION,
         'display_prefs': g.display_prefs,
+        'active_portfolio': active,
+        'portfolio_list': g.portfolio_list,
     }
 
 
 @app.before_request
 def ensure_db():
+    # Resolve the active portfolio from the session (default when unset/unknown),
+    # then open its db. The contextvar token is reset in teardown.
+    from app import portfolios
+    from app.connection import set_active_portfolio
+    pid = session.get('portfolio_id')
+    if not pid or not portfolios.exists(pid):
+        pid = portfolios.default_id()
+    g._pid_token = set_active_portfolio(pid)
+    g.active_portfolio_id = pid
     get_db()
+
+
+@app.teardown_request
+def _reset_active_portfolio(exception=None):
+    from app.connection import reset_active_portfolio
+    token = getattr(g, '_pid_token', None)
+    if token is not None:
+        reset_active_portfolio(token)
 
 
 @app.teardown_appcontext
@@ -578,6 +603,77 @@ def set_lang(lang):
     resp = make_response(redirect(referrer))
     resp.set_cookie('lang', lang, max_age=365 * 24 * 3600, samesite='Lax')
     return resp
+
+
+# ── Portfolio switcher ──
+
+@app.route('/portfolio/switch', methods=['POST'])
+def portfolio_switch():
+    from app import portfolios
+    pid = request.form.get('portfolio_id', '')
+    if portfolios.exists(pid):
+        session['portfolio_id'] = pid
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/portfolio/new', methods=['POST'])
+def portfolio_new():
+    from app import portfolios
+    lang = _get_lang()
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        flash(_t('portfolio_name_required', lang), 'error')
+        return redirect(request.referrer or url_for('index'))
+    pid = portfolios.create_portfolio(name)
+    session['portfolio_id'] = pid  # switch to the new portfolio
+    flash(_t('portfolio_created', lang, name=name), 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/portfolio/rename', methods=['POST'])
+def portfolio_rename():
+    from app import portfolios
+    pid = request.form.get('portfolio_id', '')
+    name = (request.form.get('name') or '').strip()
+    portfolios.rename_portfolio(pid, name)
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/portfolio/delete', methods=['POST'])
+def portfolio_delete():
+    from app import portfolios
+    lang = _get_lang()
+    pid = request.form.get('portfolio_id', '')
+    ok, msg = portfolios.delete_portfolio(pid)
+    if ok and session.get('portfolio_id') == pid:
+        session.pop('portfolio_id', None)  # fall back to default
+    flash(_t('portfolio_deleted', lang) if ok else msg, 'success' if ok else 'error')
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/portfolio/make-default', methods=['POST'])
+def portfolio_make_default():
+    from app import portfolios
+    lang = _get_lang()
+    pid = request.form.get('portfolio_id', '')
+    if portfolios.set_default(pid):
+        flash(_t('portfolio_made_default', lang), 'success')
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/settings/portfolios')
+def settings_portfolios():
+    from app import portfolios
+    active_id = getattr(g, 'active_portfolio_id', None) or portfolios.default_id()
+    default = portfolios.default_id()
+    plist = portfolios.list_portfolios()
+    rows = [{
+        **p,
+        'is_active': p['id'] == active_id,
+        'is_default': p['id'] == default,
+        'stats': portfolios.portfolio_stats(p['id']),
+    } for p in plist]
+    return render_template('portfolios.html', rows=rows, can_delete=len(plist) > 1)
 
 
 @app.route('/')
@@ -615,6 +711,7 @@ def _upload_trades(lang):
             app.logger.exception('Trade import failed for %s', f.filename)
             errs += 1
     recompute_cash()  # refresh snapshot cash from the new buys/sells (also flushes)
+    _spawn_chart_warm()
     flash(_t('flash_trades_imported', lang, buys=buys, sells=sells, dups=dups, errors=errs),
           'success' if not errs else 'warning')
     return redirect(url_for('index'))
@@ -720,7 +817,30 @@ def upload_daily():
         flash(_t('flash_import_error', lang), 'error')
 
     flush_db()
+    _spawn_chart_warm()
     return redirect(url_for('index'))
+
+
+def _spawn_chart_warm():
+    """Precompute the heavy /graphs payloads in a background thread after a data change.
+
+    Best-effort UX: the lazy cache in chart_cache.cached() already guarantees
+    correctness on the next visit; this just makes that first visit warm. Must be
+    called AFTER the route's final flush so the daemon thread never races unflushed
+    writes in the request thread.
+    """
+    from app.analytics.chart_cache import warm_charts
+    from app.connection import current_portfolio_id, using_portfolio
+    pid = current_portfolio_id()  # capture the active portfolio for the worker
+
+    def _worker():
+        try:
+            with using_portfolio(pid):
+                warm_charts()
+        except Exception:
+            app.logger.exception('chart warm failed')
+
+    threading.Thread(target=_worker, daemon=True, name='chart-warm').start()
 
 
 def _cash_card_context():
@@ -973,7 +1093,9 @@ def daily_summary_view():
         start = today.strftime('%Y-%m-01')
         end = today.strftime('%Y-%m-%d')
         return redirect(url_for('daily_summary_view') + f'?start={start}&end={end}')
-    data = get_daily_summary(start_date=start, end_date=end)
+    from app.analytics.chart_cache import cached
+    data = cached(f'daily_summary:{start}:{end}',
+                  lambda: get_daily_summary(start_date=start, end_date=end))
     return render_template('daily_summary.html', data=data, start=start, end=end)
 
 
@@ -989,10 +1111,16 @@ def daily_details_view():
         if dates:
             start = end = dates[-1]
 
-    details = get_daily_details(start_date=start, end_date=end)
-    pivot_security = get_pivot_by_security(start_date=start, end_date=end)
-    pivot_date = get_pivot_by_date(start_date=start, end_date=end)
-    type_chart = get_daily_type_chart_data(start_date=start, end_date=end)
+    from app.analytics.chart_cache import cached
+    key = f'{start}:{end}'
+    details = cached(f'daily_details:{key}',
+                     lambda: get_daily_details(start_date=start, end_date=end))
+    pivot_security = cached(f'daily_pivot_sec:{key}',
+                            lambda: get_pivot_by_security(start_date=start, end_date=end))
+    pivot_date = cached(f'daily_pivot_date:{key}',
+                        lambda: get_pivot_by_date(start_date=start, end_date=end))
+    type_chart = cached(f'daily_type_chart:{key}',
+                        lambda: get_daily_type_chart_data(start_date=start, end_date=end))
     return render_template('daily_details.html',
                            details=details,
                            pivot_security=pivot_security,
@@ -1158,11 +1286,12 @@ def graphs_view():
     from app.snapshots import list_snapshots
     from app.settings import get_setting
     from app.analytics.benchmark_analytics import get_benchmark_data
+    from app.analytics.chart_cache import cached
     snapshots = list_snapshots()
-    monthly = get_monthly_chart_data()
-    historical_perf = get_historical_performance()
-    allocation_history = get_allocation_history()
-    top_positions = get_top_positions_pnl()
+    monthly = cached('graphs:monthly', get_monthly_chart_data)
+    historical_perf = cached('graphs:historical_perf', get_historical_performance)
+    allocation_history = cached('graphs:allocation_history', get_allocation_history)
+    top_positions = cached('graphs:top_positions', get_top_positions_pnl)
     graph_layout = get_setting('graph_layout', {
         'order': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
         'widths': {'A': 100, 'B': 100, 'C': 100, 'D': 100, 'E': 100, 'F': 100, 'G': 100, 'H': 100},
@@ -1178,8 +1307,8 @@ def graphs_view():
         benchmark = {'ta125': [], 'ta35': []}
 
     # Extra data for shared chart partials
-    daily_data = get_daily_summary()
-    type_chart = get_daily_type_chart_data()
+    daily_data = cached('graphs:daily_summary', get_daily_summary)
+    type_chart = cached('graphs:type_chart', get_daily_type_chart_data)
     portfolio = get_portfolio_value()
     closed = get_closed_positions()
     by_year, _ = compute_yearly_tax()
@@ -1222,7 +1351,7 @@ def positions_view():
 def rebalance_view():
     from app.analytics.portfolio_analytics import get_portfolio_value
     from app.settings import get_setting
-    pf = get_portfolio_value()
+    pf = get_portfolio_value() or {}  # empty portfolio (no snapshot yet)
     saved = get_setting('target_allocations_v2', {}) or {}
     group_targets = saved.get('groups', {})
     holding_targets = saved.get('holdings', {})
@@ -1334,6 +1463,28 @@ def save_rebalance_targets():
 
     set_setting('target_allocations_v2', {'groups': groups, 'holdings': holdings})
     return jsonify({'ok': True})
+
+
+@app.route('/api/rebalance-optimize', methods=['POST'])
+def api_rebalance_optimize():
+    """Compute a suggested allocation (read-only — writes nothing)."""
+    from app.analytics.rebalance_optimizer import optimize
+    data = request.get_json(force=True, silent=True) or {}
+    mode = data.get('mode', 'full')
+    method = data.get('method', 'min_variance')
+    if mode not in ('full', 'within') or method not in ('min_variance', 'risk_parity', 'max_sharpe'):
+        return jsonify({'ok': False, 'error': 'bad_params'}), 400
+    try:
+        lookback = min(max(float(data.get('lookback_years', 2.0)), 0.25), 30.0)
+        max_weight = min(max(float(data.get('max_weight', 30)) / 100.0, 0.01), 1.0)
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'bad_params'}), 400
+    try:
+        res = optimize(mode=mode, method=method, lookback_years=lookback, max_weight=max_weight)
+    except Exception:
+        app.logger.exception('rebalance optimize failed')
+        return jsonify({'ok': False, 'error': 'compute_failed'}), 500
+    return jsonify(res)
 
 
 @app.route('/position/<int:holding_id>')
@@ -1651,15 +1802,17 @@ def admin_db_import():
     return redirect(url_for('admin'))
 
 
-def _tase_refresh_worker():
+def _tase_refresh_worker(pid):
     """Fetch TASE data (and Bizportal names for funds) for all holdings and write to DB.
 
     HTTP calls are parallelised (up to 5 concurrent); DB writes are sequential
     so TinyDB's CachingMiddleware is never written from two threads at once.
     Funds get name_tase_he from Bizportal <h1>; stocks get it from TASE lang=0.
     """
+    from app.connection import set_active_portfolio
+    set_active_portfolio(pid)  # bind this thread to the portfolio that triggered it
     from app.holdings import list_holdings, update_holding
-    from app.settings import get_setting, set_setting
+    from app.settings import get_shared_setting, set_shared_setting
     from app.utils.translation_service import fetch_data_from_tase, fetch_bizportal_name_he
 
     holdings = list_holdings(active_only=False)
@@ -1697,7 +1850,7 @@ def _tase_refresh_worker():
     # Phase 2: sequential DB writes
     updated, failed, bp_updated = 0, 0, 0
     try:
-        yf_map = get_setting('yfinance_map', {}) or {}
+        yf_map = get_shared_setting('yfinance_map', {}) or {}
         for doc_id, (h, data) in tase_results.items():
             if data:
                 field_updates = {'name_tase_en': data['name']}
@@ -1719,7 +1872,7 @@ def _tase_refresh_worker():
                 updated += 1
             else:
                 failed += 1
-        set_setting('yfinance_map', yf_map)
+        set_shared_setting('yfinance_map', yf_map)
     except Exception:
         app.logger.exception('TASE DB write phase failed')
 
@@ -1738,7 +1891,9 @@ def admin_refresh_tase_names():
                 return jsonify({'started': False, 'reason': 'already_running'})
             flash(_t('admin_tase_refresh_running', lang), 'info')
             return redirect(url_for('maintenance'))
-    thread = threading.Thread(target=_tase_refresh_worker, daemon=True, name='tase-refresh')
+    from app.connection import current_portfolio_id
+    thread = threading.Thread(target=_tase_refresh_worker, args=(current_portfolio_id(),),
+                              daemon=True, name='tase-refresh')
     thread.start()
     if is_ajax:
         return jsonify({'started': True})

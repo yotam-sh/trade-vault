@@ -32,6 +32,13 @@
                 {% for val, label in symbol_sources %}<option value="{{ val }}" {% if display_prefs.portfolio_holdings_symbol == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
         </div>
+        {# Treemap ("Daily % Change Map") label source — its own group so the chart's gear works on Home #}
+        <div class="disp-row" data-group="graphs_treemap" data-type="symbol">
+            <span class="disp-row-label">{{ t.disp_ctx_graphs_treemap }}</span>
+            <select name="graphs_treemap_labels" class="pref-select">
+                {% for val, label in symbol_sources %}<option value="{{ val }}" {% if display_prefs.graphs_treemap_labels == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
 
         {% elif display_prefs_context == 'positions' %}
         <div class="disp-row" data-group="positions_open" data-type="name">

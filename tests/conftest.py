@@ -5,10 +5,11 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def fresh_db(tmp_path, monkeypatch):
-    """Point the DB singleton at a unique temp db.json for each test.
+    """Point the DB at a unique temp db.json for each test.
 
-    Patches the module-level DB_PATH in every module that captured it at import
-    time, and resets the connection singleton before and after the test.
+    DB_PATH is the no-active-portfolio default, so with no portfolio context set the
+    connection layer resolves to this temp file. The registry (portfolios.json) and
+    shared store (shared.json) derive from its directory, so they're isolated too.
     """
     db_file = str(tmp_path / 'db.json')
     monkeypatch.setenv('DB_PATH', db_file)
@@ -16,16 +17,11 @@ def fresh_db(tmp_path, monkeypatch):
     import app.connection as conn
     conn.close_db()
     monkeypatch.setattr(conn, 'DB_PATH', db_file)
-    conn._db_instance = None
-    conn._db_mtime = None
-
-    import app.db_backup as dbk
-    monkeypatch.setattr(dbk, 'DB_PATH', db_file, raising=False)
-    monkeypatch.setattr(dbk, 'IMPORTS_DIR', str(tmp_path / 'imports'), raising=False)
-    monkeypatch.setattr(dbk, 'BACKUPS_DIR', str(tmp_path / 'backups'), raising=False)
+    conn._instances.clear()
+    conn._mtimes.clear()
 
     yield
 
     conn.close_db()
-    conn._db_instance = None
-    conn._db_mtime = None
+    conn._instances.clear()
+    conn._mtimes.clear()

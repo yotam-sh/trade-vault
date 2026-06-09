@@ -457,6 +457,8 @@ def main():
         description='TradeVault: Personal portfolio tracker',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument('--portfolio', metavar='NAME_OR_ID',
+                        help='Operate on a specific portfolio (default: the default portfolio)')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
     # import command
@@ -559,8 +561,19 @@ def main():
         parser.print_help()
         return
 
-    from app.connection import install_shutdown_handler
+    from app.connection import install_shutdown_handler, set_active_portfolio
     install_shutdown_handler()  # flush on SIGTERM (e.g. docker stop of a CLI run)
+
+    # Bind a non-default portfolio for the whole invocation, if requested.
+    if getattr(args, 'portfolio', None):
+        from app import portfolios
+        sel = args.portfolio
+        match = (portfolios.get_portfolio(sel)
+                 or next((p for p in portfolios.list_portfolios() if p['name'] == sel), None))
+        if not match:
+            print(f"Unknown portfolio: {sel}")
+            return
+        set_active_portfolio(match['id'])
 
     # Show library reminder on every invocation (silent when check is recent)
     startup_check()

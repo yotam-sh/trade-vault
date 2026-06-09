@@ -183,6 +183,21 @@ TradeVault/
 > page; DB export/import on Admin. The CLI remains as a fallback. The only web-unavailable
 > command is `upgrade-libs` (it modifies the Python environment; in Docker you rebuild the image).
 
+### Multiple portfolios
+
+TradeVault supports multiple **isolated** portfolios — each is its own database file under `db/`
+(the original `db.json` is the default portfolio, "IBI"). Switch the active portfolio, create, rename,
+or delete one from the **portfolio switcher in the top-left of the nav**. Market data (yfinance price
+cache, TASE ticker map, TA-125/35 benchmark) is shared across all portfolios; everything else —
+holdings, transactions, snapshots, tax lots, view preferences — is per-portfolio. Login is global
+(one session covers all portfolios).
+
+Every CLI command accepts an optional global `--portfolio <name|id>` to target a specific portfolio
+(default: the default portfolio):
+```bash
+python main.py --portfolio "IBI" show portfolio
+```
+
 ### Importing data
 
 **Import a daily portfolio file:**

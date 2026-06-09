@@ -141,11 +141,11 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                                 en_updates['tase_symbol_en'] = tase_data['tase_symbol_en']
                             if tase_data.get('ticker'):
                                 en_updates['ticker'] = tase_data['ticker']
-                                # Keep yfinance_map in sync
-                                from app.settings import get_setting, set_setting
-                                yf_map = get_setting('yfinance_map', {})
+                                # Keep yfinance_map in sync (shared across portfolios)
+                                from app.settings import get_shared_setting, set_shared_setting
+                                yf_map = get_shared_setting('yfinance_map', {})
                                 yf_map[str(tase_id)] = tase_data['ticker']
-                                set_setting('yfinance_map', yf_map)
+                                set_shared_setting('yfinance_map', yf_map)
                             update_holding(holding_id, **en_updates)
                             name_change['new_name_en'] = tase_data['name']
                         else:
