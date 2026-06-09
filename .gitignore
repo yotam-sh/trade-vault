@@ -13,12 +13,8 @@ env.yaml
 *.env
 notes
 
-# Database (user data, regenerated from imports)
-db/db.json
-db/*.bak
-db/imports/
-db/backups/
-db/auth.json
+# Database (user data: portfolios, registry, shared cache, auth — never tracked)
+db/
 
 # Data files (personal brokerage exports)
 data/
