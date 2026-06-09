@@ -22,13 +22,19 @@ COPY main.py    .
 COPY wsgi.py    .
 COPY gunicorn.conf.py .
 
-# Create runtime directories (will be bind-mounted in production)
-RUN mkdir -p /app/db /app/data/daily_data
+# Non-root user with FIXED uid/gid (10001) so volume ownership is deterministic
+# and can be reproduced from the host (see the chown one-liner in README/compose).
+RUN addgroup --system --gid 10001 tradevault && \
+    adduser --system --uid 10001 --ingroup tradevault tradevault
 
-# Non-root user for security
-RUN addgroup --system tradevault && \
-    adduser --system --ingroup tradevault tradevault && \
-    chown -R tradevault:tradevault /app
+# Create runtime directories (volume/bind-mounted in production) and hand them to
+# the runtime user. /data/db is the DB volume mountpoint (DB_PATH=/data/db/db.json)
+# and /app/data holds Excel uploads — both MUST be writable by tradevault or
+# first-run writes (portfolios.json registry, db.json) fail with EACCES. An empty
+# named volume inherits the image path's ownership, so chowning here fixes fresh
+# deploys; pre-existing volumes must be chowned on the host (one-off, below).
+RUN mkdir -p /app/db /app/data/daily_data /data/db && \
+    chown -R tradevault:tradevault /app /data
 USER tradevault
 
 EXPOSE 2501

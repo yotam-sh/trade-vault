@@ -1,10 +1,26 @@
 services:
+  # One-shot permission fixer: runs as root ONLY to make the volume mountpoints
+  # writable by the app's non-root user (uid 10001, see Dockerfile), then exits.
+  # The app container waits for it to finish, then runs unprivileged. This fixes
+  # both fresh volumes and pre-existing root-owned volumes, idempotently.
+  tradevault-init:
+    image: alpine:3.20
+    user: "0:0"
+    command: sh -c "mkdir -p /data/db /app/data && chown -R 10001:10001 /data/db /app/data"
+    volumes:
+      - tradevault_db:/data/db
+      - tradevault_data:/app/data
+    restart: "no"
+
   tradevault:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: tradevault
     restart: unless-stopped
+    depends_on:
+      tradevault-init:
+        condition: service_completed_successfully
     ports:
       - "${PORT:-2501}:2501"
     environment:
@@ -36,6 +52,10 @@ volumes:
     driver: local
   tradevault_data:
     driver: local
+
+# Volume ownership is handled automatically by the tradevault-init service above
+# (runs as root once, chowns the volumes to uid 10001, exits). No manual host chown
+# is needed — this works for both fresh and pre-existing root-owned volumes.
 
 # TrueNAS ZFS pool override (optional):
 # To store data on your ZFS pool for snapshot/backup benefits,
