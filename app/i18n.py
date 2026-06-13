@@ -15,7 +15,6 @@ TRANSLATIONS = {
     'nav_admin':          {'he': 'פרופיל',         'en': 'Profile'},
     'nav_exports':        {'he': 'ייצוא נתונים',   'en': 'Export Data'},
     'nav_accessibility':  {'he': 'נגישות',         'en': 'Accessibility'},
-    'nav_cli_docs':       {'he': 'תיעוד CLI',      'en': 'CLI Docs'},
     'opens_new_tab':      {'he': '(נפתח בלשונית חדשה)', 'en': '(opens in new tab)'},
     'accessibility_title': {'he': 'הצהרת נגישות', 'en': 'Accessibility Statement'},
 
@@ -153,8 +152,8 @@ TRANSLATIONS = {
     'th_pnl_ils':        {'he': 'רווח/הפסד (₪)',     'en': 'Profit/Loss (₪)'},
     'th_pnl_pct':        {'he': 'רווח/הפסד (%)',     'en': 'Profit/Loss (%)'},
     'th_weight':         {'he': 'משקל',              'en': 'Weight'},
-    'empty_no_data':     {'he': 'אין נתונים. ייבא קובץ יומי כדי להתחיל:',
-                          'en': 'No data available. Import a daily file to get started:'},
+    'empty_no_data':     {'he': 'אין נתונים. השתמש בטופס ההעלאה שלמעלה כדי לייבא קובץ יומי.',
+                          'en': 'No data yet. Use the upload form above to import a daily file.'},
 
     # ── Transactions page ──
     'page_transactions':       {'he': 'כללי - יומן פעולות',    'en': 'Account Overview'},
@@ -200,7 +199,11 @@ TRANSLATIONS = {
     'refresh_yf_done':         {'he': 'רענון הושלם: {success} הצליחו, {failed} נכשלו', 'en': 'Refresh complete: {success} ok, {failed} failed'},
     'check_libs_btn':          {'he': 'בדיקת חבילות לעדכון',      'en': 'Check for outdated packages'},
     'check_libs_clean':        {'he': 'כל החבילות מעודכנות',      'en': 'All packages up to date'},
-    'cli_reference_advanced':  {'he': 'הפניית CLI (מתקדם)',       'en': 'CLI reference (advanced)'},
+    'upgrade_libs_btn':        {'he': 'עדכון כל החבילות',         'en': 'Upgrade all packages'},
+    'upgrade_libs_confirm':    {'he': 'לעדכן את כל החבילות לגרסה האחרונה? בדוקר עדיף לבנות מחדש את האימג׳.', 'en': 'Upgrade all packages to latest? In Docker, rebuilding the image is preferred.'},
+    'upgrade_libs_done':       {'he': 'העדכון הושלם. הפעל מחדש את השרת כדי לטעון את הגרסאות החדשות.', 'en': 'Upgrade complete. Restart the server to load the new versions.'},
+    'upgrade_libs_docker':     {'he': 'העדכון רץ בתוך הקונטיינר ולא נשמר; בדוקר בנה מחדש את האימג׳ לעדכון קבוע.', 'en': 'The upgrade ran inside the container and is not persisted; in Docker, rebuild the image for a permanent update.'},
+    'upgrade_libs_error':      {'he': 'העדכון נכשל. בדוק את יומני השרת.', 'en': 'Upgrade failed. Check the server logs.'},
     'upload_force_label':      {'he': 'עקוף בדיקת סטייה',        'en': 'Override deviation guard'},
     'label_import_type':       {'he': 'סוג ייבוא',              'en': 'Import type'},
     'import_type_daily':       {'he': 'תיק יומי',               'en': 'Daily portfolio'},
@@ -326,8 +329,8 @@ TRANSLATIONS = {
     'th_avg_sell':        {'he': 'מחיר מכירה ממוצע (₪)',      'en': 'Average Sell Price (₪)'},
     'th_period':          {'he': 'תקופה',                    'en': 'Period'},
     'grand_total':        {'he': 'סה"כ',                     'en': 'Grand Total'},
-    'empty_trades':       {'he': 'אין עסקאות. ייבא קבצי עסקאות כדי להתחיל:',
-                           'en': 'No trades available. Import trade files to get started.'},
+    'empty_trades':       {'he': 'אין עסקאות עדיין. ייבא קבצי עסקאות מטופס ההעלאה בדף הבית.',
+                           'en': 'No trades yet. Import trade files from the upload form on the Home page.'},
 
     # ── Transaction action labels (queries.py) ──
     'action_deposit':          {'he': 'הפקדה',          'en': 'Deposit'},

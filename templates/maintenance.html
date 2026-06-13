@@ -166,6 +166,11 @@
                     <button type="submit" class="admin-action-btn">{{ t.refresh_yf_btn }}</button>
                 </form>
                 <button id="check-libs-btn" class="admin-action-btn">{{ t.check_libs_btn }}</button>
+                <form method="POST" action="/maintenance/upgrade-libs" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="admin-action-btn"
+                            onclick="return confirm('{{ t.upgrade_libs_confirm }}')">{{ t.upgrade_libs_btn }}</button>
+                </form>
                 <button id="tase-btn" class="admin-action-btn">{{ t.admin_tase_refresh_btn }}</button>
             </div>
             <div id="tase-status" style="display:none;margin-top:10px;" role="status" aria-live="polite">
@@ -180,9 +185,6 @@
                 <button type="submit" class="admin-action-btn">{{ t.repair_interp_btn }}</button>
             </form>
             <div id="check-libs-result" style="margin-top:14px;"></div>
-            <div style="margin-top:14px;font-size:0.85rem;">
-                <a href="{{ url_for('cli_docs') }}" target="_blank" rel="noopener noreferrer" class="position-link">{{ t.cli_reference_advanced }} &#8599;</a>
-            </div>
         </div>
     </div>
 

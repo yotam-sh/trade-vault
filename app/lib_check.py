@@ -39,8 +39,8 @@ def _save(data):
 def startup_check():
     """Print a console reminder if libraries haven't been checked in 2 months.
 
-    Called from both server.py (Flask startup) and main.py (CLI).
-    Silent when check is recent; noisy (but non-blocking) when overdue.
+    Called from server.py on Flask startup. Silent when the check is recent;
+    noisy (but non-blocking) when overdue.
     """
     data = _load()
     last_str = data.get('last_checked')
@@ -64,11 +64,7 @@ def startup_check():
         file=sys.stderr,
     )
     print(
-        f"   {_CYAN}python main.py check-libs{_RESET}    — show outdated packages",
-        file=sys.stderr,
-    )
-    print(
-        f"   {_CYAN}python main.py upgrade-libs{_RESET}  — upgrade all to latest\n",
+        f"   {_CYAN}Settings → Maintenance{_RESET}  — check for / upgrade outdated packages\n",
         file=sys.stderr,
     )
 

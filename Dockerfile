@@ -18,7 +18,6 @@ COPY app/       ./app/
 COPY templates/ ./templates/
 COPY static/    ./static/
 COPY server.py  .
-COPY main.py    .
 COPY wsgi.py    .
 COPY gunicorn.conf.py .
 

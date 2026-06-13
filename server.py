@@ -75,8 +75,8 @@ app.jinja_env.auto_reload = debug_mode
 csrf = CSRFProtect(app)
 
 # ── Per-session TOTP authentication ───────────────────────────────────────────
-# App-native login (Google Authenticator). Enabled when TOTP_SECRET is set
-# (generate via `python main.py auth-setup`). Designed to sit behind the existing
+# App-native login (Google Authenticator). Enabled when TOTP_SECRET is set, or when
+# set up from Settings → Maintenance. Designed to sit behind the existing
 # Cloudflare Tunnel: ProxyFix honors X-Forwarded-Proto so Secure cookies engage,
 # and the client IP for rate-limiting comes from CF-Connecting-IP.
 from datetime import timedelta
@@ -136,7 +136,7 @@ _LOGIN_LOCKOUT_SECONDS = 300
 if not _login_required():
     print("NOTE: login is DISABLED (no TOTP secret and no ADMIN_PASSWORD). "
           "Set ADMIN_PASSWORD to gate the app, then set up TOTP from the web "
-          "Maintenance page (or `python main.py auth-setup`).",
+          "Maintenance page (Settings → Maintenance → Login & Security).",
           file=sys.stderr)
 
 
@@ -365,6 +365,27 @@ def maintenance_check_libs():
     except Exception:
         app.logger.exception('check-libs failed')
         return jsonify({'outdated': [], 'error': True}), 500
+
+
+@app.route('/maintenance/upgrade-libs', methods=['POST'])
+def maintenance_upgrade_libs():
+    """Upgrade all packages in requirements.txt (parity with the former CLI command).
+
+    In Docker the upgrade lives only in the running container's layer and is lost on
+    recreate — the durable path is rebuilding the image — so we flag that case.
+    """
+    lang = _get_lang()
+    from app.lib_check import run_upgrade_libs
+    try:
+        run_upgrade_libs()
+    except Exception:
+        app.logger.exception('upgrade-libs failed')
+        flash(_t('upgrade_libs_error', lang), 'error')
+        return redirect(url_for('maintenance'))
+    flash(_t('upgrade_libs_done', lang), 'success')
+    if os.path.exists('/.dockerenv'):
+        flash(_t('upgrade_libs_docker', lang), 'warning')
+    return redirect(url_for('maintenance'))
 
 
 # ── Jinja2 template filters ───────────────────────────────────────────────────
@@ -1911,11 +1932,6 @@ def admin_refresh_status():
 @app.route('/accessibility')
 def accessibility_view():
     return render_template('accessibility.html')
-
-
-@app.route('/docs/cli')
-def cli_docs():
-    return send_file(os.path.join(os.path.dirname(__file__), 'docs', 'cli.html'))
 
 
 @app.route('/health')

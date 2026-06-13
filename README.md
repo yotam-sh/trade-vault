@@ -1,6 +1,6 @@
 # TradeVault
 
-Personal stock portfolio tracker for IBI brokerage (Tel Aviv Stock Exchange). Features a CLI for data management and a web dashboard for portfolio analytics.
+Personal stock portfolio tracker for IBI brokerage (Tel Aviv Stock Exchange). A self-hosted web app for importing brokerage data and tracking portfolio analytics.
 
 Built for tracking Israeli securities with full Hebrew support, FIFO tax lot accounting, and daily P&L analytics.
 
@@ -17,8 +17,7 @@ Created with Claude Code.
 - **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions; handles new positions, closed positions, and quantity changes on existing positions (partial buys/sells)
 - **Data repair** — CLI repair commands fix P&L miscalculations, backfill missing percentages, remove non-trading days, and re-run trade interpolation from a given date
 - **Israeli holiday calendar** — Full TASE trading-day awareness via the `holidays` library: all Israeli public holidays (Passover, Rosh Hashana, Yom Kippur, Sukkot, Independence Day, etc.), holiday eves, and selected optional holidays (Purim, Memorial Day, Tisha B'Av) are treated as non-trading days. Monthly trading-day counts used for partial-month detection are computed from this calendar, not just weekday arithmetic
-- **Library update reminders** — A bimonthly console reminder prompts you to check for outdated packages. `check-libs` shows what's outdated; `upgrade-libs` upgrades everything in `requirements.txt` using the correct Python interpreter (safe across virtualenvs and Docker containers)
-- **CLI documentation** — `docs/cli.html`: a standalone dark-themed reference page with sticky sidebar navigation and a regex-capable search bar
+- **Library update reminders** — A bimonthly console reminder (on server startup) prompts you to check for outdated packages. From **Settings → Maintenance**, "Check for outdated packages" shows what's outdated and "Upgrade all packages" upgrades everything in `requirements.txt` using the correct Python interpreter
 - **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
 - **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
 - **Version display** — App version shown in small text at the bottom of the settings dropdown on every page, injected via a Flask context processor
@@ -82,26 +81,24 @@ No additional configuration needed. The database file (`db/db.json`) is created 
 
 ## Quick Start
 
-```bash
-# 1. Import your first daily portfolio file
-python main.py import daily "data/daily_data/feb_2026/data.xlsx" --date 2026-02-02
+Everything is driven from the web UI:
 
-# 2. (Optional) Import trade files
-python main.py import trades data/trades/
+1. **Start the app** — `docker compose up -d` (or `python server.py`), then open `http://localhost:2501`.
+2. **Import your first daily file** — on the Dashboard, use the upload form at the top: pick
+   import type **Daily portfolio**, choose the `.xlsx`, set the date, and submit. (The same form
+   imports **Trades** and **Morning balance** files.)
+3. **Add deposits/withdrawals** — on the Account Overview page (`/transactions`), use the **Add…** menu.
+4. **Explore** — portfolio, positions, activity, daily summaries, graphs, and the rebalancing tool
+   are all in the top nav.
 
-# 3. View your portfolio
-python main.py show portfolio
-
-# 4. Launch the web dashboard — add deposits/withdrawals manually via the General page
-python server.py
-# Open http://localhost:2501
-```
+Operational tasks (reconcile, rebuild tax lots, sync holdings, repair, refresh Yahoo Finance,
+check/upgrade packages, set up login) live under **Settings → Maintenance**; database backup/restore
+is on the **Profile** page (`/admin`).
 
 ## Project Structure
 
 ```
 TradeVault/
-├── main.py                 # CLI entry point
 ├── server.py               # Flask web server (port 2501, Gunicorn-compatible)
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile              # Container image (python:3.12-slim, Gunicorn)
@@ -158,8 +155,6 @@ TradeVault/
 │   ├── rebalance.html      # Portfolio rebalancing tool
 │   ├── admin.html          # Profile (backup/restore)
 │   └── accessibility.html  # IS 5568 accessibility statement
-├── docs/
-│   └── cli.html            # Standalone CLI reference (dark theme, regex search)
 ├── static/
 │   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
 │   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
@@ -174,14 +169,9 @@ TradeVault/
     ├── trades/             # Individual trade files (DDMMYYYY.xlsx)
 ```
 
-## CLI Reference
+## Operations
 
-> **The web UI is now the primary interface.** Every operation below also has a web
-> equivalent: imports (daily/trades/morning-balance) and manual buy/sell on the dashboard &
-> Account Overview; reconcile, rebuild-lots, sync-holdings, repair, refresh-yfinance, check-libs,
-> and TOTP login setup on **Settings → Maintenance**; ticker/yfinance mapping on each position
-> page; DB export/import on Admin. The CLI remains as a fallback. The only web-unavailable
-> command is `upgrade-libs` (it modifies the Python environment; in Docker you rebuild the image).
+Everything is driven from the web UI; there is no command-line interface.
 
 ### Multiple portfolios
 
@@ -192,175 +182,61 @@ cache, TASE ticker map, TA-125/35 benchmark) is shared across all portfolios; ev
 holdings, transactions, snapshots, tax lots, view preferences — is per-portfolio. Login is global
 (one session covers all portfolios).
 
-Every CLI command accepts an optional global `--portfolio <name|id>` to target a specific portfolio
-(default: the default portfolio):
-```bash
-python main.py --portfolio "IBI" show portfolio
-```
-
 ### Importing data
 
-**Import a daily portfolio file:**
-```bash
-python main.py import daily <filepath> --date YYYY-MM-DD
-```
-Parses an IBI daily portfolio Excel export. Creates/updates holdings, records daily prices for each security, and generates a portfolio snapshot for that date. Automatically detects and interpolates position changes (new buys or sells) compared to the previous day. The import is rejected (no snapshot written) if zero rows parse, or if the day's total deviates more than 50% from the previous snapshot — pass `--force` to override the deviation guard.
+All imports use the **upload form on the Dashboard** (`/`): pick the import type, choose one or more
+`.xlsx` files, set the date, and submit.
 
-**Import trade files:**
-```bash
-# Single file
-python main.py import trades <filepath>
+- **Daily portfolio** — an IBI daily export. Creates/updates holdings, records per-security daily
+  prices, and writes a portfolio snapshot for the date. Position changes vs. the previous day are
+  auto-detected and interpolated into buy/sell transactions. The import is rejected if zero rows parse
+  or the day's total deviates more than 50% from the previous snapshot — tick **Override deviation
+  guard** to force it.
+- **Trades** — individual IBI trade order files (`DDMMYYYY.xlsx`); creates buy/sell transactions.
+- **Morning balance** — historic morning-balance files (`DDMMYYYY.xlsx`); computes daily P&L from
+  consecutive-day comparisons (quantity-aware), skipping TASE weekends and Israeli holidays.
 
-# All files in a folder
-python main.py import trades <folderpath>
-```
-Parses individual trade order files (format: `DDMMYYYY.xlsx`). Creates buy/sell transactions with execution details.
+> Buys and sells come only from trade imports and from automatic interpolation of daily position
+> changes — there is no manual buy/sell entry. Use the **Activity** page to edit a price or delete a
+> trade. Add deposits/withdrawals/dividends from the **Account Overview** page's **Add…** menu.
 
-**Import morning balance files:**
-```bash
-python main.py import morning-balance <folderpath>
-```
-Bulk imports historic morning balance Excel files (`DDMMYYYY.xlsx`) from a folder recursively. Processes files chronologically, computing daily P&L from consecutive-day comparisons. Quantity changes between days (buys/sells) are handled correctly — only price movement on shares held across both days counts as P&L. Non-trading days (TASE weekends and Israeli public holidays) are automatically skipped.
+### Maintenance (Settings → Maintenance)
 
-### Repairing data
+- **Data Health** — *Run check* (reconcile: verifies each snapshot's positions sum to its market
+  value, `total_equity = market_value + cash`, and open tax-lot shares match positions) and *Rebuild
+  tax lots* (FIFO replay from the ledger; clears orphan/duplicate lots).
+- **Data & Integrations** — *Sync active holdings*, *Repair morning-balance*, *Repair interpolated
+  trades* (optional from-date), *Refresh Yahoo Finance data*, *Check for outdated packages*, *Upgrade
+  all packages*, and the TASE/Bizportal name refresh.
+- **Login & Security** — set up / disable per-session TOTP login (see below).
 
-```bash
-python main.py repair morning-balance
-```
-Recomputes daily P&L and price change percentages for all morning balance imports, regenerates snapshots, and removes non-trading days (weekends and Israeli public holidays). Safe to run multiple times (idempotent). Handles the TASE schedule change from Sun-Thu to Mon-Fri trading (effective 2026-01-05).
-
-```bash
-python main.py repair interpolated [--from-date YYYY-MM-DD]
-```
-Clears all interpolated buy/sell transactions from the given date onwards, reverses their tax lot effects, then re-runs position-change inference with the latest logic. Use this after upgrading to a newer version of the interpolation engine. Default start date: `2026-02-02`. Safe to re-run.
-
-```bash
-python main.py repair lots
-```
-Rebuilds every tax lot from the transaction ledger (FIFO replay) and refreshes snapshot cash/equity. Clears orphan or duplicate lots so open-lot shares match held positions — use this to fix the lot/position warnings reported by `python main.py check`. Idempotent.
-
-### Adding transactions manually
-
-> Buys and sells come from `import trades` (your IBI trade files) and from automatic
-> interpolation of daily position changes — there is no manual buy/sell entry. Use the Activity
-> page to edit a price or delete a trade.
-
-**Add a deposit:**
-```bash
-python main.py add deposit <amount> [--date YYYY-MM-DD]
-```
-Records a cash deposit. Deposits can also be added through the web UI on the transactions page.
-
-### Viewing data
-
-**Portfolio summary:**
-```bash
-python main.py show portfolio
-```
-Shows total value, cost basis, unrealized P&L, daily P&L, and a table of all positions.
-
-**Holdings list:**
-```bash
-python main.py show holdings [--all]
-```
-Lists all active securities. Use `--all` to include inactive (sold) holdings.
-
-**P&L breakdown:**
-```bash
-python main.py show pnl
-```
-Shows unrealized and realized P&L, total deposits, dividends, and net return.
-
-**Trade history:**
-```bash
-python main.py show trades
-```
-Lists all buy/sell transactions and closed position summaries.
-
-### Exporting and importing the database
-
-**Export (create a backup):**
-```bash
-python main.py db export                         # saves db/imports/db_backup_YYYY-MM-DD.json
-python main.py db export path/to/backup.json     # custom output path
-```
-Flushes the TinyDB cache and copies `db/db.json` to the output file. Use this to transfer your data between machines.
-
-**Import (restore from a backup):**
-```bash
-python main.py db import path/to/backup.json --replace
-```
-Validates the backup file, saves the current database as `db/imports/db.pre_import_<timestamp>.bak` for safety, replaces the live database with the backup, then automatically migrates it to the current schema. The same export/import functionality is available in the web UI at `/admin` (Profile page, accessible from the settings dropdown).
-
-### Setting tickers
-
-```bash
-python main.py set-ticker <search> <ticker>
-```
-Assigns a ticker symbol to a holding. `<search>` can be a TASE ID (number) or a Hebrew name fragment.
-
-### Syncing active holdings
-
-```bash
-python main.py sync-holdings
-```
-Reads the latest portfolio snapshot and syncs the `is_active` flag on all holdings: sets it to `true` for securities with a current position (quantity > 0) and `false` for holdings no longer held. Useful after a bulk import or manual DB correction to ensure the positions list and holdings registry are in agreement.
+Per-holding **ticker / Yahoo Finance mapping** is set on each position page (setting a ticker also
+registers the yfinance mapping). **Database backup/restore** is on the **Profile** page (`/admin`):
+export downloads the live `db.json`; import validates the file, backs up the current DB, replaces it,
+and auto-migrates to the current schema.
 
 ### Per-session login (TOTP)
 
-**Primary path — web UI:** open **Settings → Maintenance → Login & Security → Set up login**, scan the QR in Google Authenticator (or any compatible app), and enter a code to confirm. Login activates immediately (no restart). The secret is saved to a sidecar file on the db volume (`db/auth.json`), never inside the database, so it is excluded from exports/backups. Disable it from the same page.
+Open **Settings → Maintenance → Login & Security → Set up login**, scan the QR in Google Authenticator
+(or any compatible app), and enter a code to confirm. Login activates immediately (no restart). The
+secret is saved to a sidecar file on the db volume (`db/auth.json`), never inside the database, so it
+is excluded from exports/backups. Disable it from the same page. An explicit `TOTP_SECRET` environment
+variable, if set, always takes precedence. When no secret is configured, the login gate is disabled
+(local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure
+cookies and per-IP rate limiting work correctly.
 
-**CLI fallback:**
-```bash
-python main.py auth-setup
-```
-Prints the QR + secret and saves it to the same sidecar store (activates immediately). An explicit `TOTP_SECRET` environment variable, if set, always takes precedence and can only be changed by editing the environment. When no secret is configured, the login gate is disabled (local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure cookies and per-IP rate limiting work correctly.
+### Recovery (when the web UI is unavailable)
 
-### Reconciling the database
+There is no CLI fallback, but the data is plain files on the db volume, so you can always recover by hand:
 
-```bash
-python main.py check
-```
-Verifies the derived data is internally consistent: each snapshot's positions sum to its market value, `total_equity = market_value + cash`, and open tax-lot shares match current positions. Prints discrepancies and exits non-zero on hard errors (warnings, such as positions seeded without buy transactions, don't fail). The same check and the **Rebuild tax lots** fixer are available in the web UI under **Settings → Maintenance → Data Health**.
+- **Locked out of login (TOTP)** — delete `db/auth.json` on the volume to clear the configured secret
+  (the gate disables when no secret is set), or set/replace the `TOTP_SECRET` environment variable and
+  restart, then set login up again from the Maintenance page.
+- **App won't boot / corrupted DB** — restore a backup by replacing `db/db.json` on the volume with a
+  known-good copy (exports live in `db/imports/`), then restart. The DB is a single TinyDB JSON file.
+- **Stuck dependencies after an upgrade** — in Docker, rebuild the image (the durable path); on a
+  bare-metal install, run `pip install --upgrade -r requirements.txt` in the app's environment.
 
-### Yahoo Finance integration
-
-**Map TASE security to Yahoo Finance symbol:**
-```bash
-python main.py set-yfinance <tase_id> <yfinance_symbol>
-```
-Maps a TASE paper number to a Yahoo Finance symbol (e.g., `GNRS.TA`, `TEVA.TA`) and automatically fetches the English stock name and ticker from the Yahoo Finance API. The mapping is stored in settings for future reference.
-
-Example:
-```bash
-python main.py set-yfinance 1156926 GNRS.TA
-```
-
-**Refresh stock info from existing mappings:**
-```bash
-python main.py refresh-yfinance
-```
-Re-fetches English names and tickers for all securities that have been mapped to Yahoo Finance symbols. Useful for updating stock information after yfinance data changes.
-
-### Checking and upgrading libraries
-
-**Show outdated packages:**
-```bash
-python main.py check-libs
-```
-Runs `pip list --outdated` and prints a table of packages with newer versions available. Updates the last-checked timestamp in `data/lib_check.json`. The app prints a reminder at startup (CLI and server) if more than 60 days have passed since the last check.
-
-**Upgrade all packages:**
-```bash
-python main.py upgrade-libs
-```
-Runs `pip install --upgrade -r requirements.txt` using the same Python interpreter as the running app (`sys.executable`), so the correct virtualenv or container environment is always targeted. On TrueNAS/Portainer, run this inside the container: `docker exec -it <container> python main.py upgrade-libs`.
-
-> The last-checked timestamp (`data/lib_check.json`) is gitignored — each environment (dev, production) maintains its own independent schedule.
-
-### Full CLI reference
-
-A detailed HTML reference with argument tables, examples, and a regex-capable search bar is available at [`docs/cli.html`](docs/cli.html) — open it directly in any browser, or access it from the settings (⚙) dropdown in the web UI at `/docs/cli`.
 
 ## Web Dashboard
 
@@ -395,7 +271,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 - **Exports** — Centralized export hub: all six data exports (portfolio, transactions, trade log, tax report, daily summary, daily details) in one place with date-range pickers and format selector (XLSX/CSV)
 - **Profile** — Database backup and restore (formerly "Admin")
 - **Accessibility** — IS 5568 accessibility statement
-- **CLI Docs** — Full CLI reference (`docs/cli.html`), also served at `/docs/cli`
+- **Maintenance** — Login & security, data health, and ops (imports parity, package checks)
 
 ### Pages
 
@@ -413,7 +289,7 @@ Click the gear icon (⚙) button in the top-left corner of the navigation bar to
 | **Display Settings** | `/settings/display` | Per-column name source selector: name columns show only name fields (TASE Hebrew/English, yfinance long/short, IBI Hebrew, manual English); symbol columns show only symbol fields (Hebrew/English TASE symbol). Settings are per-language — accessible from the settings (⚙) dropdown |
 | **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database); bulk "Refresh All from TASE" to fetch English and Hebrew names for all holdings — accessible from the settings (⚙) dropdown |
 | **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
-| **CLI Docs** | `/docs/cli` | Full CLI reference page (dark theme, regex search) — accessible from the settings (⚙) dropdown |
+| **Maintenance** | `/maintenance` | Login & security (TOTP), data health (reconcile, rebuild lots), and ops (sync holdings, repair, refresh yfinance, check/upgrade packages) — accessible from the settings (⚙) dropdown |
 
 ### Uploading daily files via the web
 
@@ -532,7 +408,7 @@ docker compose up -d
 ```
 
 The compose file mounts two named volumes:
-- `tradevault_db` → `/app/db` (the TinyDB database)
+- `tradevault_db` → `/data/db` (the TinyDB database; `DB_PATH=/data/db/db.json`)
 - `tradevault_data` → `/app/data` (your Excel import files)
 
 To update to a newer image:

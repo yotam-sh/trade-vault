@@ -1,6 +1,6 @@
 """Reconciliation checks — assert the DB's derived state is internally consistent.
 
-Used by `python main.py check`. Returns a list of (severity, date, message) tuples;
+Exposed via Settings → Maintenance → Data Health. Returns a list of (severity, date, message) tuples;
 'error' means a hard invariant is broken, 'warn' means a soft/expected-edge mismatch.
 """
 
