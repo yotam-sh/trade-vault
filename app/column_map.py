@@ -78,6 +78,10 @@ MORNING_BALANCE_COLUMNS = {
 # Rows in morning balance that are not securities
 MORNING_BALANCE_SKIP_NAMES = {'מס לשלם', 'מס עתידי', 'מגן מס'}
 
+# Rows in the daily portfolio export that are cash/FX balances, not securities —
+# skipped on import (matched by name, after stripping).
+DAILY_SKIP_NAMES = {'דולר ארה"ב'}
+
 # Security type mapping
 SECURITY_TYPE_MAP = {
     'מניות בש"ח': 'stock',
@@ -85,7 +89,9 @@ SECURITY_TYPE_MAP = {
     'תעודות סל': 'etf',
     'אג"ח': 'bond',
     'אג"ח ממשלתי': 'bond',
-    'תפ"ס/פח"ק': 'skip',  # Tax/savings - skip during import
+    'תפ"ס/פח"ק': 'skip',     # Tax/savings products — skip during import
+    'מט"ח מזומן': 'skip',     # FX cash balances (USD cash, dollar obligations) — not securities
+    'מניה זרה בחו"ל': 'skip',  # Foreign stocks (USD) — tracked in the separate USD portfolio, not IBI
 }
 
 # Currency mapping

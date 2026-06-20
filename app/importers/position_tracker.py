@@ -24,7 +24,10 @@ def has_nearby_trade(holding_id, date, action_type, days=2):
     end = (d + timedelta(days=days)).strftime('%Y-%m-%d')
     txns = list_transactions(type_=action_type, start_date=start, end_date=end)
     for t in txns:
-        if t.get('holding_id') == holding_id and t.get('source') == 'trade_import':
+        # A real trade nearby (imported from a trade file OR entered manually)
+        # means the daily quantity change is already accounted for — don't also
+        # interpolate it, or we'd create a duplicate twin.
+        if t.get('holding_id') == holding_id and t.get('source') in ('trade_import', 'manual'):
             return True
     return False
 

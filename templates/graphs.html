@@ -246,7 +246,7 @@
                 <span>{{ t.chart_top_positions }}</span>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <div class="unit-switch" id="topPosModeToggle" data-active="ils">
-                        <button class="lang-option active" data-mode="ils" aria-pressed="true">₪</button>
+                        <button class="lang-option active" data-mode="ils" aria-pressed="true">{{ currency_symbol }}</button>
                         <button class="lang-option" data-mode="pct" aria-pressed="false">%</button>
                     </div>
                     <button class="table-settings-btn" onclick="openDisplayPrefsModal('graphs_pnl', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
@@ -276,7 +276,7 @@
 
         {% if data %}{% include 'partials/_chart_daily_pnl.html' %}{% endif %}
         {% if type_chart %}{% include 'partials/_chart_type_by_day.html' %}{% endif %}
-        {% if sales_summary and sales_summary.total_gains > 0 %}{% include 'partials/_chart_tax_donut.html' %}{% endif %}
+        {% if is_agorot and sales_summary and sales_summary.total_gains > 0 %}{% include 'partials/_chart_tax_donut.html' %}{% endif %}
         {% if closed %}{% include 'partials/_chart_closed_pnl.html' %}{% endif %}
         {% if portfolio %}{% include 'partials/_chart_treemap.html' %}{% endif %}
         {% if portfolio %}{% include 'partials/_chart_allocation.html' %}{% endif %}
@@ -366,8 +366,9 @@
         });
         var snapInvested = snapshots.map(function(s) { return s.net_invested; });
 
-        // Benchmark data from server (raw index closing prices aligned to snapshot dates)
-        var benchmarkRaw = {{ benchmark|tojson }};
+        // Benchmark data from server (raw index closing prices aligned to snapshot dates).
+        // TA-125/TA-35 are Israeli indices — only relevant for ILS portfolios.
+        var benchmarkRaw = {% if is_agorot %}{{ benchmark|tojson }}{% else %}{}{% endif %};
 
         // % return series: each value is cumulative return since the first valid price (0% at start)
         function returnPct(rawSeries) {
@@ -451,7 +452,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         }
                     },
@@ -480,7 +481,7 @@
                     y: {
                         ticks: {
                             color: css('--text-secondary'),
-                            callback: function(v) { return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
+                            callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
                         },
                         grid: { color: css('--bg-tertiary') }
                     }
@@ -925,7 +926,7 @@
                         var ds = toDateStr(day), ils = filt[ds];
                         var inRange = ds >= wk.moStartStr && ds <= wk.moEndStr;
                         var color = (inRange && ils !== undefined) ? fn(ils) : 'transparent';
-                        var tip   = (inRange && ils !== undefined) ? ds + ': ₪' + ils.toFixed(0) : '';
+                        var tip   = (inRange && ils !== undefined) ? ds + ': {{ currency_symbol }}' + ils.toFixed(0) : '';
                         html += '<div data-tip="' + tip + '" data-dow="' + dow + '" style="width:' + cellW + 'px;height:' + cellH + 'px;border-radius:2px;background:' + color + ';"></div>';
                     }
                     html += '</div>';
@@ -980,7 +981,7 @@
                 html += '</div><div style="display:flex;gap:' + gap + 'px;">';
                 sorted.forEach(function(k) {
                     var e = weekMap[k];
-                    var tip = (lang === 'he' ? 'שב׳ ' : 'Wk ') + e.wk + ' ' + e.yr + ': ₪' + e.sum.toFixed(0);
+                    var tip = (lang === 'he' ? 'שב׳ ' : 'Wk ') + e.wk + ' ' + e.yr + ': {{ currency_symbol }}' + e.sum.toFixed(0);
                     html += '<div data-tip="' + tip + '" style="width:' + cellW + 'px;height:' + cellH + 'px;border-radius:3px;background:' + fn(e.sum) + ';"></div>';
                 });
                 html += '</div></div>';
@@ -1018,7 +1019,7 @@
                 var html = '<div style="direction:ltr;display:flex;gap:' + gap + 'px;">';
                 months.forEach(function(m) {
                     var color = m.sum !== undefined ? fn(m.sum) : 'var(--bg-tertiary)';
-                    var tip   = monthNames[m.mo] + (multiYear ? ' ' + m.yr : '') + (m.sum !== undefined ? ': ₪' + m.sum.toFixed(0) : '');
+                    var tip   = monthNames[m.mo] + (multiYear ? ' ' + m.yr : '') + (m.sum !== undefined ? ': {{ currency_symbol }}' + m.sum.toFixed(0) : '');
                     html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">';
                     html += '<div data-tip="' + tip + '" style="width:' + cellW + 'px;height:' + cellH + 'px;border-radius:3px;background:' + color + ';"></div>';
                     html += '<span style="font-size:' + lsz + 'px;color:var(--text-secondary);">' + monthNames[m.mo] + (multiYear ? '<br>' + m.yr : '') + '</span>';
@@ -1266,7 +1267,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('he-IL', { maximumFractionDigits: 0 });
                             }
                         }
                     },
@@ -1287,7 +1288,7 @@
                     x: { stacked: true, ticks: { color: css('--text-secondary'), maxTicksLimit: 12, maxRotation: 0 }, grid: { color: css('--bg-tertiary') } },
                     y: {
                         stacked: true,
-                        ticks: { color: css('--text-secondary'), callback: function(v) { return '₪' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } },
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } },
                         grid: { color: css('--bg-tertiary') }
                     }
                 }
@@ -1358,7 +1359,7 @@
                             },
                             label: function(ctx) {
                                 if (topActiveMode === 'ils') {
-                                    return '₪' + ctx.parsed.x.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                    return '{{ currency_symbol }}' + ctx.parsed.x.toLocaleString('he-IL', { maximumFractionDigits: 0 });
                                 } else {
                                     return ctx.parsed.x.toFixed(2) + '%';
                                 }
@@ -1372,7 +1373,7 @@
                             color: css('--text-secondary'),
                             callback: function(v) {
                                 return topActiveMode === 'ils'
-                                    ? '₪' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 })
+                                    ? '{{ currency_symbol }}' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 })
                                     : v.toFixed(1) + '%';
                             }
                         },

@@ -150,7 +150,7 @@ def migrate_db():
 
     # ── 1. yfinance_data → yfinance_cache ────────────────────────────────────
     holdings_table = get_table(HOLDINGS)
-    cache_table = get_shared_table(YFINANCE_CACHE)  # yfinance cache is shared
+    cache_table = get_table(YFINANCE_CACHE)  # yfinance cache is per-portfolio
     from tinydb import Query
     C = Query()
 
@@ -227,6 +227,50 @@ def migrate_db():
     set_setting('schema_version', SCHEMA_VERSION)
     flush_db()
     return summary
+
+
+def migrate_shared_yfinance_to_portfolios():
+    """One-time: relocate the formerly-shared yfinance cache + map into the default portfolio.
+
+    Earlier builds stored ``yfinance_cache`` (keyed by per-portfolio ``holding_id``) and the
+    ``yfinance_map`` setting in the SHARED store, which collides across portfolios. Both are
+    now per-portfolio; this moves the existing shared data into the default portfolio (whose
+    data it historically is) and clears the shared copies. Idempotent (guarded by a flag).
+    """
+    from app.connection import get_shared_table, using_portfolio, get_table, flush_db, flush_shared, YFINANCE_CACHE
+    from app.settings import get_shared_setting, set_shared_setting, get_setting, set_setting
+    from app import portfolios
+    from tinydb import Query
+
+    if get_shared_setting('yfinance_migrated_to_portfolio'):
+        return
+
+    shared_cache = get_shared_table(YFINANCE_CACHE)
+    cache_rows = [dict(r) for r in shared_cache.all()]
+    shared_map = get_shared_setting('yfinance_map', {}) or {}
+
+    if cache_rows or shared_map:
+        with using_portfolio(portfolios.default_id()):
+            if cache_rows:
+                ct = get_table(YFINANCE_CACHE)
+                C = Query()
+                for row in cache_rows:
+                    hid = row.get('holding_id')
+                    if ct.search(C.holding_id == hid):
+                        ct.update(row, C.holding_id == hid)
+                    else:
+                        ct.insert(row)
+            if shared_map:
+                merged = get_setting('yfinance_map', {}) or {}
+                merged.update(shared_map)
+                set_setting('yfinance_map', merged)
+            flush_db()
+        shared_cache.truncate()
+        if shared_map:
+            set_shared_setting('yfinance_map', {})
+        flush_shared()
+
+    set_shared_setting('yfinance_migrated_to_portfolio', True)
 
 
 def import_db(source_path):

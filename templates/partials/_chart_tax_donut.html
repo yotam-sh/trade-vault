@@ -65,7 +65,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.label + ': ₪' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                return ctx.label + ': {{ currency_symbol }}' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         }
                     }

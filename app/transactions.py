@@ -48,7 +48,7 @@ def add_buy(ticker, holding_id, date, shares, price_per_share, currency='ILS',
             source='manual', **kwargs):
     """Convenience: add a buy transaction."""
     total = round(shares * price_per_share, 2)
-    commission = kwargs.get('commission', 0)
+    commission = kwargs.pop('commission', 0)  # pop so it isn't passed twice
     return add_transaction(
         type_='buy', date=date, total_amount=total, currency=currency,
         source=source, ticker=ticker, holding_id=holding_id,

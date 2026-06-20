@@ -2,7 +2,7 @@
 
 import os
 import pandas as pd
-from app.column_map import DAILY_COLUMNS, get_security_type, clean_currency, clean_percent
+from app.column_map import DAILY_COLUMNS, DAILY_SKIP_NAMES, get_security_type, clean_currency, clean_percent
 from app.daily_prices import add_daily_price
 from app.snapshots import generate_snapshot_from_prices, list_snapshots
 from app.settings import set_setting, get_setting
@@ -28,6 +28,13 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True, force=Fal
     """
     filepath = os.path.abspath(filepath)
     data_date = data_date or today_iso()
+
+    # CSV daily files are the IBI Smart US export — route to that parser. Same
+    # import_type / pipeline; it resolves holdings by ticker (non-TASE, USD).
+    if filepath.lower().endswith('.csv'):
+        from app.importers.us_daily_importer import import_us_daily_portfolio
+        return import_us_daily_portfolio(filepath, data_date=data_date,
+                                         interpolate=interpolate, force=force)
 
     # Hash-based duplicate check (same exact file bytes)
     is_dup, existing, fhash = check_duplicate(filepath)
@@ -76,6 +83,11 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True, force=Fal
         try:
             sec_type = get_security_type(row.get('security_type', ''))
             if sec_type == 'skip':
+                rows_skipped += 1
+                continue
+
+            # Skip cash/FX balance rows (e.g. "דולר ארה\"ב") — not securities.
+            if str(row.get('name', '')).strip() in DAILY_SKIP_NAMES:
                 rows_skipped += 1
                 continue
 

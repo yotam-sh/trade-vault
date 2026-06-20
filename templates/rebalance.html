@@ -210,7 +210,7 @@
         <div class="card rebal-hero">
             <div class="rebal-hero-stat">
                 <span class="rebal-hero-label">{% if lang == 'he' %}שווי תיק{% else %}Portfolio value{% endif %}</span>
-                <strong>₪{{ '{:,.0f}'.format(total_value) }}</strong>
+                <strong>{{ currency_symbol }}{{ '{:,.0f}'.format(total_value) }}</strong>
             </div>
             <div class="rebal-hero-stat">
                 <span class="rebal-hero-label">{{ t.rebalance_groups_drift }}</span>
@@ -305,7 +305,7 @@
                     {# Current allocation #}
                     <span class="group-stat">
                         {{ t.col_current_weight }}: <strong>{{ '{:.1f}'.format(grp.current_pct) }}%</strong>
-                        (₪{{ '{:,.0f}'.format(grp.group_value) }})
+                        ({{ currency_symbol }}{{ '{:,.0f}'.format(grp.group_value) }})
                     </span>
 
                     {# Group target input #}
@@ -331,9 +331,9 @@
                     {# Group action #}
                     <span class="group-action-cell">
                         {% if grp.group_action == 'buy' %}
-                            <span class="action-buy">{{ t.action_buy }} ₪{{ '{:,.0f}'.format(grp.group_action_ils) }}</span>
+                            <span class="action-buy">{{ t.action_buy }} {{ currency_symbol }}{{ '{:,.0f}'.format(grp.group_action_ils) }}</span>
                         {% elif grp.group_action == 'sell' %}
-                            <span class="action-sell">{{ t.action_sell }} ₪{{ '{:,.0f}'.format(grp.group_action_ils) }}</span>
+                            <span class="action-sell">{{ t.action_sell }} {{ currency_symbol }}{{ '{:,.0f}'.format(grp.group_action_ils) }}</span>
                         {% else %}
                             <span class="action-hold">✓</span>
                         {% endif %}
@@ -370,7 +370,7 @@
                                 <a href="/position/{{ row.holding_id }}" class="position-link">
                                     {{ row[display_prefs.rebalance_name] or row.name_en or row.name_he }}
                                 </a>
-                                <span class="sub-label">₪{{ '{:,.0f}'.format(row.market_value) }}</span>
+                                <span class="sub-label">{{ currency_symbol }}{{ '{:,.0f}'.format(row.market_value) }}</span>
                             </td>
                             <td class="num">{{ '{:.1f}'.format(row.current_in_group) }}%</td>
                             <td class="num">
@@ -391,9 +391,9 @@
                             </td>
                             <td class="num action-cell">
                                 {% if row.action == 'buy' %}
-                                    <span class="action-buy">{{ t.action_buy }} ₪{{ '{:,.0f}'.format(row.action_ils) }}</span>
+                                    <span class="action-buy">{{ t.action_buy }} {{ currency_symbol }}{{ '{:,.0f}'.format(row.action_ils) }}</span>
                                 {% elif row.action == 'sell' %}
-                                    <span class="action-sell">{{ t.action_sell }} ₪{{ '{:,.0f}'.format(row.action_ils) }}</span>
+                                    <span class="action-sell">{{ t.action_sell }} {{ currency_symbol }}{{ '{:,.0f}'.format(row.action_ils) }}</span>
                                 {% else %}
                                     <span class="action-hold">✓</span>
                                 {% endif %}
@@ -455,9 +455,9 @@
             var actionEl = groupCard.querySelector('.group-action-cell');
             if (actionEl) {
                 if (delta > 0.1) {
-                    actionEl.innerHTML = '<span class="action-sell">' + T.action_sell + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                    actionEl.innerHTML = '<span class="action-sell">' + T.action_sell + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
                 } else if (delta < -0.1) {
-                    actionEl.innerHTML = '<span class="action-buy">' + T.action_buy + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                    actionEl.innerHTML = '<span class="action-buy">' + T.action_buy + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
                 } else {
                     actionEl.innerHTML = '<span class="action-hold">✓</span>';
                 }
@@ -484,16 +484,16 @@
 
                 // Market value from sub-label
                 var mvText = row.querySelector('.sub-label');
-                var mv = mvText ? parseFloat(mvText.textContent.replace(/[₪,]/g, '')) || 0 : 0;
+                var mv = mvText ? parseFloat(mvText.textContent.replace(/[{{ currency_symbol }},]/g, '')) || 0 : 0;
                 var targetHoldingValue = targetPct / 100 * targetGroupValue;
                 var actionIls = Math.round(Math.abs(mv - targetHoldingValue));
 
                 var actionCell = row.querySelector('.action-cell');
                 if (actionCell) {
                     if (delta > 0.1) {
-                        actionCell.innerHTML = '<span class="action-sell">' + T.action_sell + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                        actionCell.innerHTML = '<span class="action-sell">' + T.action_sell + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
                     } else if (delta < -0.1) {
-                        actionCell.innerHTML = '<span class="action-buy">' + T.action_buy + ' ₪' + actionIls.toLocaleString('he-IL') + '</span>';
+                        actionCell.innerHTML = '<span class="action-buy">' + T.action_buy + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
                     } else {
                         actionCell.innerHTML = '<span class="action-hold">✓</span>';
                     }

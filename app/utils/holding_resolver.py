@@ -48,6 +48,42 @@ def find_holding_by_name(name_he):
     return None
 
 
+def find_or_create_holding_by_ticker(ticker, currency='USD', quantity=0,
+                                     security_type='stock', exchange='US',
+                                     name=None, update_active=True):
+    """Find a non-TASE holding by ticker, creating it (synthetic id) if absent.
+
+    Used by the US daily import (and any ticker-keyed source). Mirrors
+    ``find_or_create_holding`` but keys on ``ticker`` instead of ``tase_id``.
+
+    Returns (holding_id, is_new, holding, name_change=None).
+    """
+    from app.holdings import get_holding_by_ticker, get_holding
+
+    holding = get_holding_by_ticker(ticker)
+    if holding is None:
+        doc_id = add_holding(
+            tase_id=None,                 # → synthetic id, manual/non-TASE
+            tase_symbol=ticker,
+            name_he=name or ticker,
+            security_type=security_type,
+            currency=currency,
+            ticker=ticker,
+            name_en=name or ticker,
+            exchange=exchange,
+            is_active=quantity > 0,
+        )
+        return doc_id, True, get_holding(doc_id), None
+
+    holding_id = holding.doc_id
+    if update_active:
+        is_active = quantity > 0
+        if holding.get('is_active') != is_active:
+            update_holding(holding_id, is_active=is_active)
+            holding = get_holding(holding_id)
+    return holding_id, False, holding, None
+
+
 def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                            currency, quantity=0, update_active=True,
                            data_date=None):
@@ -141,11 +177,11 @@ def find_or_create_holding(tase_id, tase_symbol, name_he, security_type,
                                 en_updates['tase_symbol_en'] = tase_data['tase_symbol_en']
                             if tase_data.get('ticker'):
                                 en_updates['ticker'] = tase_data['ticker']
-                                # Keep yfinance_map in sync (shared across portfolios)
-                                from app.settings import get_shared_setting, set_shared_setting
-                                yf_map = get_shared_setting('yfinance_map', {})
+                                # Keep yfinance_map in sync (per-portfolio)
+                                from app.settings import get_setting, set_setting
+                                yf_map = get_setting('yfinance_map', {})
                                 yf_map[str(tase_id)] = tase_data['ticker']
-                                set_shared_setting('yfinance_map', yf_map)
+                                set_setting('yfinance_map', yf_map)
                             update_holding(holding_id, **en_updates)
                             name_change['new_name_en'] = tase_data['name']
                         else:

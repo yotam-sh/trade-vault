@@ -25,16 +25,32 @@ def test_data_isolated_between_portfolios():
         assert _ids() == {2}                  # B's data persists, separate file
 
 
-def test_market_data_shared_across_portfolios():
+def test_shared_store_is_shared_across_portfolios():
     get_db(); init_default_settings()
-    set_shared_setting('yfinance_map', {'1': 'AAA.TA'})
+    set_shared_setting('shared_probe', {'a': 1})
 
     pid = portfolios.create_portfolio('Second')
     with using_portfolio(pid):
-        # shared store is the same file regardless of active portfolio
-        assert get_shared_setting('yfinance_map') == {'1': 'AAA.TA'}
-        set_shared_setting('yfinance_map', {'1': 'AAA.TA', '2': 'BBB.TA'})
-    assert get_shared_setting('yfinance_map') == {'1': 'AAA.TA', '2': 'BBB.TA'}
+        # the shared store is the same file regardless of active portfolio
+        assert get_shared_setting('shared_probe') == {'a': 1}
+        set_shared_setting('shared_probe', {'a': 1, 'b': 2})
+    assert get_shared_setting('shared_probe') == {'a': 1, 'b': 2}
+
+
+def test_yfinance_map_is_per_portfolio():
+    """yfinance_map is now per-portfolio (was shared) — no cross-portfolio bleed."""
+    from app.utils.translation_service import get_yfinance_mapping
+    from app.settings import set_setting
+    get_db(); init_default_settings()
+    set_setting('yfinance_map', {'629014': 'TEVA.TA'})   # default portfolio
+
+    pid = portfolios.create_portfolio('Second')
+    with using_portfolio(pid):
+        assert get_yfinance_mapping() == {}              # isolated — does not see default's map
+        set_setting('yfinance_map', {'1': 'AAPL'})
+        assert get_yfinance_mapping('1') == 'AAPL'
+
+    assert get_yfinance_mapping('629014') == 'TEVA.TA'   # default unchanged
 
 
 def test_lifecycle_and_guards():

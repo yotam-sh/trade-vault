@@ -25,8 +25,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var dateRe = /^\d{4}-\d{2}-\d{2}$/;
         if (dateRe.test(aVal) && dateRe.test(bVal))
             return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        var aNum = parseFloat(aVal.replace(/[,%₪+]/g, ''));
-        var bNum = parseFloat(bVal.replace(/[,%₪+]/g, ''));
+        // Strip thousands separators and any currency symbol/sign so sorting is
+        // currency-agnostic (₪, $, €, £, …); keep digits, dot and minus only.
+        var aNum = parseFloat(aVal.replace(/[^0-9.\-]/g, ''));
+        var bNum = parseFloat(bVal.replace(/[^0-9.\-]/g, ''));
         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
         return aVal.localeCompare(bVal, 'he');
     }
@@ -158,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ─── Color P&L cells ───
     document.querySelectorAll('.pnl').forEach(function (el) {
-        var val = parseFloat(el.textContent.replace(/[,%₪]/g, ''));
+        var val = parseFloat(el.textContent.replace(/[^0-9.\-]/g, ''));
         if (!isNaN(val)) {
             if (val > 0) el.classList.add('positive');
             else if (val < 0) el.classList.add('negative');

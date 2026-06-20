@@ -1,7 +1,7 @@
 {% if current_cash is not none %}
 <div class="stat-card cash">
     <div class="stat-label">{{ t.label_cash }}</div>
-    <div class="stat-value">₪{{ '{:,.2f}'.format(current_cash) }}</div>
+    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(current_cash) }}</div>
     {% if cash_show_sub|default(true) and cash_pct is not none and cash_as_of %}
     <div class="stat-sub">{{ '{:.1f}'.format(cash_pct) }}% {{ t.cash_of_portfolio }} · {{ cash_as_of | format_date(lang) }}</div>
     {% endif %}

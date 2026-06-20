@@ -214,10 +214,11 @@ def set_yfinance_mapping(tase_id, yfinance_symbol, update_info=True):
 
     result['holding_id'] = holding.doc_id
 
-    # Store the yfinance symbol mapping (shared across portfolios)
-    yfinance_map = get_shared_setting('yfinance_map', {})
+    # Store the yfinance symbol mapping (per-portfolio: tase_id is unique per book,
+    # and synthetic ids for non-TASE holdings are allocated per-portfolio)
+    yfinance_map = get_setting('yfinance_map', {})
     yfinance_map[str(tase_id)] = yfinance_symbol
-    set_shared_setting('yfinance_map', yfinance_map)
+    set_setting('yfinance_map', yfinance_map)
 
     # Optionally fetch stock info from yfinance
     if update_info:
@@ -257,7 +258,7 @@ def get_yfinance_mapping(tase_id=None):
         >>> get_yfinance_mapping()
         {'1156926': 'GNRS.TA', '1410631': 'TEVA.TA'}
     """
-    yfinance_map = get_shared_setting('yfinance_map', {})
+    yfinance_map = get_setting('yfinance_map', {})
 
     if tase_id is not None:
         return yfinance_map.get(str(tase_id))

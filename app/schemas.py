@@ -30,8 +30,9 @@ _DATE_FIELDS = {
 # Schema definitions: field -> (type, required)
 HOLDING_SCHEMA = {
     'ticker': (str, False),
-    'tase_id': (int, True),
+    'tase_id': (int, False),  # optional: manual/non-TASE holdings get a synthetic id
     'tase_symbol': (str, True),
+    'manual': (bool, False),
     'tase_symbol_en': (str, False),
     'name_he': (str, True),
     'name_en': (str, False),

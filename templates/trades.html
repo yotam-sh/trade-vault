@@ -160,43 +160,45 @@
         <!-- Sales Tax Dashboard + Tax Breakdown side by side -->
         {% if sales_summary %}
         <div class="tax-summary-grid">
-            {% if sales_summary.total_gains > 0 %}{% include 'partials/_chart_tax_donut.html' %}{% endif %}
+            {% if is_agorot and sales_summary.total_gains > 0 %}{% include 'partials/_chart_tax_donut.html' %}{% endif %}
             <div class="dashboard-grid tax-stat-cards">
                 {% include 'partials/_card_cash.html' %}
                 <div class="stat-card green">
                     <div class="stat-label">{{ t.stat_gains }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.total_gains) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.total_gains) }}</div>
                 </div>
                 <div class="stat-card red">
                     <div class="stat-label">{{ t.stat_losses }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.total_losses) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.total_losses) }}</div>
                 </div>
                 <div class="stat-card {{ 'green' if sales_summary.net_pnl >= 0 else 'red' }}">
                     <div class="stat-label">{{ t.stat_net_balance }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.net_pnl) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.net_pnl) }}</div>
                 </div>
                 {% if sales_summary.loss_carryover_in < 0 %}
                 <div class="stat-card">
                     <div class="stat-label">{{ t.stat_loss_carryover }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.loss_carryover_in) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.loss_carryover_in) }}</div>
                 </div>
                 {% endif %}
+                {% if is_agorot %}
                 <div class="stat-card">
                     <div class="stat-label">{{ t.stat_tax_on_gains }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.tax_on_gains) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.tax_on_gains) }}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">{{ t.stat_tax_offset }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.tax_offset_from_losses) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.tax_offset_from_losses) }}</div>
                 </div>
                 <div class="stat-card {{ 'green' if sales_summary.net_tax == 0 else 'red' }}">
                     <div class="stat-label">{{ t.stat_net_tax }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(sales_summary.net_tax) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(sales_summary.net_tax) }}</div>
                 </div>
-                {% if potential_tax_data and potential_tax_data.potential_tax > 0 %}
+                {% endif %}
+                {% if is_agorot and potential_tax_data and potential_tax_data.potential_tax > 0 %}
                 <div class="stat-card">
                     <div class="stat-label">{{ t.stat_potential_tax }}</div>
-                    <div class="stat-value">₪{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
+                    <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
                 </div>
                 {% endif %}
             </div>
@@ -204,10 +206,10 @@
         {% else %}
         <div class="dashboard-grid">
             {% include 'partials/_card_cash.html' %}
-            {% if potential_tax_data and potential_tax_data.potential_tax > 0 %}
+            {% if is_agorot and potential_tax_data and potential_tax_data.potential_tax > 0 %}
             <div class="stat-card">
                 <div class="stat-label">{{ t.stat_potential_tax }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(potential_tax_data.potential_tax) }}</div>
             </div>
             {% endif %}
         </div>
@@ -257,11 +259,11 @@
                             <td><a href="/position/{{ tr.holding_id }}" class="position-link">{{ tr[display_prefs.trades_name] or tr.name_en or tr.name_he }}</a></td>
                             <td>{{ tr[display_prefs.trades_symbol] or tr.symbol_en or tr.symbol }}</td>
                             <td class="num">{{ '{:,.0f}'.format(tr.shares or 0) }}</td>
-                            <td class="num">{{ '{:,.1f}'.format((tr.price_per_share or 0) * 100) }}</td>
-                            <td class="num">₪{{ '{:,.2f}'.format(tr.total_amount or 0) }}</td>
+                            <td class="num">{{ '{:,.1f}'.format((tr.price_per_share or 0) * 100) if is_agorot else '{:,.2f}'.format(tr.price_per_share or 0) }}</td>
+                            <td class="num">{{ currency_symbol }}{{ '{:,.2f}'.format(tr.total_amount or 0) }}</td>
                             <td class="num pnl">
                                 {% if tr.realized_pnl %}
-                                    ₪{{ '{:,.2f}'.format(tr.realized_pnl) }}
+                                    {{ currency_symbol }}{{ '{:,.2f}'.format(tr.realized_pnl) }}
                                 {% endif %}
                             </td>
                             <td class="actions-cell">
@@ -310,7 +312,7 @@
                                 <th scope="col">{{ t.th_days_held }}</th>
                                 <th scope="col">%</th>
                                 <th scope="col">{{ t.th_pnl_ils }}</th>
-                                <th scope="col">{{ t.th_tax_exposure }}</th>
+                                {% if is_agorot %}<th scope="col">{{ t.th_tax_exposure }}</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -319,22 +321,24 @@
                                 <td><a href="/position/{{ p.holding_id }}" class="position-link">{{ p[display_prefs.trades_tax_name] or p.name_en or p.name_he }}</a></td>
                                 <td class="num" data-sort="{{ p.days_holding }}">{{ p.days_holding }}</td>
                                 <td class="num pnl">{{ '{:.2f}'.format(p.unrealized_pnl_pct) }}%</td>
-                                <td class="num pnl">₪{{ '{:,.2f}'.format(p.unrealized_pnl) }}</td>
+                                <td class="num pnl">{{ currency_symbol }}{{ '{:,.2f}'.format(p.unrealized_pnl) }}</td>
+                                {% if is_agorot %}
                                 <td class="num {% if p.unrealized_pnl >= 0 %}negative{% else %}positive{% endif %}">
                                     {% if p.unrealized_pnl >= 0 %}
-                                    ₪{{ '{:,.2f}'.format(p.potential_tax) }}
+                                    {{ currency_symbol }}{{ '{:,.2f}'.format(p.potential_tax) }}
                                     {% else %}
-                                    (₪{{ '{:,.2f}'.format(p.loss_offset) }})
+                                    ({{ currency_symbol }}{{ '{:,.2f}'.format(p.loss_offset) }})
                                     {% endif %}
                                 </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr class="grand-total">
                                 <td colspan="3">{{ t.grand_total }}</td>
-                                <td class="num pnl">₪{{ '{:,.2f}'.format(open_positions|sum(attribute='unrealized_pnl')) }}</td>
-                                <td class="num">₪{{ '{:,.2f}'.format(open_positions|sum(attribute='potential_tax') - open_positions|sum(attribute='loss_offset')) }}</td>
+                                <td class="num pnl">{{ currency_symbol }}{{ '{:,.2f}'.format(open_positions|sum(attribute='unrealized_pnl')) }}</td>
+                                {% if is_agorot %}<td class="num">{{ currency_symbol }}{{ '{:,.2f}'.format(open_positions|sum(attribute='potential_tax') - open_positions|sum(attribute='loss_offset')) }}</td>{% endif %}
                             </tr>
                         </tfoot>
                     </table>
@@ -377,9 +381,9 @@
                                 {% else %}{{ c.security_type }}{% endif %}
                             </td>
                             <td class="num">{{ '{:,.0f}'.format(c.total_shares) }}</td>
-                            <td class="num">{{ '{:,.1f}'.format(c.avg_buy_price * 100) }}</td>
-                            <td class="num">{{ '{:,.1f}'.format(c.avg_sell_price * 100) }}</td>
-                            <td class="num pnl">₪{{ '{:,.2f}'.format(c.total_pnl) }}</td>
+                            <td class="num">{{ '{:,.1f}'.format(c.avg_buy_price * 100) if is_agorot else '{:,.2f}'.format(c.avg_buy_price) }}</td>
+                            <td class="num">{{ '{:,.1f}'.format(c.avg_sell_price * 100) if is_agorot else '{:,.2f}'.format(c.avg_sell_price) }}</td>
+                            <td class="num pnl">{{ currency_symbol }}{{ '{:,.2f}'.format(c.total_pnl) }}</td>
                             <td class="num pnl">{{ '{:.2f}'.format(c.pnl_pct) }}%</td>
                             <td>{{ c.period }}</td>
                         </tr>
@@ -388,7 +392,7 @@
                     <tfoot>
                         <tr class="grand-total">
                             <td colspan="5">{{ t.grand_total }}</td>
-                            <td class="num pnl">₪{{ '{:,.2f}'.format(closed|sum(attribute='total_pnl')) }}</td>
+                            <td class="num pnl">{{ currency_symbol }}{{ '{:,.2f}'.format(closed|sum(attribute='total_pnl')) }}</td>
                             <td colspan="2"></td>
                         </tr>
                     </tfoot>
@@ -409,7 +413,7 @@
                 {% if lang == 'he' %}עדכון מחיר{% else %}Edit Price{% endif %}
             </h3>
             <label style="display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-secondary);">
-                {% if lang == 'he' %}מחיר לניר ערך (אגורות){% else %}Price per share (agorot){% endif %}
+                {% if is_agorot %}{% if lang == 'he' %}מחיר לניר ערך (אגורות){% else %}Price per share (agorot){% endif %}{% else %}{% if lang == 'he' %}מחיר לניר ערך ({{ currency_symbol }}){% else %}Price per share ({{ currency_symbol }}){% endif %}{% endif %}
             </label>
             <input id="editPriceInput" type="number" step="0.0001" min="0.0001"
                 style="width:100%;box-sizing:border-box;padding:8px;border-radius:4px;
@@ -433,11 +437,14 @@
         var priceInput = document.getElementById('editPriceInput');
         var errDiv   = document.getElementById('editPriceError');
         var currentId = null;
+        // ILS prices are stored in shekels but entered/displayed in agorot (×100);
+        // other currencies are entered in their main unit (no conversion).
+        var IS_AGOROT = {{ 'true' if is_agorot else 'false' }};
 
         function openModal(id, currentPrice) {
             currentId = id;
-            // price_per_share is stored in ILS; display in agorot (×100) to match the table column
-            priceInput.value = (parseFloat(currentPrice) * 100).toFixed(4);
+            var shown = IS_AGOROT ? parseFloat(currentPrice) * 100 : parseFloat(currentPrice);
+            priceInput.value = shown.toFixed(4);
             errDiv.style.display = 'none';
             modal.style.display = 'flex';
             priceInput.focus();
@@ -458,13 +465,13 @@
         modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
 
         document.getElementById('editPriceSaveBtn').addEventListener('click', function() {
-            var agorot = parseFloat(priceInput.value);
-            if (!agorot || agorot <= 0) {
+            var entered = parseFloat(priceInput.value);
+            if (!entered || entered <= 0) {
                 errDiv.textContent = '{% if lang == "he" %}מחיר לא תקין{% else %}Invalid price{% endif %}';
                 errDiv.style.display = 'block';
                 return;
             }
-            var priceIls = agorot / 100;
+            var priceIls = IS_AGOROT ? entered / 100 : entered;
             fetch('/api/transactions/' + currentId + '/update-price', {
                 method: 'POST',
                 headers: {

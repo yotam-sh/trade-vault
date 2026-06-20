@@ -427,6 +427,10 @@ def _run_startup():
     get_db()
     init_default_settings()
 
+    # One-time: relocate formerly-shared yfinance cache/map into the default portfolio.
+    from app.db_backup import migrate_shared_yfinance_to_portfolios
+    migrate_shared_yfinance_to_portfolios()
+
     # Refuse to run an unauthenticated app in production (would be open to the web).
     if _is_production and not _login_required():
         raise RuntimeError(
@@ -576,15 +580,29 @@ def inject_translations():
         g.portfolio_list = portfolios.list_portfolios()
     pid = getattr(g, 'active_portfolio_id', None) or portfolios.default_id()
     active = next((p for p in g.portfolio_list if p['id'] == pid), None)
+    from app.currency import currency_symbol as _sym, is_agorot as _is_ag
+    currency = (active or {}).get('currency', 'ILS')
+    symbol = _sym(currency)
+    t_map = get_translations(lang)
+    t_json = get_translations_json(lang)
+    # Display-only currency: swap the hardcoded ₪ in labels/flashes/JS for the
+    # active portfolio's symbol. ILS is the default and left byte-for-byte unchanged.
+    if currency != 'ILS':
+        t_map = {k: (v.replace('₪', symbol) if isinstance(v, str) else v)
+                 for k, v in t_map.items()}
+        t_json = t_json.replace('₪', symbol)
     return {
-        't': get_translations(lang),
-        't_json': get_translations_json(lang),
+        't': t_map,
+        't_json': t_json,
         'lang': lang,
         'dir': 'ltr' if lang == 'en' else 'rtl',
         'app_version': APP_VERSION,
         'display_prefs': g.display_prefs,
         'active_portfolio': active,
         'portfolio_list': g.portfolio_list,
+        'currency': currency,
+        'currency_symbol': symbol,
+        'is_agorot': _is_ag(currency),
     }
 
 
@@ -645,7 +663,8 @@ def portfolio_new():
     if not name:
         flash(_t('portfolio_name_required', lang), 'error')
         return redirect(request.referrer or url_for('index'))
-    pid = portfolios.create_portfolio(name)
+    currency = (request.form.get('currency') or 'ILS').strip()
+    pid = portfolios.create_portfolio(name, currency=currency)
     session['portfolio_id'] = pid  # switch to the new portfolio
     flash(_t('portfolio_created', lang, name=name), 'success')
     return redirect(url_for('index'))
@@ -672,6 +691,109 @@ def portfolio_delete():
     return redirect(request.referrer or url_for('index'))
 
 
+@app.route('/portfolio/currency', methods=['POST'])
+def portfolio_currency():
+    from app import portfolios
+    lang = _get_lang()
+    pid = request.form.get('portfolio_id', '')
+    code = request.form.get('currency', '')
+    if portfolios.set_currency(pid, code):
+        flash(_t('portfolio_currency_saved', lang), 'success')
+    return redirect(request.referrer or url_for('settings_portfolios'))
+
+
+@app.route('/holdings/new', methods=['POST'])
+def holdings_new():
+    """Add a position: create the security (TASE or non-TASE) AND its opening buy,
+    then materialize it into today's snapshot so it shows immediately."""
+    from app import portfolios
+    from app.holdings import add_holding
+    from app.manual_portfolio import record_trade
+    from app.snapshots import materialize_position_in_snapshot
+    lang = _get_lang()
+    name = (request.form.get('name') or '').strip()
+    ticker = (request.form.get('ticker') or '').strip().upper() or None
+    sec_type = (request.form.get('security_type') or 'stock').strip()
+    currency = (request.form.get('currency') or '').strip()
+    raw_tase = (request.form.get('tase_id') or '').strip()
+    try:
+        tase_id = int(raw_tase) if raw_tase else None
+    except ValueError:
+        tase_id = None
+
+    if not name and not ticker:
+        flash(_t('holding_add_need_name', lang), 'error')
+        return redirect(request.referrer or url_for('positions_view'))
+    if not currency:
+        pid = getattr(g, 'active_portfolio_id', None) or portfolios.default_id()
+        currency = portfolios.get_currency(pid)
+
+    try:
+        date = (request.form.get('date') or '').strip()
+        shares = float(request.form.get('shares'))
+        price = float(request.form.get('price'))
+        commission = float(request.form.get('commission') or 0)
+    except (TypeError, ValueError):
+        flash(_t('position_add_need_trade', lang), 'error')
+        return redirect(request.referrer or url_for('positions_view'))
+
+    hid = add_holding(tase_id=tase_id, tase_symbol=ticker or name, name_he=name or ticker,
+                      security_type=sec_type, currency=currency, ticker=ticker,
+                      name_en=name or ticker, first_bought=date)
+    try:
+        record_trade(hid, 'buy', date, shares, price, commission=commission)
+        materialize_position_in_snapshot(hid, price)  # show at entered price
+        flash(_t('position_added', lang, name=name or ticker), 'success')
+    except ValueError as e:
+        flash(str(e) or _t('flash_trade_error', lang), 'error')
+    flush_db()
+    _spawn_chart_warm()
+    return redirect(url_for('positions_view'))
+
+
+@app.route('/trades/new', methods=['POST'])
+def trades_new():
+    """Record a manual buy/sell against a holding, then reflect it in the snapshot."""
+    from app.manual_portfolio import record_trade
+    from app.snapshots import materialize_position_in_snapshot
+    lang = _get_lang()
+    try:
+        hid = int(request.form.get('holding_id'))
+        action = request.form.get('action', '')
+        date = (request.form.get('date') or '').strip()
+        raw_shares = request.form.get('shares')
+        shares = float(raw_shares) if raw_shares not in (None, '') else 0.0  # blank for Close
+        price = float(request.form.get('price'))
+        commission = float(request.form.get('commission') or 0)
+        record_trade(hid, action, date, shares, price, commission=commission)
+        materialize_position_in_snapshot(hid, price)  # upsert/remove at entered price
+        flash(_t('trade_added', lang), 'success')
+    except ValueError as e:
+        flash(str(e) or _t('flash_trade_error', lang), 'error')
+    except Exception:
+        app.logger.exception('manual trade failed')
+        flash(_t('flash_trade_error', lang), 'error')
+    flush_db()
+    _spawn_chart_warm()
+    return redirect(request.referrer or url_for('trades_view'))
+
+
+@app.route('/portfolio/refresh-prices', methods=['POST'])
+def portfolio_refresh_prices():
+    """Price open positions from Yahoo Finance and write today's snapshot (manual books)."""
+    from app.manual_portfolio import refresh_prices_and_snapshot
+    lang = _get_lang()
+    try:
+        res = refresh_prices_and_snapshot()
+        flash(_t('prices_refreshed', lang, positions=res['positions'],
+                 priced=res['priced'], stale=res['stale']), 'success')
+    except Exception:
+        app.logger.exception('price refresh failed')
+        flash(_t('flash_import_error', lang), 'error')
+    _spawn_chart_warm()
+    return redirect(request.referrer or url_for('index'))
+
+
 @app.route('/portfolio/make-default', methods=['POST'])
 def portfolio_make_default():
     from app import portfolios
@@ -694,7 +816,9 @@ def settings_portfolios():
         'is_default': p['id'] == default,
         'stats': portfolios.portfolio_stats(p['id']),
     } for p in plist]
-    return render_template('portfolios.html', rows=rows, can_delete=len(plist) > 1)
+    from app.currency import SUPPORTED as _currencies
+    return render_template('portfolios.html', rows=rows, can_delete=len(plist) > 1,
+                           currencies=_currencies)
 
 
 @app.route('/')
@@ -784,8 +908,8 @@ def upload_daily():
         flash(_t('flash_no_file', lang), 'error')
         return redirect(url_for('index'))
 
-    # Validate file extension
-    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+    # Validate file extension (.csv = IBI Smart US export; xlsx/xls = IBI daily)
+    if not file.filename.lower().endswith(('.xlsx', '.xls', '.csv')):
         flash(_t('flash_invalid_file_type', lang), 'error')
         return redirect(url_for('index'))
 
@@ -811,8 +935,9 @@ def upload_daily():
     target_dir = os.path.join(DATA_DIR, month_folder)
     os.makedirs(target_dir, exist_ok=True)
 
-    # Build filename: data_<YYYY-MM-DD>.xlsx
-    safe_name = f"data_{date_str}.xlsx"
+    # Build filename: data_<YYYY-MM-DD>.<ext> — preserve .csv (US) vs .xlsx (IBI)
+    ext = '.csv' if file.filename.lower().endswith('.csv') else '.xlsx'
+    safe_name = f"data_{date_str}{ext}"
     target_path = os.path.join(target_dir, safe_name)
 
     # Save the uploaded file
@@ -1832,11 +1957,13 @@ def _tase_refresh_worker(pid):
     """
     from app.connection import set_active_portfolio
     set_active_portfolio(pid)  # bind this thread to the portfolio that triggered it
-    from app.holdings import list_holdings, update_holding
-    from app.settings import get_shared_setting, set_shared_setting
+    from app.holdings import list_holdings, update_holding, SYNTHETIC_TASE_BASE
+    from app.settings import get_setting, set_setting
     from app.utils.translation_service import fetch_data_from_tase, fetch_bizportal_name_he
 
-    holdings = list_holdings(active_only=False)
+    # Skip non-TASE / manually-added holdings — they have no real TASE number.
+    holdings = [h for h in list_holdings(active_only=False)
+                if not h.get('manual') and (h.get('tase_id') or 0) < SYNTHETIC_TASE_BASE]
     fund_doc_ids = {h.doc_id for h in holdings if h.get('security_type') == 'mutual_fund'}
 
     with _tase_lock:
@@ -1871,7 +1998,7 @@ def _tase_refresh_worker(pid):
     # Phase 2: sequential DB writes
     updated, failed, bp_updated = 0, 0, 0
     try:
-        yf_map = get_shared_setting('yfinance_map', {}) or {}
+        yf_map = get_setting('yfinance_map', {}) or {}
         for doc_id, (h, data) in tase_results.items():
             if data:
                 field_updates = {'name_tase_en': data['name']}
@@ -1893,7 +2020,7 @@ def _tase_refresh_worker(pid):
                 updated += 1
             else:
                 failed += 1
-        set_shared_setting('yfinance_map', yf_map)
+        set_setting('yfinance_map', yf_map)
     except Exception:
         app.logger.exception('TASE DB write phase failed')
 

@@ -77,6 +77,12 @@
                 <input type="text" name="name" maxlength="40" required
                        placeholder="{{ t.portfolio_new_placeholder }}"
                        style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--border); border-radius:4px; background:var(--bg-primary); color:var(--text-primary);">
+                <select name="currency" aria-label="{{ t.portfolio_col_currency }}"
+                        style="padding:8px 10px; border:1px solid var(--border); border-radius:4px; background:var(--bg-primary); color:var(--text-primary);">
+                    {% for code, label in currencies %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit" class="admin-action-btn">{{ t.portfolio_new }}</button>
             </form>
         </div>
@@ -86,6 +92,7 @@
                 <thead>
                     <tr>
                         <th>{{ t.portfolio_col_name }}</th>
+                        <th>{{ t.portfolio_col_currency }}</th>
                         <th>{{ t.portfolio_col_created }}</th>
                         <th class="num">{{ t.portfolio_col_holdings }}</th>
                         <th>{{ t.portfolio_col_last_snapshot }}</th>
@@ -99,6 +106,20 @@
                             {{ p.name }}
                             {% if p.is_active %}<span class="pf-badge pf-badge-active">{{ t.portfolio_active_badge }}</span>{% endif %}
                             {% if p.is_default %}<span class="pf-badge pf-badge-default">{{ t.portfolio_default_badge }}</span>{% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{{ url_for('portfolio_currency') }}" class="pf-currency"
+                                  style="display:flex; gap:4px; align-items:center;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="portfolio_id" value="{{ p.id }}">
+                                <select name="currency" onchange="this.form.submit()"
+                                        style="padding:4px 6px; border:1px solid var(--border); border-radius:4px; background:var(--bg-primary); color:var(--text-primary);">
+                                    {% for code, label in currencies %}
+                                    <option value="{{ code }}" {% if code == p.currency %}selected{% endif %}>{{ code }}</option>
+                                    {% endfor %}
+                                </select>
+                                <noscript><button type="submit" class="pf-btn">{{ t.portfolio_rename }}</button></noscript>
+                            </form>
                         </td>
                         <td>{{ p.created_at[:10] if p.created_at else '—' }}</td>
                         <td class="num">{{ p.stats.holdings }}</td>

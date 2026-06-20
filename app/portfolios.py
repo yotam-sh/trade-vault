@@ -27,6 +27,7 @@ def _default_entry():
         'id': 'default',
         'name': 'IBI',
         'file': os.path.basename(connection.DB_PATH),
+        'currency': 'ILS',
         'created_at': datetime.now().isoformat(timespec='seconds'),
     }
 
@@ -38,6 +39,9 @@ def _load():
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         if isinstance(data, dict) and data.get('portfolios'):
+            # Back-compat: entries created before multi-currency lack a currency.
+            for p in data['portfolios']:
+                p.setdefault('currency', 'ILS')
             return data
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
@@ -94,6 +98,24 @@ def set_default(pid):
     return True
 
 
+def get_currency(pid):
+    """The display currency code for `pid` (default 'ILS')."""
+    entry = get_portfolio(pid)
+    return (entry or {}).get('currency', 'ILS')
+
+
+def set_currency(pid, code):
+    """Set the display currency (code) for `pid`. Returns True if it existed."""
+    from app.currency import normalize_currency
+    reg = _load()
+    for p in reg['portfolios']:
+        if p['id'] == pid:
+            p['currency'] = normalize_currency(code)
+            _save(reg)
+            return True
+    return False
+
+
 def portfolio_stats(pid):
     """Lightweight counts for the management table (read-only, no migrations)."""
     from app.connection import (
@@ -123,14 +145,16 @@ def _slugify(name):
     return slug or 'portfolio'
 
 
-def create_portfolio(name):
+def create_portfolio(name, currency='ILS'):
     """Create a new isolated portfolio and initialize its db. Returns the new id."""
+    from app.currency import normalize_currency
     name = (name or '').strip() or 'Portfolio'
     pid = f'{_slugify(name)}-{uuid.uuid4().hex[:6]}'
     entry = {
         'id': pid,
         'name': name,
         'file': os.path.join('portfolios', f'{pid}.json').replace('\\', '/'),
+        'currency': normalize_currency(currency),
         'created_at': datetime.now().isoformat(timespec='seconds'),
     }
     reg = _load()

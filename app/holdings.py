@@ -4,17 +4,47 @@ from tinydb import Query
 from app.connection import get_table, HOLDINGS
 from app.schemas import now_iso, validate_record, validate_update
 
+# Non-TASE / manually-added holdings get a synthetic tase_id in this reserved range
+# so they never collide with real TASE security numbers (which are well below this).
+SYNTHETIC_TASE_BASE = 9_000_000_000
 
-def add_holding(tase_id, tase_symbol, name_he, security_type, currency,
-                ticker=None, **kwargs):
-    """Add a new holding. Returns doc_id."""
+
+def _next_synthetic_tase_id(table):
+    """Allocate the next free synthetic tase_id (>= SYNTHETIC_TASE_BASE)."""
+    syn = [h.get('tase_id') or 0 for h in table.all()
+           if (h.get('tase_id') or 0) >= SYNTHETIC_TASE_BASE]
+    return (max(syn) + 1) if syn else SYNTHETIC_TASE_BASE
+
+
+def add_holding(tase_id=None, tase_symbol=None, name_he=None, security_type='stock',
+                currency='ILS', ticker=None, **kwargs):
+    """Add a new holding. Returns doc_id.
+
+    `tase_id` is optional: real TASE securities pass their number (deduped by it);
+    manual / non-TASE securities (e.g. US stocks) omit it and are deduped by `ticker`,
+    receiving a synthetic id in the reserved SYNTHETIC_TASE_BASE range. Holdings
+    without a real tase_id are flagged `manual=True`.
+    """
     table = get_table(HOLDINGS)
-
-    # Check for duplicate tase_id
     H = Query()
-    existing = table.search(H.tase_id == tase_id)
-    if existing:
-        return existing[0].doc_id
+
+    # Dedup: real TASE id → by tase_id; non-TASE → by ticker (when provided).
+    if tase_id is not None:
+        existing = table.search(H.tase_id == tase_id)
+        if existing:
+            return existing[0].doc_id
+    elif ticker:
+        existing = table.search(H.ticker == ticker)
+        if existing:
+            return existing[0].doc_id
+
+    is_manual = kwargs.get('manual', tase_id is None)
+    if tase_id is None:
+        tase_id = _next_synthetic_tase_id(table)
+
+    # name_he / tase_symbol are schema-required; fall back to ticker for non-TASE.
+    name_he = name_he or ticker or str(tase_id)
+    tase_symbol = tase_symbol or ticker or name_he
 
     now = now_iso()
     record = {
@@ -25,6 +55,7 @@ def add_holding(tase_id, tase_symbol, name_he, security_type, currency,
         'name_en': kwargs.get('name_en'),
         'security_type': security_type,
         'currency': currency,
+        'manual': is_manual,
         'exchange': kwargs.get('exchange', 'TASE'),
         'is_active': kwargs.get('is_active', True),
         'first_bought': kwargs.get('first_bought'),

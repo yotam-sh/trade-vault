@@ -133,7 +133,7 @@
                         <option value="morning-balance">{{ t.import_type_morning }}</option>
                     </select>
                     <label>{{ t.label_file }}</label>
-                    <input type="file" name="file" id="file-input" accept=".xlsx,.xls" required hidden multiple>
+                    <input type="file" name="file" id="file-input" accept=".xlsx,.xls,.csv" required hidden multiple>
                     <button type="button" class="file-picker-btn" onclick="document.getElementById('file-input').click()">{{ t.pick_file }}</button>
                     <span class="file-name">{{ t.no_file_selected }}</span>
                     <label>{{ t.label_date }}</label>
@@ -167,25 +167,29 @@
                     </label>
                 </div>
             </form>
+            <form method="post" action="{{ url_for('portfolio_refresh_prices') }}" style="margin-top:0.6rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="export-btn">↻ {{ t.refresh_prices_btn }}</button>
+            </form>
         </div>
 
         {% if portfolio %}
         <div class="dashboard-grid">
             <div class="stat-card">
                 <div class="stat-label">{{ t.stat_total_value }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.total_value) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.total_value) }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">{{ t.stat_cost }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.total_cost) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.total_cost) }}</div>
             </div>
             <div class="stat-card {{ 'green' if portfolio.unrealized_pnl >= 0 else 'red' }}">
                 <div class="stat-label">{{ t.stat_cost_change }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.unrealized_pnl) }} ({{ '{:.2f}'.format(portfolio.unrealized_pnl_pct) }}%)</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.unrealized_pnl) }} ({{ '{:.2f}'.format(portfolio.unrealized_pnl_pct) }}%)</div>
             </div>
             <div class="stat-card {{ 'green' if portfolio.daily_pnl >= 0 else 'red' }}">
                 <div class="stat-label">{{ t.stat_daily_pnl }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(portfolio.daily_pnl) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.daily_pnl) }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">{{ t.stat_num_positions }}</div>

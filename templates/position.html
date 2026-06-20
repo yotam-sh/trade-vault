@@ -110,6 +110,8 @@
     </nav>
 
     <div class="container" id="main-content" role="main">
+        {# TASE-native holding? (Israeli, non-manual). Non-TASE/foreign holdings hide TASE identity. #}
+        {% set is_tase = (data.holding.currency == 'ILS' and not data.holding.manual) %}
 
         <!-- Back link -->
         <div style="margin-bottom: 1rem;">
@@ -147,15 +149,19 @@
             </div>
             <!-- Identity grid -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                {% if is_tase %}
                 <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
                     <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_name_he }}</div>
                     <div style="font-size: 0.9rem; font-weight: 500;" dir="rtl">{{ data.holding.name_he }}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem;" dir="rtl">{{ data.holding.tase_symbol }}</div>
                 </div>
+                {% endif %}
                 <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
                     <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_name_en }}</div>
                     <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.name_en or '—' }}</div>
+                    {% if is_tase %}
                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem;">{{ data.holding.tase_symbol_en or '—' }}</div>
+                    {% endif %}
                 </div>
                 <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
                     <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_yfinance_symbol }}</div>
@@ -168,8 +174,13 @@
                     {% endif %}
                 </div>
                 <div style="padding: 0.1rem 0;">
+                    {% if is_tase %}
                     <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_tase_id }}</div>
                     <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.tase_id }}</div>
+                    {% else %}
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_exchange }}</div>
+                    <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.exchange or '—' }}</div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -190,6 +201,7 @@
                         <input id="editTicker" type="hidden" value="{{ data.holding.ticker or '' }}">
                         <div id="yfDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 5px; z-index: 100; max-height: 220px; overflow-y: auto; margin-top: 2px;"></div>
                     </div>
+                    {% if is_tase %}
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <button type="button" id="fetchTaseBtn" onclick="fetchFromTase()"
                             style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;">
@@ -197,6 +209,7 @@
                         </button>
                         <span id="fetchTaseStatus" style="font-size: 0.78rem; color: var(--text-secondary);"></span>
                     </div>
+                    {% endif %}
                     <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                         <button onclick="toggleNameEdit()" style="padding: 0.4rem 1rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary);">{{ t.position_name_cancel }}</button>
                         <button onclick="openConfirmModal()" style="padding: 0.4rem 1rem; background: var(--accent); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600;">{{ t.position_name_save }}</button>
@@ -319,19 +332,19 @@
                 <div class="stat-item">
                     <span class="stat-label">{{ t.position_avg_cost }}</span>
                     <span class="stat-value">
-                        {{ '{:,.1f}'.format(pos.cost_basis / pos.quantity * 100) if pos.quantity else '—' }}
+                        {{ ('{:,.1f}'.format(pos.cost_basis / pos.quantity * 100) if is_agorot else '{:,.2f}'.format(pos.cost_basis / pos.quantity)) if pos.quantity else '—' }}
                     </span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">{{ t.position_total_invested }}</span>
-                    <span class="stat-value">{{ '{:,.2f}'.format(pos.cost_basis) }} ₪</span>
+                    <span class="stat-value">{{ '{:,.2f}'.format(pos.cost_basis) }} {{ currency_symbol }}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">{{ t.position_current_value }}</span>
-                    <span class="stat-value">{{ '{:,.2f}'.format(pos.market_value) }} ₪</span>
+                    <span class="stat-value">{{ '{:,.2f}'.format(pos.market_value) }} {{ currency_symbol }}</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">{{ t.position_unrealized_pnl }} ₪</span>
+                    <span class="stat-label">{{ t.position_unrealized_pnl }} {{ currency_symbol }}</span>
                     <span class="stat-value {% if unrealized >= 0 %}positive{% else %}negative{% endif %}">
                         {{ '{:+,.2f}'.format(unrealized) }}
                     </span>
@@ -365,18 +378,18 @@
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">{{ t.th_avg_buy }}</span>
-                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_buy_price * 100) }}</span>
+                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_buy_price * 100) if is_agorot else '{:,.2f}'.format(cs.avg_buy_price) }}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">{{ t.th_avg_sell }}</span>
-                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_sell_price * 100) }}</span>
+                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_sell_price * 100) if is_agorot else '{:,.2f}'.format(cs.avg_sell_price) }}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">{{ t.position_total_invested }}</span>
-                    <span class="stat-value">{{ '{:,.2f}'.format(cs.total_cost) }} ₪</span>
+                    <span class="stat-value">{{ '{:,.2f}'.format(cs.total_cost) }} {{ currency_symbol }}</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">{{ t.position_realized_pnl }} ₪</span>
+                    <span class="stat-label">{{ t.position_realized_pnl }} {{ currency_symbol }}</span>
                     <span class="stat-value {% if cs.total_pnl >= 0 %}positive{% else %}negative{% endif %}">
                         {{ '{:+,.2f}'.format(cs.total_pnl) }}
                     </span>
@@ -407,12 +420,12 @@
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">{{ t.position_hyp_value }}</span>
-                        <span class="stat-value">{{ '{:,.2f}'.format(hyp.hypothetical_value) }} ₪</span>
+                        <span class="stat-value">{{ '{:,.2f}'.format(hyp.hypothetical_value) }} {{ currency_symbol }}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">{{ t.position_opp_cost }}</span>
                         <span class="stat-value {% if hyp.opportunity_cost >= 0 %}positive{% else %}negative{% endif %}">
-                            {{ '{:+,.2f}'.format(hyp.opportunity_cost) }} ₪
+                            {{ '{:+,.2f}'.format(hyp.opportunity_cost) }} {{ currency_symbol }}
                             ({{ '{:+.1f}'.format(hyp.opportunity_cost_pct) }}%)
                         </span>
                     </div>
@@ -490,7 +503,7 @@
                             </span>
                         </td>
                         <td class="num">{{ '{:,.4g}'.format(tr.shares) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(tr.price_per_share * 100) }}</td>
+                        <td class="num">{{ '{:,.1f}'.format(tr.price_per_share * 100) if is_agorot else '{:,.2f}'.format(tr.price_per_share) }}</td>
                         <td class="num">{{ '{:,.2f}'.format(tr.total_amount) }}</td>
                         <td class="num pnl">
                             {% if tr.type == 'sell' and tr.realized_pnl %}
@@ -524,7 +537,7 @@
                     <tr>
                         <td>{{ lot.buy_date | format_date(lang) }}</td>
                         <td class="num">{{ '{:,.4g}'.format(lot.remaining_shares) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(lot.cost_per_share * 100) }}</td>
+                        <td class="num">{{ '{:,.1f}'.format(lot.cost_per_share * 100) if is_agorot else '{:,.2f}'.format(lot.cost_per_share) }}</td>
                         <td class="num">{{ '{:,.2f}'.format(lot.total_cost) }}</td>
                         <td class="num">{{ lot.days_held or '—' }}</td>
                     </tr>
@@ -807,7 +820,7 @@
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: {
-                        label: function(ctx) { return (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(2) + ' ₪'; }
+                        label: function(ctx) { return (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(2) + ' {{ currency_symbol }}'; }
                     }}
                 },
                 scales: {

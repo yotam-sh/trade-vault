@@ -112,7 +112,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.dataset.label + ': ₪' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         }
                     }
@@ -125,7 +125,7 @@
                     y: {
                         ticks: {
                             color: css('--text-secondary'),
-                            callback: function(v) { return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
+                            callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
                         },
                         grid: { color: css('--bg-tertiary') }
                     }

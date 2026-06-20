@@ -3,7 +3,7 @@
         <span>{{ t.chart_daily_pnl }}</span>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
             <div class="unit-switch" id="pnlUnitToggle" data-active="ils">
-                <button class="lang-option active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option active" data-unit="ils" aria-pressed="true">{{ currency_symbol }}</button>
                 <button class="lang-option" data-unit="pct" aria-pressed="false">%</button>
             </div>
             <div class="chart-edit-controls">
@@ -46,12 +46,12 @@
 
     function fmtValue(v) {
         if (activeUnit === 'pct') return v.toFixed(2) + '%';
-        return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+        return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
     }
 
     function fmtTick(v) {
         if (activeUnit === 'pct') return v.toFixed(1) + '%';
-        return '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+        return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
     }
 
     function getDailyData(data, unit) {
@@ -106,7 +106,7 @@
                                 }).concat([0]));
                                 var otherLbl = activeUnit === 'ils'
                                     ? maxOther.toFixed(1) + '%'
-                                    : '₪' + maxOther.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + maxOther.toLocaleString('he-IL', {maximumFractionDigits: 0});
                                 var otherW = s.ctx.measureText(otherLbl).width;
                                 yMinWidth = Math.ceil(Math.max(curW, otherW)) + 16;
                             }

@@ -197,6 +197,72 @@ def repair_net_invested():
     return repaired
 
 
+def materialize_position_in_snapshot(holding_id, price, date=None):
+    """Merge one holding's current open-lot position into the day's snapshot.
+
+    Computes qty = Σ open-lot remaining_shares and cost = Σ total_cost for the
+    holding, then upserts a position priced at `market_value = qty * price` into
+    the snapshot for `date` (today by default). If the day has no snapshot yet,
+    the latest snapshot's positions are carried forward as the base. If qty <= 0
+    (a closing sell) the position is removed. Totals/weights are recomputed.
+
+    This makes a manually-traded position visible immediately at the entered
+    price — without fetching live quotes and without clobbering other positions.
+    `refresh_prices_and_snapshot` later repoints values to live Yahoo quotes.
+    """
+    from app.schemas import today_iso
+    from app.holdings import get_holding
+    from app.tax_lots import get_all_lots
+
+    table = get_table(PORTFOLIO_SNAPSHOTS)
+    S = Query()
+    date = date or today_iso()
+
+    qty = cost = 0.0
+    for lot in get_all_lots():
+        if lot.get('holding_id') == holding_id and not lot.get('is_closed'):
+            qty += lot.get('remaining_shares') or 0
+            cost += lot.get('total_cost') or 0
+    qty = round(qty, 6)
+    cost = round(cost, 2)
+
+    today_rows = table.search(S.date == date)
+    if today_rows:
+        base = [dict(p) for p in (today_rows[0].get('positions') or [])]
+    else:
+        latest = get_latest_snapshot()
+        base = [dict(p) for p in (latest.get('positions') or [])] if latest else []
+
+    base = [p for p in base if p.get('holding_id') != holding_id]
+
+    if qty > 0:
+        holding = get_holding(holding_id)
+        ticker = ((holding.get('ticker') if holding else None)
+                  or (holding.get('tase_symbol') if holding else None) or str(holding_id))
+        base.append({
+            'holding_id': holding_id, 'ticker': ticker, 'quantity': qty,
+            'market_value': round(qty * float(price), 2), 'cost_basis': cost,
+            'weight': 0, 'daily_pnl': 0,
+        })
+
+    total_mv = round(sum(p.get('market_value', 0) or 0 for p in base), 2)
+    total_cb = round(sum(p.get('cost_basis', 0) or 0 for p in base), 2)
+    total_dp = round(sum(p.get('daily_pnl', 0) or 0 for p in base), 2)
+    for p in base:
+        p['weight'] = round((p.get('market_value', 0) or 0) / total_mv * 100, 2) if total_mv else 0
+
+    total_deposits, total_withdrawals = _cumulative_cashflows(date)
+    return create_snapshot(
+        date=date,
+        total_market_value=total_mv,
+        total_cost_basis=total_cb,
+        total_daily_pnl=total_dp,
+        positions=base,
+        total_deposits=round(total_deposits, 2),
+        total_withdrawals=round(total_withdrawals, 2),
+    )
+
+
 def get_latest_snapshot():
     """Get the most recent snapshot."""
     table = get_table(PORTFOLIO_SNAPSHOTS)

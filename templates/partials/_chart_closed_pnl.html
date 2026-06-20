@@ -3,7 +3,7 @@
         <span>{{ t.closed_title }}</span>
         <div style="display:flex; gap:8px; align-items:center;">
             <div class="unit-switch" id="closedUnitToggle" data-active="ils">
-                <button class="lang-option active" data-unit="ils" aria-pressed="true">₪</button>
+                <button class="lang-option active" data-unit="ils" aria-pressed="true">{{ currency_symbol }}</button>
                 <button class="lang-option" data-unit="pct" aria-pressed="false">%</button>
             </div>
             <button class="table-settings-btn" onclick="openDisplayPrefsModal('trades_closed', this)" title="Display settings">&#9881;</button>
@@ -77,7 +77,7 @@
                             label: function(ctx) {
                                 return activeUnit === 'pct'
                                     ? ctx.parsed.x.toFixed(2) + '%'
-                                    : '₪' + ctx.parsed.x.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + ctx.parsed.x.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         }
                     }
@@ -89,7 +89,7 @@
                             callback: function(v) {
                                 return activeUnit === 'pct'
                                     ? v.toFixed(1) + '%'
-                                    : '₪' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
                             }
                         },
                         grid: { color: css('--bg-tertiary') }

@@ -129,30 +129,32 @@
             {% include 'partials/_card_cash.html' %}
             <div class="stat-card">
                 <div class="stat-label">{{ t.summary_total_deposits }}</div>
-                <div class="stat-value">₪{{ '{:,.0f}'.format(summary.total_deposits) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.0f}'.format(summary.total_deposits) }}</div>
             </div>
             {% if summary.total_dividends %}
             <div class="stat-card green">
                 <div class="stat-label">{{ t.summary_total_dividends }}</div>
-                <div class="stat-value">₪{{ '{:,.0f}'.format(summary.total_dividends) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.0f}'.format(summary.total_dividends) }}</div>
             </div>
             {% endif %}
             <div class="stat-card">
                 <div class="stat-label">{{ t.summary_net_invested }}</div>
-                <div class="stat-value">₪{{ '{:,.0f}'.format(summary.net_invested) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.0f}'.format(summary.net_invested) }}</div>
             </div>
             <div class="stat-card {{ 'green' if summary.cost_change_ils >= 0 else 'red' }}">
                 <div class="stat-label">{{ t.summary_cost_change_ils }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(summary.cost_change_ils) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(summary.cost_change_ils) }}</div>
             </div>
             <div class="stat-card {{ 'green' if summary.cost_change_pct >= 0 else 'red' }}">
                 <div class="stat-label">{{ t.summary_cost_change_pct }}</div>
                 <div class="stat-value">{{ '{:.2f}%'.format(summary.cost_change_pct * 100) }}</div>
             </div>
+            {% if is_agorot %}
             <div class="stat-card {{ 'red' if summary.net_tax > 0 else '' }}">
                 <div class="stat-label">{{ t.summary_net_tax }}</div>
-                <div class="stat-value">₪{{ '{:,.2f}'.format(summary.net_tax) }}</div>
+                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(summary.net_tax) }}</div>
             </div>
+            {% endif %}
         </div>
 
         <!-- Date filter -->
@@ -262,7 +264,7 @@
                                 {% endif %}
                                 {{ entry.notes or '' }}
                                 {% if entry.action == 'dividend' and entry.tax %}
-                                    <span style="color:var(--text-secondary);font-size:0.85em;"> ({{ t.label_tax_withheld }} {{ '{:,.0f}'.format(entry.tax) }} ₪)</span>
+                                    <span style="color:var(--text-secondary);font-size:0.85em;"> ({{ t.label_tax_withheld }} {{ '{:,.0f}'.format(entry.tax) }} {{ currency_symbol }})</span>
                                 {% endif %}
                             </td>
                         </tr>

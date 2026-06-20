@@ -108,6 +108,48 @@
 
     <div class="container" id="main-content" role="main">
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Manually add a position (security + opening buy; TASE or non-TASE) -->
+        <details class="card" style="margin-bottom:1rem;">
+            <summary style="cursor:pointer;font-weight:600;">{{ t.btn_add_position }}</summary>
+            <form method="post" action="{{ url_for('holdings_new') }}"
+                  style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:end;margin-top:0.85rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% set _ist = 'padding:6px;border-radius:5px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);' %}
+                <label style="font-size:0.82rem;">{{ t.label_security_name }}<br>
+                    <input type="text" name="name" required style="{{ _ist }}"></label>
+                <label style="font-size:0.82rem;">{{ t.label_ticker_yf }}<br>
+                    <input type="text" name="ticker" dir="ltr" placeholder="AAPL" style="{{ _ist }}"></label>
+                <label style="font-size:0.82rem;">{{ t.label_security_type }}<br>
+                    <select name="security_type" style="{{ _ist }}">
+                        <option value="stock">{{ t.sectype_stock }}</option>
+                        <option value="etf">{{ t.sectype_etf }}</option>
+                        <option value="mutual_fund">{{ t.sectype_mutual_fund }}</option>
+                        <option value="bond">{{ t.sectype_bond }}</option>
+                    </select></label>
+                <label style="font-size:0.82rem;">{{ t.label_shares }}<br>
+                    <input type="number" step="any" min="0" name="shares" required dir="ltr" style="{{ _ist }}"></label>
+                <label style="font-size:0.82rem;">{{ t.label_price }} ({{ currency_symbol }})<br>
+                    <input type="number" step="any" min="0" name="price" required dir="ltr" style="{{ _ist }}"></label>
+                <label style="font-size:0.82rem;">{{ t.th_date }}<br>
+                    <input type="date" name="date" required style="{{ _ist }}"></label>
+                <label style="font-size:0.82rem;">{{ t.label_commission_optional }}<br>
+                    <input type="number" step="any" min="0" name="commission" dir="ltr" style="{{ _ist }}"></label>
+                <label style="font-size:0.82rem;">{{ t.label_tase_id_optional }}<br>
+                    <input type="number" name="tase_id" dir="ltr" style="{{ _ist }}"></label>
+                <button type="submit" class="admin-action-btn">{{ t.btn_add_position }}</button>
+            </form>
+        </details>
+
         <!-- Open Positions -->
         <div class="card">
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
@@ -125,7 +167,7 @@
                         <th scope="col" class="num">{{ t.th_quantity }}</th>
                         <th scope="col" class="num">{{ t.th_value_ils }}</th>
                         <th scope="col" class="num">{{ t.th_cost_ils }}</th>
-                        <th scope="col" class="num">{{ t.position_unrealized_pnl }} ₪</th>
+                        <th scope="col" class="num">{{ t.position_unrealized_pnl }} {{ currency_symbol }}</th>
                         <th scope="col" class="num">{{ t.position_unrealized_pnl }} %</th>
                         <th scope="col" class="num">{{ t.position_weight }}</th>
                         <th scope="col" class="num">{{ t.position_days_holding }}</th>
@@ -138,6 +180,10 @@
                             <a href="/position/{{ pos.holding_id }}" class="position-link">
                                 {{ pos[display_prefs.positions_open_name] or pos.name_en or pos.name_he }}
                             </a>
+                            <button type="button" class="pf-btn adjust-btn"
+                                    data-hid="{{ pos.holding_id }}"
+                                    data-name="{{ (pos[display_prefs.positions_open_name] or pos.name_en or pos.name_he) | e }}"
+                                    data-qty="{{ pos.quantity }}">{{ t.btn_adjust }}</button>
                         </td>
                         <td>{{ pos[display_prefs.positions_open_symbol] or pos.symbol_en or pos.symbol }}</td>
                         <td>
@@ -181,7 +227,7 @@
                         <th scope="col" class="num">{{ t.th_avg_buy }}</th>
                         <th scope="col" class="num">{{ t.th_avg_sell }}</th>
                         <th scope="col" class="num">{{ t.th_cost_ils }}</th>
-                        <th scope="col" class="num">{{ t.position_realized_pnl }} ₪</th>
+                        <th scope="col" class="num">{{ t.position_realized_pnl }} {{ currency_symbol }}</th>
                         <th scope="col" class="num">{{ t.position_realized_pnl }} %</th>
                         <th scope="col" class="num">{{ t.th_days_held }}</th>
                     </tr>
@@ -193,6 +239,10 @@
                             <a href="/position/{{ pos.holding_id }}" class="position-link">
                                 {{ pos[display_prefs.positions_closed_name] or pos.name_en or pos.name_he }}
                             </a>
+                            <button type="button" class="pf-btn adjust-btn"
+                                    data-hid="{{ pos.holding_id }}"
+                                    data-name="{{ (pos[display_prefs.positions_closed_name] or pos.name_en or pos.name_he) | e }}"
+                                    data-qty="0">{{ t.btn_adjust }}</button>
                         </td>
                         <td>{{ pos[display_prefs.positions_closed_symbol] or pos.symbol_en or pos.symbol }}</td>
                         <td>
@@ -203,8 +253,8 @@
                             {% else %}{{ pos.security_type }}{% endif %}
                         </td>
                         <td class="num">{{ '{:,.4g}'.format(pos.total_shares) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(pos.avg_buy_price * 100) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(pos.avg_sell_price * 100) }}</td>
+                        <td class="num">{{ '{:,.1f}'.format(pos.avg_buy_price * 100) if is_agorot else '{:,.2f}'.format(pos.avg_buy_price) }}</td>
+                        <td class="num">{{ '{:,.1f}'.format(pos.avg_sell_price * 100) if is_agorot else '{:,.2f}'.format(pos.avg_sell_price) }}</td>
                         <td class="num">{{ '{:,.2f}'.format(pos.total_cost) }}</td>
                         <td class="num pnl">{{ '{:,.2f}'.format(pos.total_pnl) }}</td>
                         <td class="num pnl">{{ '{:.2f}'.format(pos.pnl_pct) }}%</td>
@@ -219,7 +269,94 @@
         </div>
     </div>
 
+    <!-- Adjust-position modal (Increase / Reduction / Close), shared by every row -->
+    <div id="adjustModal" style="display:none;position:fixed;inset:0;z-index:1000;
+        background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+        <div style="background:var(--bg-secondary);border:1px solid var(--bg-tertiary);
+            border-radius:8px;padding:24px;min-width:300px;max-width:460px;width:92%;">
+            <h3 id="adjTitle" style="margin:0 0 16px;font-size:1rem;"></h3>
+            {% set _ist = 'width:100%;box-sizing:border-box;padding:8px;border-radius:5px;border:1px solid var(--bg-tertiary);background:var(--bg-primary);color:var(--text-primary);' %}
+            <form method="post" action="{{ url_for('trades_new') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="holding_id" id="adjHid">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <label style="font-size:0.82rem;color:var(--text-secondary);">{{ t.label_action }}
+                        <select name="action" id="adjAction" style="{{ _ist }}">
+                            <option value="increase">{{ t.action_increase }}</option>
+                            <option value="reduction" data-open-only="1">{{ t.action_reduction }}</option>
+                            <option value="close" data-open-only="1">{{ t.action_close }}</option>
+                        </select></label>
+                    <label style="font-size:0.82rem;color:var(--text-secondary);">{{ t.th_date }}
+                        <input type="date" name="date" id="adjDate" required style="{{ _ist }}"></label>
+                    <label id="adjSharesField" style="font-size:0.82rem;color:var(--text-secondary);">{{ t.label_shares }}
+                        <input type="number" step="any" min="0" name="shares" id="adjShares" required dir="ltr" style="{{ _ist }}"></label>
+                    <label style="font-size:0.82rem;color:var(--text-secondary);">{{ t.label_price }} ({{ currency_symbol }})
+                        <input type="number" step="any" min="0" name="price" id="adjPrice" required dir="ltr" style="{{ _ist }}"></label>
+                    <label style="font-size:0.82rem;color:var(--text-secondary);">{{ t.label_commission_optional }}
+                        <input type="number" step="any" min="0" name="commission" id="adjCommission" dir="ltr" style="{{ _ist }}"></label>
+                </div>
+                <p id="adjHint" style="font-size:0.78rem;color:var(--text-secondary);margin:12px 0;"></p>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button type="button" id="adjCancel" class="pf-btn">{{ t.position_name_cancel }}</button>
+                    <button type="submit" class="admin-action-btn">{{ t.btn_apply }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>var T = {{ t_json | safe }};</script>
+    <script>
+    (function () {
+        var modal = document.getElementById('adjustModal');
+        if (!modal) return;
+        var hid = document.getElementById('adjHid');
+        var action = document.getElementById('adjAction');
+        var sharesField = document.getElementById('adjSharesField');
+        var shares = document.getElementById('adjShares');
+        var price = document.getElementById('adjPrice');
+        var commission = document.getElementById('adjCommission');
+        var title = document.getElementById('adjTitle');
+        var hint = document.getElementById('adjHint');
+        var defaultHint = {{ t.manual_trade_hint | tojson }};
+        var closeHint   = {{ t.position_close_hint | tojson }};
+        var openOnly = Array.prototype.slice.call(action.querySelectorAll('option[data-open-only]'));
+        var curQty = 0;
+
+        function syncShares() {
+            if (action.value === 'close') {
+                sharesField.style.display = 'none';
+                shares.required = false;
+                hint.textContent = closeHint.replace('{qty}', curQty);
+            } else {
+                sharesField.style.display = '';
+                shares.required = true;
+                shares.max = (action.value === 'reduction') ? curQty : '';
+                hint.textContent = defaultHint;
+            }
+        }
+        function openModal(hidV, name, qty) {
+            curQty = qty || 0;
+            hid.value = hidV;
+            title.textContent = name;
+            // Reduction/Close only make sense for an open position; closed → Increase (reopen) only.
+            openOnly.forEach(function (o) { o.hidden = !(curQty > 0); o.disabled = !(curQty > 0); });
+            action.value = 'increase';
+            shares.value = ''; price.value = ''; commission.value = '';
+            syncShares();
+            modal.style.display = 'flex';
+        }
+        function closeModal() { modal.style.display = 'none'; }
+
+        document.querySelectorAll('.adjust-btn').forEach(function (b) {
+            b.addEventListener('click', function () {
+                openModal(this.dataset.hid, this.dataset.name, parseFloat(this.dataset.qty) || 0);
+            });
+        });
+        action.addEventListener('change', syncShares);
+        document.getElementById('adjCancel').addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    })();
+    </script>
     <script src="/static/app.js"></script>
 {% set display_prefs_context = 'positions' %}
 {% include 'partials/_display_prefs_modal.html' %}
