@@ -19,6 +19,7 @@ _ENUM_FIELDS = {
     'type': {'buy', 'sell', 'deposit', 'withdrawal', 'dividend'},
     'import_type': {'daily_portfolio', 'trade_import', 'morning_balance'},
     'status': {'success', 'partial', 'duplicate', 'error', 'failed', 'rejected'},
+    'session': {'pre', 'regular', 'post'},  # extended-hours pricing; absent == 'regular'
 }
 
 # Date fields that must be ISO YYYY-MM-DD or ISO datetime
@@ -85,6 +86,7 @@ DAILY_PRICE_SCHEMA = {
     'ticker': (str, True),
     'date': (str, True),
     'price': (float, True),
+    'session': (str, False),  # 'pre'|'regular'|'post'; absent == 'regular' (back-compat)
     'price_change_pct': (float, False),
     'quantity': (float, True),
     'market_value': (float, True),

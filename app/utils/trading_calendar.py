@@ -83,3 +83,33 @@ def is_non_trading_day(date_str):
         True if TASE does not trade on this date
     """
     return is_tase_weekend(date_str) or is_tase_holiday(date_str)
+
+
+# ── US (NYSE) trading calendar ────────────────────────────────────────────────
+
+@lru_cache(maxsize=20)
+def _nyse(year):
+    """NYSE market-holiday calendar for a year, or None if unavailable."""
+    try:
+        return holidays_lib.NYSE(years=year)
+    except Exception:
+        return None
+
+
+def is_us_weekend(date_str):
+    """Return True if the date falls on a US weekend (Saturday or Sunday)."""
+    dt = datetime.strptime(date_str, '%Y-%m-%d').date()
+    return dt.weekday() >= 5  # Mon=0 … Sat=5, Sun=6
+
+
+def is_us_non_trading_day(date_str):
+    """Return True if US (NYSE) markets are closed on this date.
+
+    Weekend or NYSE market holiday. Falls back to weekend-only if the installed
+    ``holidays`` library does not expose an NYSE calendar.
+    """
+    if is_us_weekend(date_str):
+        return True
+    dt = datetime.strptime(date_str, '%Y-%m-%d').date()
+    cal = _nyse(dt.year)
+    return bool(cal) and dt in cal

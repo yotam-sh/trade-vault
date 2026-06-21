@@ -455,9 +455,9 @@
             var actionEl = groupCard.querySelector('.group-action-cell');
             if (actionEl) {
                 if (delta > 0.1) {
-                    actionEl.innerHTML = '<span class="action-sell">' + T.action_sell + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
+                    actionEl.innerHTML = '<span class="action-sell">' + T.action_sell + ' {{ currency_symbol }}' + actionIls.toLocaleString('{{ number_locale }}') + '</span>';
                 } else if (delta < -0.1) {
-                    actionEl.innerHTML = '<span class="action-buy">' + T.action_buy + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
+                    actionEl.innerHTML = '<span class="action-buy">' + T.action_buy + ' {{ currency_symbol }}' + actionIls.toLocaleString('{{ number_locale }}') + '</span>';
                 } else {
                     actionEl.innerHTML = '<span class="action-hold">✓</span>';
                 }
@@ -491,9 +491,9 @@
                 var actionCell = row.querySelector('.action-cell');
                 if (actionCell) {
                     if (delta > 0.1) {
-                        actionCell.innerHTML = '<span class="action-sell">' + T.action_sell + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
+                        actionCell.innerHTML = '<span class="action-sell">' + T.action_sell + ' {{ currency_symbol }}' + actionIls.toLocaleString('{{ number_locale }}') + '</span>';
                     } else if (delta < -0.1) {
-                        actionCell.innerHTML = '<span class="action-buy">' + T.action_buy + ' {{ currency_symbol }}' + actionIls.toLocaleString('he-IL') + '</span>';
+                        actionCell.innerHTML = '<span class="action-buy">' + T.action_buy + ' {{ currency_symbol }}' + actionIls.toLocaleString('{{ number_locale }}') + '</span>';
                     } else {
                         actionCell.innerHTML = '<span class="action-hold">✓</span>';
                     }

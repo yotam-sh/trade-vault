@@ -77,7 +77,7 @@
                             label: function(ctx) {
                                 return activeUnit === 'pct'
                                     ? ctx.parsed.x.toFixed(2) + '%'
-                                    : '{{ currency_symbol }}' + ctx.parsed.x.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + ctx.parsed.x.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
                             }
                         }
                     }
@@ -89,7 +89,7 @@
                             callback: function(v) {
                                 return activeUnit === 'pct'
                                     ? v.toFixed(1) + '%'
-                                    : '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
                             }
                         },
                         grid: { color: css('--bg-tertiary') }

@@ -172,9 +172,13 @@
                             onclick="return confirm('{{ t.upgrade_libs_confirm }}')">{{ t.upgrade_libs_btn }}</button>
                 </form>
                 <button id="tase-btn" class="admin-action-btn">{{ t.admin_tase_refresh_btn }}</button>
+                <button id="backfill-btn" class="admin-action-btn">{{ t.btn_rebuild_history }}</button>
             </div>
             <div id="tase-status" style="display:none;margin-top:10px;" role="status" aria-live="polite">
                 <span id="tase-status-text" style="color:var(--text-secondary);"></span>
+            </div>
+            <div id="backfill-status" style="display:none;margin-top:10px;" role="status" aria-live="polite">
+                <span id="backfill-status-text" style="color:var(--text-secondary);"></span>
             </div>
             <form method="POST" action="/maintenance/repair/interpolated"
                   style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
@@ -259,7 +263,10 @@
         var taseBox = document.getElementById('tase-status');
         var taseText = document.getElementById('tase-status-text');
         var pollTimer = null;
+        var pollCount = 0;
+        var MAX_POLL = 800;  // ~20 min @ 1.5s — guards against a server that never returns done
         function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+        function startPolling(fn) { pollCount = 0; pollTimer = setInterval(fn, 1500); }
         function showRunning(d) {
             taseBox.style.display = 'block';
             taseText.textContent = '⏳ ' + (d.updated + d.failed) + ' / ' + (d.total || '…');
@@ -274,7 +281,14 @@
             taseText.textContent = msg;
             taseBtn.disabled = false;
         }
+        function pollTimeout() {
+            stopPolling();
+            taseBox.style.display = 'block';
+            taseText.textContent = '⚠ Timeout';
+            taseBtn.disabled = false;
+        }
         function pollStatus() {
+            if (++pollCount > MAX_POLL) { pollTimeout(); return; }
             fetch('/maintenance/refresh-tase-status', {credentials:'same-origin'})
                 .then(function(r){return r.json();})
                 .then(function(d){ if (d.running) showRunning(d); else if (d.done && d.total > 0) showDone(d); })
@@ -282,7 +296,7 @@
         }
         fetch('/maintenance/refresh-tase-status', {credentials:'same-origin'})
             .then(function(r){return r.json();})
-            .then(function(d){ if (d.running) { showRunning(d); pollTimer = setInterval(pollStatus, 1500); } });
+            .then(function(d){ if (d.running) { showRunning(d); startPolling(pollStatus); } });
         taseBtn.addEventListener('click', function () {
             fetch('/maintenance/refresh-tase-names', {
                 method: 'POST', credentials: 'same-origin',
@@ -292,10 +306,66 @@
                     taseBtn.disabled = true;
                     taseBox.style.display = 'block';
                     taseText.textContent = '⏳ 0 / …';
-                    pollTimer = setInterval(pollStatus, 1500);
+                    startPolling(pollStatus);
                 } else {
                     taseBox.style.display = 'block';
                     taseText.textContent = d.reason === 'already_running' ? '⚠ Already running' : '⚠ Failed to start';
+                }
+            });
+        });
+
+        // ── Daily-history backfill (async with status) ──
+        var bfBtn = document.getElementById('backfill-btn');
+        var bfBox = document.getElementById('backfill-status');
+        var bfText = document.getElementById('backfill-status-text');
+        var bfTimer = null;
+        var bfCount = 0;
+        function bfStop() { if (bfTimer) { clearInterval(bfTimer); bfTimer = null; } }
+        function bfStart() { bfCount = 0; bfTimer = setInterval(bfPoll, 1500); }
+        function bfShow(d) {
+            bfBox.style.display = 'block';
+            if (d.running) {
+                bfText.textContent = '⏳ {{ t.rebuild_history_running }}';
+                bfBtn.disabled = true;
+            } else if (d.done) {
+                bfStop();
+                bfBtn.disabled = false;
+                if (d.error) {
+                    bfText.textContent = '⚠ ' + d.error;
+                } else if (d.result && d.result.skipped === 'daily_file_portfolio') {
+                    bfText.textContent = '⚠ {{ t.rebuild_history_skipped_daily_file }}';
+                } else if (d.result) {
+                    bfText.textContent = '✓ {{ t.rebuild_history_done }}'
+                        .replace('{holdings}', d.result.holdings)
+                        .replace('{dates}', d.result.dates);
+                }
+            }
+        }
+        function bfPoll() {
+            if (++bfCount > MAX_POLL) {
+                bfStop(); bfBox.style.display = 'block';
+                bfText.textContent = '⚠ Timeout'; bfBtn.disabled = false; return;
+            }
+            fetch('/maintenance/rebuild-history-status', {credentials:'same-origin'})
+                .then(function(r){return r.json();})
+                .then(function(d){ bfShow(d); }).catch(bfStop);
+        }
+        fetch('/maintenance/rebuild-history-status', {credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(d){ if (d.running) { bfShow(d); bfStart(); } });
+        bfBtn.addEventListener('click', function () {
+            fetch('/maintenance/rebuild-history', {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest'}
+            }).then(function(r){return r.json();}).then(function(d){
+                if (d.started) {
+                    bfBtn.disabled = true;
+                    bfBox.style.display = 'block';
+                    bfText.textContent = '⏳ {{ t.rebuild_history_running }}';
+                    bfStart();
+                } else {
+                    bfBox.style.display = 'block';
+                    bfText.textContent = d.reason === 'already_running' ? '⚠ {{ t.rebuild_history_running }}' : '⚠ Failed to start';
                 }
             });
         });

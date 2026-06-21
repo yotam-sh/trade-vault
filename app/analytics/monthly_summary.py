@@ -7,12 +7,27 @@ from app.transactions import list_transactions, get_total_deposits, get_total_wi
 from app.utils.trading_calendar import is_non_trading_day
 
 
+def _non_trading_day_fn():
+    """Trading-calendar predicate for the active portfolio: TASE for ILS, NYSE otherwise."""
+    try:
+        from app.connection import current_portfolio_id
+        from app import portfolios
+        cur = (portfolios.get_currency(current_portfolio_id()) or 'ILS').upper()
+    except Exception:
+        cur = 'ILS'
+    if cur == 'ILS':
+        return is_non_trading_day
+    from app.utils.trading_calendar import is_us_non_trading_day
+    return is_us_non_trading_day
+
+
 def _count_trading_days(year, month):
-    """Count TASE trading days in a given month (excludes weekends and Israeli holidays)."""
+    """Count trading days in a month for the active portfolio's market calendar."""
+    not_trading = _non_trading_day_fn()
     _, num_days = calendar.monthrange(year, month)
     return sum(
         1 for day in range(1, num_days + 1)
-        if not is_non_trading_day(f'{year}-{month:02d}-{day:02d}')
+        if not not_trading(f'{year}-{month:02d}-{day:02d}')
     )
 
 

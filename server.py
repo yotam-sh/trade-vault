@@ -428,8 +428,10 @@ def _run_startup():
     init_default_settings()
 
     # One-time: relocate formerly-shared yfinance cache/map into the default portfolio.
-    from app.db_backup import migrate_shared_yfinance_to_portfolios
+    from app.db_backup import migrate_shared_yfinance_to_portfolios, migrate_daily_price_sessions
     migrate_shared_yfinance_to_portfolios()
+    # One-time: stamp session='regular' on pre-extended-hours daily_prices rows (per portfolio).
+    migrate_daily_price_sessions()
 
     # Refuse to run an unauthenticated app in production (would be open to the web).
     if _is_production and not _login_required():
@@ -464,6 +466,12 @@ def _run_startup():
     _lots_repaired = _repair_lots()
     if _lots_repaired:
         app.logger.info('lot state repaired on %d tax lot(s)', _lots_repaired)
+
+    # Daily-close scheduler (manual/US portfolios) + gap-fill for days missed while
+    # the container was down. Both no-op unless ENABLE_SCHEDULER is set.
+    from app.scheduler import start_scheduler, spawn_startup_catchup
+    start_scheduler()
+    spawn_startup_catchup()
 
 
 # ── Background TASE refresh state ─────────────────────────────────────────────
@@ -580,9 +588,14 @@ def inject_translations():
         g.portfolio_list = portfolios.list_portfolios()
     pid = getattr(g, 'active_portfolio_id', None) or portfolios.default_id()
     active = next((p for p in g.portfolio_list if p['id'] == pid), None)
-    from app.currency import currency_symbol as _sym, is_agorot as _is_ag
+    from app.currency import currency_symbol as _sym, is_agorot as _is_ag, number_locale as _loc
     currency = (active or {}).get('currency', 'ILS')
     symbol = _sym(currency)
+    # Which trading session the current value reflects (extended hours), for a
+    # dashboard badge. Only relevant when it's today and not a regular session.
+    from app.schemas import today_iso
+    market_session = get_setting('market_session', {}) or {}
+    today_session = market_session.get('session') if market_session.get('date') == today_iso() else None
     t_map = get_translations(lang)
     t_json = get_translations_json(lang)
     # Display-only currency: swap the hardcoded ₪ in labels/flashes/JS for the
@@ -602,7 +615,9 @@ def inject_translations():
         'portfolio_list': g.portfolio_list,
         'currency': currency,
         'currency_symbol': symbol,
+        'number_locale': _loc(currency, lang),
         'is_agorot': _is_ag(currency),
+        'market_session': today_session,
     }
 
 
@@ -2054,6 +2069,57 @@ def admin_refresh_status():
     """Return current TASE refresh status as JSON (for polling)."""
     with _tase_lock:
         return jsonify(dict(_tase_status))
+
+
+# ── Background daily-history backfill state ───────────────────────────────────
+_backfill_lock = threading.Lock()
+_backfill_status: dict = {'running': False, 'done': True, 'result': None, 'error': None}
+
+
+def _backfill_worker(pid):
+    """Rebuild dense daily history for a manual/non-TASE portfolio (background)."""
+    from app.connection import set_active_portfolio
+    set_active_portfolio(pid)  # bind this thread to the triggering portfolio
+    from app.backfill import rebuild_daily_history
+    with _backfill_lock:
+        _backfill_status.update({'running': True, 'done': False, 'result': None, 'error': None})
+    try:
+        result = rebuild_daily_history()
+        with _backfill_lock:
+            _backfill_status.update({'running': False, 'done': True, 'result': result, 'error': None})
+    except Exception as e:
+        app.logger.exception('daily-history backfill failed')
+        with _backfill_lock:
+            _backfill_status.update({'running': False, 'done': True, 'result': None,
+                                     'error': type(e).__name__})
+
+
+@app.route('/maintenance/rebuild-history', methods=['POST'])
+def maintenance_rebuild_history():
+    """Kick off a background rebuild of the active portfolio's daily history."""
+    lang = _get_lang()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    with _backfill_lock:
+        if _backfill_status.get('running'):
+            if is_ajax:
+                return jsonify({'started': False, 'reason': 'already_running'})
+            flash(_t('rebuild_history_running', lang), 'info')
+            return redirect(url_for('maintenance'))
+    from app.connection import current_portfolio_id
+    thread = threading.Thread(target=_backfill_worker, args=(current_portfolio_id(),),
+                              daemon=True, name='backfill-history')
+    thread.start()
+    if is_ajax:
+        return jsonify({'started': True})
+    flash(_t('rebuild_history_running', lang), 'info')
+    return redirect(url_for('maintenance'))
+
+
+@app.route('/maintenance/rebuild-history-status')
+def maintenance_rebuild_history_status():
+    """Return current backfill status as JSON (for polling)."""
+    with _backfill_lock:
+        return jsonify(dict(_backfill_status))
 
 
 @app.route('/accessibility')

@@ -34,6 +34,10 @@ services:
       - SESSION_LIFETIME_HOURS=${SESSION_LIFETIME_HOURS:-12}
       - TRUST_PROXY=${TRUST_PROXY:-true}
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
+      # Daily-close scheduler for manual/US portfolios (writes a regular-close
+      # snapshot after the US close each weekday) + startup gap-fill. Safe with a
+      # single gunicorn worker; enabling >1 worker would need a single-owner guard.
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-true}
     volumes:
       # Persistent database — survives container restarts and upgrades
       - tradevault_db:/data/db

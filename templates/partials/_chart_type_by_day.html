@@ -79,7 +79,7 @@
                                 var v = ctx.parsed.y;
                                 return ctx.dataset.label + ': ' + (activeUnit === 'pct'
                                     ? v.toFixed(1) + '%'
-                                    : '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}));
+                                    : '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0}));
                             }
                         }
                     }
@@ -97,7 +97,7 @@
                             callback: function(v) {
                                 return activeUnit === 'pct'
                                     ? v.toFixed(2) + '%'
-                                    : '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
                             }
                         },
                         grid: { color: css('--bg-tertiary') },
@@ -123,7 +123,7 @@
                                 });
                                 var otherLbl = activeUnit === 'ils'
                                     ? maxOther.toFixed(2) + '%'
-                                    : '{{ currency_symbol }}' + maxOther.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + maxOther.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
                                 var otherW = s.ctx.measureText(otherLbl).width;
                                 yMinWidth = Math.ceil(Math.max(curW, otherW)) + 16;
                             }

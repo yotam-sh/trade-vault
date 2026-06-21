@@ -46,12 +46,12 @@
 
     function fmtValue(v) {
         if (activeUnit === 'pct') return v.toFixed(2) + '%';
-        return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+        return '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
     }
 
     function fmtTick(v) {
         if (activeUnit === 'pct') return v.toFixed(1) + '%';
-        return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0});
+        return '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
     }
 
     function getDailyData(data, unit) {
@@ -106,7 +106,7 @@
                                 }).concat([0]));
                                 var otherLbl = activeUnit === 'ils'
                                     ? maxOther.toFixed(1) + '%'
-                                    : '{{ currency_symbol }}' + maxOther.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                    : '{{ currency_symbol }}' + maxOther.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
                                 var otherW = s.ctx.measureText(otherLbl).width;
                                 yMinWidth = Math.ceil(Math.max(curW, otherW)) + 16;
                             }

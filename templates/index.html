@@ -176,7 +176,10 @@
         {% if portfolio %}
         <div class="dashboard-grid">
             <div class="stat-card">
-                <div class="stat-label">{{ t.stat_total_value }}</div>
+                <div class="stat-label">{{ t.stat_total_value }}
+                    {% set _sess_lbl = t.session_post if market_session == 'post' else (t.session_pre if market_session == 'pre' else None) %}
+                    {% if _sess_lbl %}<span role="status" aria-label="{{ _sess_lbl }}" style="font-size:0.7rem;padding:1px 6px;border-radius:8px;background:var(--bg-tertiary);color:var(--text-secondary);margin-inline-start:6px;">⏰ {{ _sess_lbl }}</span>{% endif %}
+                </div>
                 <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.total_value) }}</div>
             </div>
             <div class="stat-card">

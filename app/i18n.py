@@ -386,6 +386,17 @@ TRANSLATIONS = {
     'trade_added':          {'he': 'העסקה נרשמה', 'en': 'Trade recorded'},
     'prices_refreshed':     {'he': 'המחירים עודכנו: {positions} פוזיציות ({priced} חיות, {stale} מטמון)',
                              'en': 'Prices refreshed: {positions} positions ({priced} live, {stale} cached)'},
+    # Daily-history backfill (Maintenance)
+    'btn_rebuild_history':   {'he': 'בנה היסטוריה יומית', 'en': 'Rebuild daily history'},
+    'rebuild_history_running': {'he': 'בונה היסטוריה יומית…', 'en': 'Rebuilding daily history…'},
+    'rebuild_history_done':  {'he': 'ההיסטוריה נבנתה: {holdings} ניירות, {dates} ימים',
+                              'en': 'Daily history rebuilt: {holdings} holdings, {dates} days'},
+    'rebuild_history_skipped_daily_file': {
+        'he': 'מדלג: לתיק זה יש ייבוא קבצים יומיים', 'en': 'Skipped: this portfolio is fed by daily-file imports'},
+    # Extended-hours session labels
+    'session_pre':           {'he': 'טרום-מסחר', 'en': 'Pre-market'},
+    'session_regular':       {'he': 'מסחר רגיל', 'en': 'Regular'},
+    'session_post':          {'he': 'אחרי-מסחר', 'en': 'After-hours'},
     'label_security_name':  {'he': 'שם', 'en': 'Name'},
     'label_ticker_yf':      {'he': 'סימול (Yahoo)', 'en': 'Ticker (Yahoo)'},
     'label_security_type':  {'he': 'סוג נייר', 'en': 'Security type'},

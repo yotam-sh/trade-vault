@@ -30,6 +30,19 @@ SUPPORTED = [
 
 DEFAULT_CURRENCY = 'ILS'
 
+# Numeric formatting locale per currency (thousands/decimal separators). Charts
+# format money with this so a USD/EUR book isn't forced into Hebrew formatting.
+_NUMBER_LOCALES = {
+    'ILS': 'he-IL',
+    'USD': 'en-US',
+    'EUR': 'de-DE',
+    'GBP': 'en-GB',
+    'JPY': 'ja-JP',
+    'CHF': 'de-CH',
+    'CAD': 'en-CA',
+    'AUD': 'en-AU',
+}
+
 
 def normalize_currency(code):
     """Normalize a currency code to a 3-letter uppercase string (default ILS)."""
@@ -40,6 +53,18 @@ def normalize_currency(code):
 def currency_symbol(code):
     """Display symbol for a currency code; falls back to the code itself."""
     return _SYMBOLS.get(normalize_currency(code), normalize_currency(code))
+
+
+def number_locale(code, lang=None):
+    """BCP-47 locale for formatting numbers in this currency.
+
+    Falls back to the UI language (``he``→``he-IL``, else ``en-US``) for currencies
+    without an explicit mapping, so charts format thousands/decimals sensibly.
+    """
+    cur = normalize_currency(code)
+    if cur in _NUMBER_LOCALES:
+        return _NUMBER_LOCALES[cur]
+    return 'he-IL' if (lang or '') == 'he' else 'en-US'
 
 
 def is_agorot(code):

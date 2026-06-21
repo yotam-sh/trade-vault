@@ -57,7 +57,7 @@
                             label: function(ctx) {
                                 var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
                                 var pct = total ? (ctx.parsed / total * 100).toFixed(1) : 0;
-                                return ctx.label + ': {{ currency_symbol }}' + ctx.parsed.toLocaleString('he-IL', {maximumFractionDigits: 0}) + ' (' + pct + '%)';
+                                return ctx.label + ': {{ currency_symbol }}' + ctx.parsed.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0}) + ' (' + pct + '%)';
                             }
                         }
                     },

@@ -10,6 +10,7 @@ yfinance>=0.2.50,<1.0
 deep-translator>=1.11,<2.0
 gunicorn>=22.0,<24.0
 holidays>=0.93
+APScheduler>=3.10,<4.0
 python-dotenv>=1.2.2
 pyotp>=2.9,<3.0
 qrcode>=7.4,<9.0

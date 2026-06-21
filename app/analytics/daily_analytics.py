@@ -103,8 +103,9 @@ def get_daily_details(start_date=None, end_date=None):
     else:
         records = table.all()
 
-    # Filter out sold positions (qty=0)
-    records = [rec for rec in records if rec.get('quantity', 0) > 0]
+    # Filter out sold positions (qty=0) and extended-hours rows (regular close only)
+    records = [rec for rec in records
+               if rec.get('quantity', 0) > 0 and rec.get('session', 'regular') == 'regular']
 
     # Filter out non-trading days (weekends and Israeli public holidays)
     records = [rec for rec in records if not is_non_trading_day(rec.get('date', ''))]

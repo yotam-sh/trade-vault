@@ -352,6 +352,8 @@ def fetch_rich_info_from_yfinance(yfinance_symbol):
 
         # ── Company metadata via info (may be empty for some TASE tickers) ──
         name = sector = industry = description = dividend_yield = price_change_pct = None
+        # Extended-hours session prices + market state (Phase 4). None off-session.
+        pre_price = regular_price = post_price = market_state = None
         symbol = yfinance_symbol
         try:
             info = ticker.info
@@ -365,6 +367,10 @@ def fetch_rich_info_from_yfinance(yfinance_symbol):
             description      = info.get('longBusinessSummary')
             dividend_yield   = info.get('dividendYield')
             price_change_pct = info.get('regularMarketChangePercent')
+            pre_price        = info.get('preMarketPrice')
+            regular_price    = info.get('regularMarketPrice')
+            post_price       = info.get('postMarketPrice')
+            market_state     = info.get('marketState')  # PRE | REGULAR | POST | POSTPOST | CLOSED
             # Prefer info price/range when fast_info didn't return them
             if current_price is None:
                 current_price = info.get('currentPrice') or info.get('regularMarketPrice')
@@ -394,6 +400,10 @@ def fetch_rich_info_from_yfinance(yfinance_symbol):
             'dividend_yield': dividend_yield,
             'current_price': current_price,
             'price_change_pct': price_change_pct,
+            'pre_price': pre_price,
+            'regular_price': regular_price,
+            'post_price': post_price,
+            'market_state': market_state,
             'info_fetched_at': date.today().isoformat(),
         }
     except Exception as e:

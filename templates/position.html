@@ -436,10 +436,10 @@
         {% endif %}
 
         <!-- ── Price Chart ───────────────────────────────────────────────────── -->
-        {% if data.yfinance_symbol %}
+        {% if data.yfinance_symbol or data.daily_prices %}
         <div class="card" style="margin-bottom: 1rem;">
             <div class="card-header">{{ t.position_price_chart }}</div>
-            {% if data.price_history %}
+            {% if data.daily_prices or data.price_history %}
             <!-- Range toggle buttons -->
             <div class="range-toggle" id="rangeToggle">
                 <button class="range-btn" data-range="1w" aria-pressed="false">{{ t.chart_range_1w }}</button>
@@ -610,8 +610,13 @@
     <script>
     (function() {
         // ── Embedded data from Python ──────────────────────────────────────
-        var priceHistory = {{ data.price_history | tojson }};
         var dailyPrices  = {{ data.daily_prices  | tojson }};
+        // Plot OUR tracked daily closes (same scale used everywhere else, no
+        // Yahoo split-adjustment artifacts). Fall back to Yahoo history only when
+        // we have no daily_prices yet (e.g. a brand-new holding).
+        var priceHistory = (dailyPrices && dailyPrices.length)
+            ? dailyPrices.map(function(r) { return {date: r.date, close: r.price}; })
+            : {{ data.price_history | tojson }};
         var trades       = {{ data.trades        | tojson }};
         var firstBought  = {{ data.holding.first_bought | tojson }};
         var lastSold     = {{ data.holding.last_sold | tojson }};
@@ -627,7 +632,7 @@
         }
 
         // ── Price Chart ────────────────────────────────────────────────────
-        {% if data.price_history %}
+        {% if data.daily_prices or data.price_history %}
         var priceChart = null;
         var activeRange = 'since_buy';
 
@@ -763,14 +768,14 @@
                                 label: function(ctx) {
                                     if (ctx.raw === null) return null;
                                     var val = typeof ctx.raw === 'object' ? ctx.raw.y : ctx.raw;
-                                    return ctx.dataset.label + ': ' + Number(val).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                    return ctx.dataset.label + ': ' + Number(val).toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 });
                                 }
                             }
                         }
                     },
                     scales: {
                         x: { ticks: { color: css('--text-secondary'), maxTicksLimit: 8 }, grid: { color: css('--border') } },
-                        y: { ticks: { color: css('--text-secondary'), callback: function(value) { return value.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } }, grid: { color: css('--border') } },
+                        y: { ticks: { color: css('--text-secondary'), callback: function(value) { return value.toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 }); } }, grid: { color: css('--border') } },
                     }
                 }
             });

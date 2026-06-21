@@ -273,6 +273,34 @@ def migrate_shared_yfinance_to_portfolios():
     set_shared_setting('yfinance_migrated_to_portfolio', True)
 
 
+def migrate_daily_price_sessions():
+    """One-time: stamp ``session='regular'`` on pre-existing daily_prices rows.
+
+    Extended-hours support adds a ``session`` field ({'pre','regular','post'}) to
+    daily_prices, dedup-keyed by (holding_id, date, session). Rows written before
+    this feature have no ``session`` field; readers already treat a missing field
+    as 'regular' (back-compat), so this migration is for data cleanliness only.
+    Runs per portfolio, idempotent (guarded by a per-portfolio settings flag).
+    """
+    from app.connection import using_portfolio, get_table, flush_db, DAILY_PRICES
+    from app.settings import get_setting, set_setting
+    from app import portfolios
+
+    for entry in portfolios.list_portfolios():
+        with using_portfolio(entry['id']):
+            if get_setting('daily_price_sessions_migrated'):
+                continue
+            dp_table = get_table(DAILY_PRICES)
+            stamped = 0
+            for rec in dp_table.all():
+                if 'session' not in rec:
+                    dp_table.update({'session': 'regular'}, doc_ids=[rec.doc_id])
+                    stamped += 1
+            set_setting('daily_price_sessions_migrated', True)
+            if stamped:
+                flush_db()
+
+
 def import_db(source_path):
     """Validate, replace, and migrate the database. Raises ValueError on bad input."""
     ok, msg = validate_backup(source_path)

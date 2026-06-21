@@ -452,7 +452,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('he-IL', {maximumFractionDigits: 0});
+                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0});
                             }
                         }
                     },
@@ -481,7 +481,7 @@
                     y: {
                         ticks: {
                             color: css('--text-secondary'),
-                            callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('he-IL', {maximumFractionDigits: 0}); }
+                            callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', {maximumFractionDigits: 0}); }
                         },
                         grid: { color: css('--bg-tertiary') }
                     }
@@ -1267,7 +1267,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                return ctx.dataset.label + ': {{ currency_symbol }}' + ctx.parsed.y.toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 });
                             }
                         }
                     },
@@ -1288,7 +1288,7 @@
                     x: { stacked: true, ticks: { color: css('--text-secondary'), maxTicksLimit: 12, maxRotation: 0 }, grid: { color: css('--bg-tertiary') } },
                     y: {
                         stacked: true,
-                        ticks: { color: css('--text-secondary'), callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 }); } },
+                        ticks: { color: css('--text-secondary'), callback: function(v) { return '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 }); } },
                         grid: { color: css('--bg-tertiary') }
                     }
                 }
@@ -1359,7 +1359,7 @@
                             },
                             label: function(ctx) {
                                 if (topActiveMode === 'ils') {
-                                    return '{{ currency_symbol }}' + ctx.parsed.x.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+                                    return '{{ currency_symbol }}' + ctx.parsed.x.toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 });
                                 } else {
                                     return ctx.parsed.x.toFixed(2) + '%';
                                 }
@@ -1373,7 +1373,7 @@
                             color: css('--text-secondary'),
                             callback: function(v) {
                                 return topActiveMode === 'ils'
-                                    ? '{{ currency_symbol }}' + v.toLocaleString('he-IL', { maximumFractionDigits: 0 })
+                                    ? '{{ currency_symbol }}' + v.toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 })
                                     : v.toFixed(1) + '%';
                             }
                         },

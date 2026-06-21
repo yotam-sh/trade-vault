@@ -69,7 +69,8 @@ def get_trade_history(start_date=None, end_date=None):
             first_txn_date[hid] = txn['date']
 
     for hid, earliest in first_txn_date.items():
-        pre_records = dp_table.search((DQ.holding_id == hid) & (DQ.date < earliest))
+        pre_records = [r for r in dp_table.search((DQ.holding_id == hid) & (DQ.date < earliest))
+                       if r.get('session', 'regular') == 'regular']  # regular close only
         if pre_records:
             latest_pre = sorted(pre_records, key=lambda p: p['date'])[-1]
             qty = latest_pre.get('quantity', 0)

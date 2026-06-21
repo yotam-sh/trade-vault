@@ -123,7 +123,8 @@ def get_position_data(holding_id):
     # ── Daily prices for this holding (our own import data) ──────────────────
     dp_table = get_table(DAILY_PRICES)
     DP = Query()
-    dp_records = dp_table.search(DP.holding_id == holding_id)
+    dp_records = [r for r in dp_table.search(DP.holding_id == holding_id)
+                  if r.get('session', 'regular') == 'regular']  # regular close only
     daily_prices = sorted(dp_records, key=lambda r: r['date'])
 
     # ── Open FIFO tax lots ────────────────────────────────────────────────────
