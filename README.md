@@ -2,7 +2,7 @@
 
 Self-hosted, web-based portfolio tracker. Originally built for IBI brokerage (Tel Aviv Stock Exchange) with full Hebrew/RTL support, it now tracks **multiple isolated portfolios** in **multiple currencies** (e.g. an ILS TASE portfolio and a USD US-stocks portfolio side by side), with FIFO tax-lot accounting, daily P&L analytics, and benchmark comparison.
 
-TradeVault is **web-only** — everything is driven from the browser UI (the old command-line interface was retired). The interface is the **Comet** design system: a four-section app (Overview · Analytics · Holdings · Activity) with a Quick-Add drawer, a position deep-dive drawer, light/themeable styling, and a Hebrew/English toggle.
+TradeVault is **web-only** — everything is driven from the browser UI (the old command-line interface was retired). The interface is a four-section app (Overview · Analytics · Holdings · Activity) with a Quick-Add drawer, a position deep-dive drawer, themeable styling, and a Hebrew/English toggle.
 
 Created with Claude Code.
 
@@ -46,7 +46,7 @@ Created with Claude Code.
 
 ### Platform
 - **Bilingual UI** — full Hebrew/English switching (cookie-persisted). UI chrome switches; stock data stays in its original language. RTL/LTR layout flips automatically.
-- **Themeable** — the Comet design system uses CSS variables; charts re-render instantly on theme change.
+- **Themeable** — the UI uses CSS variables; charts re-render instantly on theme change.
 - **IS 5568 / WCAG 2.1 AA accessibility** — keyboard navigation, skip link, ARIA landmarks/roles/live regions, visible focus, screen-reader announcements, and a dedicated `/accessibility` statement (Hebrew + English).
 - **Per-session login (TOTP)** — optional time-based one-time-password gate; secret stored in a sidecar file outside the database.
 - **Schema versioning & auto-migration** — the DB self-migrates on startup and after import/restore.
@@ -211,7 +211,7 @@ TradeVault/
 │       ├── trading_calendar.py      # Israeli holiday calendar (is_non_trading_day)
 │       └── translation_service.py   # Yahoo Finance / translation integration
 ├── templates/
-│   ├── base.html           # Comet shell: top nav, drawers (position + Quick-Add), mobile nav
+│   ├── base.html           # App shell: top nav, drawers (position + Quick-Add), mobile nav
 │   ├── index.html          # Overview
 │   ├── analytics.html      # Analytics
 │   ├── holdings.html       # Holdings (open + closed, grouped by type)
@@ -227,7 +227,7 @@ TradeVault/
 │   ├── login.html          # TOTP login gate
 │   └── partials/           # Shared chart/card partials
 ├── static/
-│   ├── comet.css           # Comet design system (themeable CSS variables, RTL/LTR)
+│   ├── comet.css           # App styling: themeable CSS variables, RTL/LTR
 │   └── comet.js            # Sortable tables, search, chips, drawers, Quick-Add
 ├── asset/                  # Brand SVGs served via /asset/<name>
 │   ├── tradevault-mark.svg
@@ -244,7 +244,7 @@ TradeVault/
     └── trades/             # Individual trade files (DDMMYYYY.xlsx)
 ```
 
-> Some legacy templates/assets from the pre-Comet UI (`graphs.html`, `transactions.html`, `style.css`, `app.js`) may still be present for backward compatibility but are not part of the active four-section UI.
+> Some legacy templates/assets from the previous UI (`graphs.html`, `transactions.html`, `style.css`, `app.js`) may still be present for backward compatibility but are not part of the active four-section UI.
 
 ## Data Flow
 
@@ -280,7 +280,7 @@ Brokerage exports (IBI .xlsx / US .csv)  +  Quick-Add (web)
 └──────────────────┘
        │
        ▼
-   Flask views (Comet templates)
+   Flask views (Jinja templates)
 ```
 
 **Note:** The implementation uses a modular architecture; `excel_importer.py` and `queries.py` are facades that delegate to the specialized `app/importers/` and `app/analytics/` modules.
@@ -362,7 +362,7 @@ Use TrueNAS → Apps → Custom App, or SSH into the server and run `docker comp
 
 ## Technical Notes
 
-- **Comet design system**: The UI is built on `static/comet.css` (themeable CSS custom properties, RTL/LTR-aware) and `static/comet.js` (group-aware sortable tables, table search, filter chips, the position and Quick-Add drawers). Icons are inline lucide SVGs via the `tv_icon(name, size)` Jinja global from `app/icons.py`.
+- **UI layer**: The UI is built on `static/comet.css` (themeable CSS custom properties, RTL/LTR-aware) and `static/comet.js` (group-aware sortable tables, table search, filter chips, the position and Quick-Add drawers). Icons are inline lucide SVGs via the `tv_icon(name, size)` Jinja global from `app/icons.py`.
 - **Multi-portfolio routing**: `app/connection.py` resolves the active portfolio (session-scoped) to its TinyDB file; `app/portfolios.py` manages the registry and per-portfolio currency. Market-data tables (price cache, TASE map, benchmark cache) are shared; all account data is per-portfolio.
 - **Group-aware sorting**: `comet.js` `wireSortable` partitions a table's rows into segments delimited by `.tv-group-row` markers and sorts each segment's data rows independently, so grouped Holdings tables sort *within* each security-type group while the group headers stay in place. Flat (ungrouped) tables are a single segment.
 - **Activity price editing**: The Activity timeline reuses the existing `update_transaction_price` / `delete_transaction` endpoints (`/api/transactions/<id>/update-price` and `/delete`). Editing a price recomputes the total, replays FIFO lots, and repairs cash via `recompute_after_trade_change`; editing an interpolated price promotes its `source` to manual.
