@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}TradeVault{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('asset', filename='tradevault-favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('asset', filename='tradevault-app-icon.svg') }}">
+    <link rel="stylesheet" href="/static/comet.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script>var T = {{ t_json|safe }};</script>
+    {% block head %}{% endblock %}
+</head>
+<body data-currency="{{ currency_symbol }}">
+    <a href="#tv-main" class="tv-skip-link">{% if lang == 'he' %}דלג לתוכן{% else %}Skip to content{% endif %}</a>
+
+    {# ---- Section nav model: maps the 4 redesigned sections to routes ---- #}
+    {% set _p = request.path %}
+    {% set sections = [
+        ('overview', t.nav_home,            url_for('index'),            'layout-dashboard', _p == '/'),
+        ('analytics', t.nav_analytics if t.nav_analytics else t.nav_graphs, url_for('analytics_view'), 'chart-line', _p.startswith('/analytics') or _p.startswith('/graphs')),
+        ('holdings',  t.nav_positions,      url_for('positions_view'),   'layers',           _p.startswith('/positions') or _p.startswith('/holdings')),
+        ('activity',  t.nav_activity if t.nav_activity else t.nav_transactions, url_for('activity_view'), 'arrow-left-right', _p.startswith('/activity') or _p.startswith('/transactions') or _p.startswith('/trades'))
+    ] %}
+
+    <header class="tv-topbar">
+      <div class="tv-topbar-inner">
+        <a href="{{ url_for('index') }}" class="tv-brand" aria-label="TradeVault">
+          <img src="{{ url_for('asset', filename='tradevault-mark.svg') }}" alt="" class="tv-brand-mark">
+          <span class="tv-brand-name">TradeVault</span>
+        </a>
+
+        {# ---- Portfolio switcher ---- #}
+        <div class="tv-switcher tv-hide-sm">
+          <button class="tv-switcher-btn" id="tv-switcher-btn" aria-haspopup="true" aria-expanded="false">
+            <span class="tv-switcher-dot"></span>
+            <span class="tv-switcher-name">{{ (active_portfolio or {}).get('name', 'TradeVault') }}</span>
+            {{ tv_icon('chevron-down', 14) }}
+          </button>
+          <div class="tv-menu" id="tv-switcher-menu" role="menu">
+            {% for p in portfolio_list %}
+            <form method="post" action="{{ url_for('portfolio_switch') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="portfolio_id" value="{{ p.id }}">
+              <button type="submit" class="tv-menu-item {% if active_portfolio and p.id == active_portfolio.id %}active{% endif %}" role="menuitem">
+                <span class="tv-switcher-dot" style="{% if not (active_portfolio and p.id == active_portfolio.id) %}background:var(--text-muted){% endif %}"></span>
+                <span>{{ p.name }}</span>
+                <span class="tv-switcher-val">{{ p.currency }}</span>
+              </button>
+            </form>
+            {% endfor %}
+            <div class="tv-menu-divider"></div>
+            <a href="{{ url_for('settings_portfolios') }}" class="tv-menu-item" role="menuitem">
+              {{ tv_icon('plus', 14) }} <span>{{ t.nav_portfolios }}</span>
+            </a>
+          </div>
+        </div>
+
+        {# ---- Desktop section nav ---- #}
+        <nav class="tv-desktop-nav" aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main{% endif %}">
+          {% for key, label, href, icon, is_active in sections %}
+          <a href="{{ href }}" class="tv-nav-link {% if is_active %}active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>
+            {{ tv_icon(icon, 16) }} <span>{{ label }}</span>
+          </a>
+          {% endfor %}
+        </nav>
+
+        <div class="tv-spacer"></div>
+
+        {# ---- Actions ---- #}
+        <div class="tv-actions">
+          <form method="post" action="{{ url_for('portfolio_refresh_prices') }}" class="tv-hide-sm" style="display:flex;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="tv-icon-btn" title="{{ t.refresh_prices_btn }}" aria-label="{{ t.refresh_prices_btn }}">{{ tv_icon('refresh-cw', 18) }}</button>
+          </form>
+          <button type="button" class="tv-btn tv-btn-glow tv-btn-sm" data-quickadd-open>{{ tv_icon('plus', 16) }} <span>{{ t.qa_add if t.qa_add else 'Add' }}</span></button>
+          <div class="tv-switcher tv-hide-sm">
+            <button class="tv-icon-btn" id="tv-settings-btn" aria-haspopup="true" aria-expanded="false" title="{{ t.settings }}" aria-label="{{ t.settings }}">{{ tv_icon('settings', 18) }}</button>
+            <div class="tv-menu tv-settings-menu" id="tv-settings-menu" role="menu">
+              <div class="tv-menu-label">{{ t.settings_language }}</div>
+              <div class="tv-lang-row">
+                <button class="tv-btn tv-btn-sm {{ 'tv-btn-primary' if lang == 'he' else 'tv-btn-secondary' }}" data-lang="he">עברית</button>
+                <button class="tv-btn tv-btn-sm {{ 'tv-btn-primary' if lang == 'en' else 'tv-btn-secondary' }}" data-lang="en">English</button>
+              </div>
+              <div class="tv-menu-divider"></div>
+              <div class="tv-menu-label">{{ t.settings_pages }}</div>
+              <a href="{{ url_for('daily_summary_view') }}" class="tv-menu-item" role="menuitem">{{ t.nav_daily_summary }}</a>
+              <a href="{{ url_for('daily_details_view') }}" class="tv-menu-item" role="menuitem">{{ t.nav_daily_details }}</a>
+              <a href="{{ url_for('settings_portfolios') }}" class="tv-menu-item" role="menuitem">{{ t.nav_portfolios }}</a>
+              <a href="{{ url_for('settings_display') }}" class="tv-menu-item" role="menuitem">{{ t.nav_display_settings }}</a>
+              <a href="{{ url_for('exports_view') }}" class="tv-menu-item" role="menuitem">{{ t.nav_exports }}</a>
+              <a href="{{ url_for('accessibility_view') }}" class="tv-menu-item" role="menuitem">{{ t.nav_accessibility }}</a>
+              <a href="{{ url_for('maintenance') }}" class="tv-menu-item" role="menuitem">{{ t.nav_maintenance }}</a>
+              <a href="{{ url_for('admin') }}" class="tv-menu-item" role="menuitem">{{ t.nav_admin }}</a>
+              <div class="tv-menu-divider"></div>
+              <div class="tv-menu-label" style="text-align:center;">v{{ app_version }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="tv-main" id="tv-main">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+          <div class="tv-flash tv-flash-{{ category }}" role="alert">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    {# ---- Mobile bottom nav ---- #}
+    <nav class="tv-mobile-nav" aria-label="{% if lang == 'he' %}ניווט{% else %}Sections{% endif %}">
+      {% for key, label, href, icon, is_active in sections %}
+      <a href="{{ href }}" class="{% if is_active %}active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>
+        {{ tv_icon(icon, 19) }} <span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    {# ---- Position deep-dive drawer (populated by comet.js) ---- #}
+    <div class="tv-scrim" id="tv-scrim" data-drawer-close></div>
+    <aside class="tv-drawer" id="tv-position-drawer" role="dialog" aria-modal="true" aria-labelledby="tv-pd-name" hidden>
+      <div class="tv-drawer-head">
+        <span class="tv-drawer-tile">{{ tv_icon('trending-up', 18) }}</span>
+        <div>
+          <div class="tv-drawer-title" id="tv-pd-name">—</div>
+          <div class="tv-drawer-sub" id="tv-pd-sub"></div>
+        </div>
+        <button class="tv-icon-btn tv-drawer-close" data-drawer-close aria-label="{{ t.btn_close if t.btn_close else 'Close' }}">{{ tv_icon('x', 18) }}</button>
+      </div>
+      <div class="tv-drawer-body">
+        <div>
+          <div class="tv-overline">{{ t.stat_total_value }}</div>
+          <div class="tv-hero-row" style="gap:10px; margin-top:4px;">
+            <span class="tv-num" id="tv-pd-value" style="font-size:var(--fs-3xl); font-weight:var(--fw-bold);">—</span>
+            <span class="tv-num" id="tv-pd-pnl"></span>
+          </div>
+        </div>
+        <div class="tv-inset"><div style="height:120px;"><canvas id="tv-pd-chart"></canvas></div></div>
+        <div class="tv-stat-grid" id="tv-pd-stats"></div>
+        <div>
+          <div class="tv-overline" style="margin-bottom:8px;">{{ t.lots_title if t.lots_title else 'Lots' }}</div>
+          <div id="tv-pd-lots"></div>
+        </div>
+        <a id="tv-pd-link" href="#" class="tv-btn tv-btn-secondary" style="justify-content:center;">{{ t.btn_view_all if t.btn_view_all else t.nav_positions }} {{ tv_icon('arrow-right', 14) }}</a>
+      </div>
+    </aside>
+
+    {# ---- Quick-Add drawer ---- #}
+    <aside class="tv-drawer" id="tv-quickadd-drawer" role="dialog" aria-modal="true" aria-label="{{ t.qa_title if t.qa_title else 'Quick add' }}" hidden>
+      <div class="tv-drawer-head">
+        <span class="tv-drawer-tile">{{ tv_icon('plus', 18) }}</span>
+        <div>
+          <div class="tv-drawer-title">{{ t.qa_title if t.qa_title else 'Quick add' }}</div>
+          <div class="tv-drawer-sub">{{ (active_portfolio or {}).get('name','') }}</div>
+        </div>
+        <button class="tv-icon-btn tv-drawer-close" data-drawer-close aria-label="{{ t.btn_close if t.btn_close else 'Close' }}">{{ tv_icon('x', 18) }}</button>
+      </div>
+      <div class="tv-drawer-body">
+        <div id="tv-qa-form">
+          <div class="tv-seg" data-seg id="tv-qa-kind" style="width:100%; justify-content:space-between;">
+            <button data-value="buy" class="active" style="flex:1;">{{ t.qa_buy if t.qa_buy else 'Buy' }}</button>
+            <button data-value="sell" style="flex:1;">{{ t.qa_sell if t.qa_sell else 'Sell' }}</button>
+            <button data-value="deposit" style="flex:1;">{{ t.qa_deposit if t.qa_deposit else 'Deposit' }}</button>
+            <button data-value="withdraw" style="flex:1;">{{ t.qa_withdraw if t.qa_withdraw else 'Withdraw' }}</button>
+          </div>
+
+          <div id="tv-qa-trade-fields" style="margin-top:16px;">
+            <label class="tv-overline">{{ t.qa_symbol if t.qa_symbol else 'Symbol' }}</label>
+            <div class="tv-qa-ac-wrap">
+              <input type="text" class="tv-input" id="tv-qa-symbol" autocomplete="off" placeholder="{{ t.search_placeholder if t.search_placeholder else '' }}" style="margin-top:6px;">
+              <input type="hidden" id="tv-qa-holding-id">
+              <div class="tv-ac" id="tv-qa-ac"></div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;">
+              <div>
+                <label class="tv-overline">{{ t.qa_quantity if t.qa_quantity else 'Quantity' }}</label>
+                <input type="number" step="any" class="tv-input mono" id="tv-qa-qty" style="margin-top:6px;">
+              </div>
+              <div>
+                <label class="tv-overline">{{ t.qa_price if t.qa_price else 'Price' }}</label>
+                <input type="number" step="any" class="tv-input mono" id="tv-qa-price" style="margin-top:6px;">
+              </div>
+            </div>
+          </div>
+
+          <div id="tv-qa-cash-field" style="margin-top:16px; display:none;">
+            <label class="tv-overline">{{ t.qa_amount if t.qa_amount else 'Amount' }}</label>
+            <input type="number" step="any" class="tv-input mono" id="tv-qa-amount" style="margin-top:6px;">
+          </div>
+
+          <div style="margin-top:12px;">
+            <label class="tv-overline">{{ t.qa_date if t.qa_date else 'Date' }}</label>
+            <input type="date" class="tv-input mono" id="tv-qa-date" style="margin-top:6px;">
+          </div>
+
+          <div class="tv-inset" style="margin-top:16px; display:flex; align-items:center; justify-content:space-between;">
+            <span class="tv-overline" id="tv-qa-total-label">{{ t.qa_total_cost if t.qa_total_cost else 'Total cost' }}</span>
+            <span class="tv-num" id="tv-qa-total" style="font-size:var(--fs-xl); font-weight:var(--fw-bold);">{{ currency_symbol }}0.00</span>
+          </div>
+
+          <div id="tv-qa-error" class="tv-flash tv-flash-error" style="display:none; margin-top:12px;"></div>
+
+          <div style="display:flex; gap:10px; margin-top:16px;">
+            <button type="button" class="tv-btn tv-btn-secondary" data-drawer-close style="flex:1;">{{ t.qa_cancel if t.qa_cancel else 'Cancel' }}</button>
+            <button type="button" class="tv-btn tv-btn-glow" id="tv-qa-record" style="flex:1;">{{ tv_icon('check', 16) }} <span>{{ t.qa_record_buy if t.qa_record_buy else 'Record' }}</span></button>
+          </div>
+        </div>
+
+        <div id="tv-qa-success" style="display:none; text-align:center; padding:20px 0;">
+          <div style="width:56px; height:56px; border-radius:16px; background:var(--positive-soft); color:var(--positive); display:grid; place-items:center; margin:0 auto 14px;">{{ tv_icon('check', 28) }}</div>
+          <div class="tv-drawer-title">{{ t.qa_saved if t.qa_saved else 'Saved' }}</div>
+          <div class="tv-page-sub" id="tv-qa-recap" style="margin:6px 0 18px;"></div>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="tv-btn tv-btn-secondary" id="tv-qa-again" style="flex:1;">{{ t.qa_add_another if t.qa_add_another else 'Add another' }}</button>
+            <button type="button" class="tv-btn tv-btn-primary" id="tv-qa-done" style="flex:1;">{{ t.qa_done if t.qa_done else 'Done' }}</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <script src="/static/comet.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

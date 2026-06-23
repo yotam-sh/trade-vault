@@ -1,0 +1,15 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TradeVault">
+  <defs>
+    <linearGradient id="tv-violet" x1="10" y1="6" x2="90" y2="96" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bca6ff"></stop>
+      <stop offset="1" stop-color="#6f33e6"></stop>
+    </linearGradient>
+    <linearGradient id="tv-coral" x1="20" y1="92" x2="80" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffc79f"></stop>
+      <stop offset="1" stop-color="#ff8f54"></stop>
+    </linearGradient>
+  </defs>
+  <path d="M50 11 L80 23 V47 C80 66 67 80 50 89 C33 80 20 66 20 47 V23 Z" fill="rgba(139,92,246,0.12)" stroke="url(#tv-violet)" stroke-width="5" stroke-linejoin="round"></path>
+  <polyline points="32,62 43,52 53,58 69,36" fill="none" stroke="url(#tv-coral)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+  <path d="M59 36 H69 V46" fill="none" stroke="#ff9d6b" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>

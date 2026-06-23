@@ -113,3 +113,20 @@ def is_us_non_trading_day(date_str):
     dt = datetime.strptime(date_str, '%Y-%m-%d').date()
     cal = _nyse(dt.year)
     return bool(cal) and dt in cal
+
+
+def active_non_trading_day_fn():
+    """Return the non-trading-day predicate for the active portfolio's market.
+
+    TASE (``is_non_trading_day``) for an ILS book, NYSE (``is_us_non_trading_day``)
+    otherwise. Falls back to TASE if the portfolio/currency can't be resolved. Use this
+    so per-day views mute the right market's weekends/holidays (e.g. a US book trades
+    Mon–Fri and is closed on NYSE holidays like Juneteenth, not Israeli ones).
+    """
+    try:
+        from app.connection import current_portfolio_id
+        from app import portfolios
+        cur = (portfolios.get_currency(current_portfolio_id()) or 'ILS').upper()
+    except Exception:
+        cur = 'ILS'
+    return is_non_trading_day if cur == 'ILS' else is_us_non_trading_day

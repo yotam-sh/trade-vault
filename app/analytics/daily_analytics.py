@@ -9,7 +9,7 @@ from collections import defaultdict
 from app.holdings import get_holding
 from app.snapshots import list_snapshots, get_latest_snapshot
 from app.transactions import list_transactions, get_total_deposits, get_total_withdrawals
-from app.utils.trading_calendar import is_non_trading_day
+from app.utils.trading_calendar import active_non_trading_day_fn
 
 
 def get_daily_summary(start_date=None, end_date=None):
@@ -21,6 +21,11 @@ def get_daily_summary(start_date=None, end_date=None):
     from app.analytics.series import daily_changes
 
     filtered = list_snapshots(start_date, end_date)
+    # Drop non-trading days for the active portfolio's market (TASE for ILS, NYSE for a
+    # US book). A manual refresh on a Saturday can write a snapshot for that day; it
+    # should not appear as a daily-summary row (mirrors get_daily_details).
+    not_trading = active_non_trading_day_fn()
+    filtered = [s for s in filtered if not not_trading(s.get('date', ''))]
     # Canonical daily change (morning value + change %) shared with all other views.
     changes = daily_changes()
 
@@ -107,8 +112,10 @@ def get_daily_details(start_date=None, end_date=None):
     records = [rec for rec in records
                if rec.get('quantity', 0) > 0 and rec.get('session', 'regular') == 'regular']
 
-    # Filter out non-trading days (weekends and Israeli public holidays)
-    records = [rec for rec in records if not is_non_trading_day(rec.get('date', ''))]
+    # Filter out non-trading days for the active portfolio's market (TASE weekends/holidays
+    # for an ILS book, NYSE for a US book).
+    not_trading = active_non_trading_day_fn()
+    records = [rec for rec in records if not not_trading(rec.get('date', ''))]
 
     # Use centralized enrichment for holding data
     enriched = enrich_positions_batch(records, holding_id_key='holding_id')

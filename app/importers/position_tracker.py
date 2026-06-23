@@ -197,7 +197,9 @@ def interpolate_position_changes(data_date, today_prices, import_id=None):
             interp_buys += 1
 
         else:
-            # Reduced position — partial sell
+            # Reduced position — partial sell, or a full exit (today_qty == 0 while the
+            # holding is still listed in the file at zero, so it lands here rather than
+            # in gone_ids).
             if has_nearby_trade(hid, data_date, 'sell'):
                 continue
             holding = get_holding(hid)
@@ -207,7 +209,17 @@ def interpolate_position_changes(data_date, today_prices, import_id=None):
             ticker = holding.get('ticker') or p.get('ticker', '')
             shares_sold = abs(delta)
             _qty = p.get('quantity', 0)
+            # Price from today's row when shares remain; on a full exit today's row is
+            # qty 0 (no usable price), so fall back to the previous day's price. Derive
+            # it from market_value/quantity (ILS per share) to match the lots' cost
+            # basis — the raw `price` field is the quote (agorot for TASE) and would be
+            # the wrong unit for sell_fifo. Without this fallback a full exit yields
+            # price 0 and the sell (and lot close) is silently skipped.
             price = p.get('market_value', 0) / _qty if _qty > 0 else 0
+            if price <= 0:
+                prev = prev_map[hid]
+                prev_qty = prev.get('quantity', 0)
+                price = prev.get('market_value', 0) / prev_qty if prev_qty > 0 else 0
             if price <= 0:
                 continue
             try:
@@ -225,7 +237,10 @@ def interpolate_position_changes(data_date, today_prices, import_id=None):
                 source='interpolated',
                 import_id=import_id,
             )
-            # No deactivate_holding — holding still exists with reduced quantity
+            # A full exit (today qty 0, or no open lots left) deactivates the holding —
+            # mirroring the gone_ids close path. A still-held reduced position stays active.
+            if today_qty <= 0 or not get_open_lots(ticker):
+                deactivate_holding(hid, last_sold=data_date)
             interp_sells += 1
 
     return interp_buys, interp_sells

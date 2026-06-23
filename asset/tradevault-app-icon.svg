@@ -1,0 +1,22 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TradeVault app icon">
+  <defs>
+    <linearGradient id="ai-bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2a2140"></stop>
+      <stop offset="1" stop-color="#15111d"></stop>
+    </linearGradient>
+    <linearGradient id="ai-violet" x1="34" y1="20" x2="100" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bca6ff"></stop>
+      <stop offset="1" stop-color="#6f33e6"></stop>
+    </linearGradient>
+    <linearGradient id="ai-coral" x1="40" y1="112" x2="96" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffc79f"></stop>
+      <stop offset="1" stop-color="#ff8f54"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="url(#ai-bg)" stroke="#463a5e" stroke-width="1.5"></rect>
+  <g transform="translate(14,14) scale(1.0)">
+    <path d="M50 11 L80 23 V47 C80 66 67 80 50 89 C33 80 20 66 20 47 V23 Z" fill="rgba(139,92,246,0.16)" stroke="url(#ai-violet)" stroke-width="5.5" stroke-linejoin="round"></path>
+    <polyline points="32,62 43,52 53,58 69,36" fill="none" stroke="url(#ai-coral)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M59 36 H69 V46" fill="none" stroke="#ff9d6b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+  </g>
+</svg>

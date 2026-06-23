@@ -8,6 +8,47 @@ from app.analytics.daily_analytics import get_daily_details
 from app.utils.data_enrichment import enrich_trade_with_holding, display_name_fields
 
 
+def get_activity(lang='he'):
+    """Unified, newest-first activity timeline: trades, dividends, and cash moves.
+
+    One row per transaction (excluding internal ``month_summary`` aggregates), with a
+    signed ``amount`` (outflows negative), a ``kind`` (buy/sell/dividend/deposit/
+    withdraw) and a ``group`` (buy/sell/dividend/cash) for filter chips.
+    """
+    from app.analytics.portfolio_analytics import _display_name
+
+    rows = []
+    for t in list_transactions():
+        ty = t.get('type')
+        if ty == 'month_summary':
+            continue
+        amt = t.get('total_amount', 0) or 0
+        comm = t.get('commission', 0) or 0
+        name = symbol = ''
+        if t.get('holding_id'):
+            name, symbol = _display_name(enrich_trade_with_holding(t), lang)
+        if ty == 'buy':
+            kind, group, amount = 'buy', 'buy', -(amt + comm)
+        elif ty == 'sell':
+            kind, group, amount = 'sell', 'sell', (amt - comm)
+        elif ty == 'dividend':
+            kind, group, amount = 'dividend', 'dividend', amt
+        elif ty == 'deposit':
+            kind, group, amount = 'deposit', 'cash', amt
+        elif ty == 'withdrawal':
+            kind, group, amount = 'withdraw', 'cash', -amt
+        else:
+            continue
+        rows.append({
+            'kind': kind, 'group': group, 'date': t.get('date'),
+            'name': name, 'symbol': symbol,
+            'shares': t.get('shares'), 'price': t.get('price_per_share'),
+            'amount': round(amount, 2),
+        })
+    rows.sort(key=lambda r: (r['date'] or '', r['amount']), reverse=True)
+    return rows
+
+
 def _realized_pnl_from_lots(sell_lot_details):
     """Compute realized P&L for a sell transaction.
 

@@ -1,269 +1,278 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}" dir="{{ dir }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>TradeVault</title>
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3/dist/d3-hierarchy.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
-    <script>var T = {{ t_json|safe }};</script>
-</head>
-<body>
-    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
-    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
-        <div class="nav-left">
-            {% include 'partials/_portfolio_switcher.html' %}
-            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
-                {{ t.settings }}
-            </button>
-            <div class="settings-dropdown" id="settings-dropdown">
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_language }}</div>
-                    <div class="lang-options">
-                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
-                            עברית
-                        </button>
-                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
-                            English
-                        </button>
-                    </div>
-                </div>
+{% extends 'base.html' %}
+{% set sym = currency_symbol %}
 
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_theme }}</div>
-                    <div class="theme-options">
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="default" checked>
-                            <span class="theme-name">{{ t.theme_default }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #0d1117"></span>
-                                <span class="color-sample" style="background: #161b22"></span>
-                                <span class="color-sample" style="background: #58a6ff"></span>
-                                <span class="color-sample" style="background: #3fb950"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="crimson">
-                            <span class="theme-name">{{ t.theme_crimson }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #280905"></span>
-                                <span class="color-sample" style="background: #740A03"></span>
-                                <span class="color-sample" style="background: #C3110C"></span>
-                                <span class="color-sample" style="background: #E6501B"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="teal">
-                            <span class="theme-name">{{ t.theme_teal }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #432323"></span>
-                                <span class="color-sample" style="background: #2F5755"></span>
-                                <span class="color-sample" style="background: #5A9690"></span>
-                                <span class="color-sample" style="background: #E0D9D9"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="slate">
-                            <span class="theme-name">{{ t.theme_slate }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #37353E"></span>
-                                <span class="color-sample" style="background: #44444E"></span>
-                                <span class="color-sample" style="background: #715A5A"></span>
-                                <span class="color-sample" style="background: #D3DAD9"></span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_pages }}</div>
-                    <div class="settings-links">
-                        <a href="/settings/portfolios" class="settings-link">{{ t.nav_portfolios }}</a>
-                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
-                        <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
-                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
-                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                    </div>
-                </div>
-                <div class="settings-version">v{{ app_version }}</div>
-            </div>
+{% macro money(n, dec=2) -%}
+{{ sym }}{{ '{:,.{}f}'.format(n or 0, dec) }}
+{%- endmacro %}
+
+{% macro signed_money(n, dec=2) -%}
+{{ '+' if (n or 0) >= 0 else '−' }}{{ sym }}{{ '{:,.{}f}'.format((n or 0)|abs, dec) }}
+{%- endmacro %}
+
+{% macro signed_pct(n) -%}
+{{ '+' if (n or 0) >= 0 else '−' }}{{ '{:.2f}'.format((n or 0)|abs) }}%
+{%- endmacro %}
+
+{% block content %}
+{% if not portfolio %}
+  <div class="tv-panel" style="text-align:center; padding:48px 20px;">
+    <h2 style="margin-bottom:8px;">{{ t.no_data_title if t.no_data_title else 'No data yet' }}</h2>
+    <p class="tv-page-sub">{{ t.upload_title }}</p>
+  </div>
+{% else %}
+{% set tone = 'pos' if (portfolio.daily_pnl or 0) >= 0 else 'neg' %}
+
+<div class="tv-stack">
+
+  {# ---- Hero ---------------------------------------------------------------- #}
+  <section style="text-align:center; padding:8px 0 4px;">
+    <div class="tv-overline">{{ t.stat_total_value }} · {{ (active_portfolio or {}).get('name','') }}</div>
+    <div class="tv-hero-row" style="justify-content:center; margin-top:8px;">
+      <span class="tv-hero-val">{{ money(portfolio.total_value) }}</span>
+      <span class="tv-pill {{ tone }}">
+        {{ tv_icon('trending-up' if tone=='pos' else 'trending-down', 16) }}
+        {{ signed_money(portfolio.daily_pnl) }} ({{ signed_pct(ov.daily_pct) }})
+      </span>
+    </div>
+    <div class="tv-overline" style="margin-top:6px;">
+      {{ portfolio.date }}{% if market_session %} · {{ t['session_' ~ market_session] }}{% endif %}
+    </div>
+  </section>
+
+  {# ---- Value chart --------------------------------------------------------- #}
+  <div class="tv-panel">
+    <div class="tv-panel-head">
+      <div class="tv-panel-title">{{ t.chart_portfolio_value if t.chart_portfolio_value else t.stat_total_value }}</div>
+      <div class="tv-seg" data-seg id="tv-period">
+        <button data-value="7">1W</button>
+        <button data-value="22">1M</button>
+        <button data-value="66">3M</button>
+        <button data-value="132" class="active">6M</button>
+        <button data-value="0">All</button>
+      </div>
+    </div>
+    <div class="tv-panel-body">
+      <div style="height:300px;"><canvas id="tv-value-chart"></canvas></div>
+      <div style="display:flex; gap:18px; justify-content:center; margin-top:10px; font-size:var(--fs-xs); color:var(--text-muted);">
+        <span><span style="display:inline-block;width:18px;height:3px;background:var(--accent);vertical-align:middle;border-radius:2px;"></span> {{ t.stat_total_value }}</span>
+        <span><span style="display:inline-block;width:18px;height:0;border-top:2px dashed var(--text-muted);vertical-align:middle;"></span> {{ t.stat_cost }}</span>
+      </div>
+    </div>
+  </div>
+
+  {# ---- KPI strip ----------------------------------------------------------- #}
+  <div class="tv-panel">
+    <div class="tv-panel-body">
+      <div class="tv-kpi-strip">
+        <div class="tv-kpi">
+          <div class="tv-overline">{{ t.stat_cost }}</div>
+          <div class="tv-kpi-val">{{ money(portfolio.total_cost) }}</div>
         </div>
-
-        <div class="nav-center">
-            <a href="/" class="active" aria-current="page">{{ t.nav_home }}</a>
-            <a href="/transactions">{{ t.nav_transactions }}</a>
-            <a href="/trades">{{ t.nav_trades }}</a>
-            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
-            <a href="/daily-details">{{ t.nav_daily_details }}</a>
-            <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/rebalance">{{ t.nav_rebalance }}</a>
+        <div class="tv-kpi">
+          <div class="tv-overline">{{ t.stat_cost_change }}</div>
+          <div class="tv-kpi-val {{ 'pos' if portfolio.unrealized_pnl >= 0 else 'neg' }}">{{ signed_money(portfolio.unrealized_pnl) }}</div>
+          <div class="tv-kpi-delta {{ 'pos' if portfolio.unrealized_pnl >= 0 else 'neg' }}">{{ signed_pct(portfolio.unrealized_pnl_pct) }}</div>
         </div>
-
-        <div class="nav-right">
-            <a href="/" class="brand">
-                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
-            </a>
+        <div class="tv-kpi">
+          <div class="tv-overline">{{ t.realized_ytd if t.realized_ytd else 'Realized YTD' }}</div>
+          <div class="tv-kpi-val {{ 'pos' if ov.realized_ytd >= 0 else 'neg' }}">{{ signed_money(ov.realized_ytd) }}</div>
         </div>
-    </nav>
-
-    <div class="container" id="main-content" role="main">
-        <!-- Flash messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
-
-        <!-- Upload daily file -->
-        <div class="card upload-card">
-            <div class="card-header">{{ t.upload_title }}</div>
-            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="upload-row">
-                    <label>{{ t.label_import_type }}</label>
-                    <select name="import_type" id="import-type">
-                        <option value="daily">{{ t.import_type_daily }}</option>
-                        <option value="trades">{{ t.import_type_trades }}</option>
-                        <option value="morning-balance">{{ t.import_type_morning }}</option>
-                    </select>
-                    <label>{{ t.label_file }}</label>
-                    <input type="file" name="file" id="file-input" accept=".xlsx,.xls,.csv" required hidden multiple>
-                    <button type="button" class="file-picker-btn" onclick="document.getElementById('file-input').click()">{{ t.pick_file }}</button>
-                    <span class="file-name">{{ t.no_file_selected }}</span>
-                    <label>{{ t.label_date }}</label>
-                    <input type="hidden" name="date" id="upload-date" required>
-                    <div class="calendar-picker" data-input="upload-date" data-mode="single" data-default="today">
-                        <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
-                        <div class="date-picker-dropdown">
-                            <div class="calendar-header">
-                                <button type="button" class="next-month">&#9654;</button>
-                                <span class="month-label"></span>
-                                <button type="button" class="prev-month">&#9664;</button>
-                            </div>
-                            <div class="calendar-grid">
-                                <div class="day-header">{{ t.day_sun }}</div>
-                                <div class="day-header">{{ t.day_mon }}</div>
-                                <div class="day-header">{{ t.day_tue }}</div>
-                                <div class="day-header">{{ t.day_wed }}</div>
-                                <div class="day-header">{{ t.day_thu }}</div>
-                                <div class="day-header">{{ t.day_fri }}</div>
-                                <div class="day-header">{{ t.day_sat }}</div>
-                            </div>
-                            <div class="selected-dates">{{ t.no_date_selected }}</div>
-                            <div class="date-picker-actions">
-                                <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="submit">{{ t.btn_import }}</button>
-                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--text-secondary);">
-                        <input type="checkbox" name="force" value="on"> {{ t.upload_force_label }}
-                    </label>
-                </div>
-            </form>
-            <form method="post" action="{{ url_for('portfolio_refresh_prices') }}" style="margin-top:0.6rem;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="export-btn">↻ {{ t.refresh_prices_btn }}</button>
-            </form>
+        <div class="tv-kpi">
+          <div class="tv-overline">{{ t.idle_cash if t.idle_cash else 'Idle cash' }}</div>
+          <div class="tv-kpi-val">{{ money(ov.idle_cash) }}</div>
         </div>
+      </div>
+    </div>
+  </div>
 
-        {% if portfolio %}
-        <div class="dashboard-grid">
-            <div class="stat-card">
-                <div class="stat-label">{{ t.stat_total_value }}
-                    {% set _sess_lbl = t.session_post if market_session == 'post' else (t.session_pre if market_session == 'pre' else None) %}
-                    {% if _sess_lbl %}<span role="status" aria-label="{{ _sess_lbl }}" style="font-size:0.7rem;padding:1px 6px;border-radius:8px;background:var(--bg-tertiary);color:var(--text-secondary);margin-inline-start:6px;">⏰ {{ _sess_lbl }}</span>{% endif %}
-                </div>
-                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.total_value) }}</div>
+  {# ---- Allocation | Movers ------------------------------------------------- #}
+  <div class="tv-grid-2">
+    <div class="tv-panel">
+      <div class="tv-panel-head"><div class="tv-panel-title">{{ t.chart_allocation if t.chart_allocation else 'Allocation' }}</div></div>
+      <div class="tv-panel-body">
+        <div class="tv-alloc">
+          <div style="width:150px;height:150px;flex:none;position:relative;">
+            <canvas id="tv-alloc-chart"></canvas>
+          </div>
+          <div class="tv-alloc-legend">
+            {% for a in ov.allocation %}
+            <div class="tv-alloc-row">
+              <span class="tv-alloc-chip" style="background:{{ a.color }};"></span>
+              <span>{{ a.label }}</span>
+              <span class="tv-num">{{ '{:.1f}'.format(a.weight) }}%</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">{{ t.stat_cost }}</div>
-                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.total_cost) }}</div>
-            </div>
-            <div class="stat-card {{ 'green' if portfolio.unrealized_pnl >= 0 else 'red' }}">
-                <div class="stat-label">{{ t.stat_cost_change }}</div>
-                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.unrealized_pnl) }} ({{ '{:.2f}'.format(portfolio.unrealized_pnl_pct) }}%)</div>
-            </div>
-            <div class="stat-card {{ 'green' if portfolio.daily_pnl >= 0 else 'red' }}">
-                <div class="stat-label">{{ t.stat_daily_pnl }}</div>
-                <div class="stat-value">{{ currency_symbol }}{{ '{:,.2f}'.format(portfolio.daily_pnl) }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">{{ t.stat_num_positions }}</div>
-                <div class="stat-value">{{ portfolio.num_positions }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">{{ t.stat_data_date }}</div>
-                <div class="stat-value">{{ portfolio.date }}</div>
-            </div>
+            {% endfor %}
+          </div>
         </div>
-
-        <div class="card">
-            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>{{ t.holdings_title }} <a href="/export/portfolio" class="export-btn">{{ t.btn_export }} &#8595;</a></span>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="text" class="table-search" placeholder="{{ t.search_placeholder }}" data-table="holdings-table" style="margin:0;">
-                    <button class="table-settings-btn" onclick="openDisplayPrefsModal('portfolio', this)" title="{{ t.nav_display_settings }}">&#9881;</button>
-                </div>
-            </div>
-            <div class="table-wrapper">
-                <table id="holdings-table" class="sortable">
-                    <caption class="visually-hidden">{{ t.holdings_title }}</caption>
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ t.th_name }}</th>
-                            <th scope="col">{{ t.th_symbol }}</th>
-                            <th scope="col">{{ t.th_value_ils }}</th>
-                            <th scope="col">{{ t.th_cost_ils }}</th>
-                            <th scope="col">{{ t.th_pnl_ils }}</th>
-                            <th scope="col">{{ t.th_pnl_pct }}</th>
-                            <th scope="col">{{ t.th_weight }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for pos in portfolio.positions|sort(attribute='market_value', reverse=True) %}
-                        {% if pos.quantity and pos.quantity > 0 %}
-                        <tr data-pnl="{{ pos.market_value - pos.cost_basis }}">
-                            <td><a href="/position/{{ pos.holding_id }}" class="position-link">{{ pos[display_prefs.portfolio_holdings_name] or pos.name_en or pos.name_he }}</a></td>
-                            <td>{{ pos[display_prefs.portfolio_holdings_symbol] or pos.symbol }}</td>
-                            <td class="num">{{ '{:,.2f}'.format(pos.market_value) }}</td>
-                            <td class="num">{{ '{:,.2f}'.format(pos.cost_basis) }}</td>
-                            <td class="num pnl">{{ '{:,.2f}'.format(pos.market_value - pos.cost_basis) }}</td>
-                            <td class="num pnl">{{ '{:.2f}%'.format((pos.market_value - pos.cost_basis) / pos.cost_basis * 100) if pos.cost_basis else '—' }}</td>
-                            <td class="num">{{ '{:.1f}'.format(pos.weight) }}%</td>
-                        </tr>
-                        {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% include 'partials/_chart_treemap.html' %}
-        {% include 'partials/_chart_allocation.html' %}
-
-        {% else %}
-        <div class="card">
-            <p>{{ t.empty_no_data }}</p>
-        </div>
-        {% endif %}
+      </div>
     </div>
 
-    <script src="/static/app.js"></script>
-    <script>
-    document.getElementById('file-input').addEventListener('change', function() {
-        var label = document.querySelector('.file-name');
-        label.textContent = this.files.length ? this.files[0].name : T.no_file_selected;
-        label.classList.toggle('has-file', this.files.length > 0);
-    });
-    </script>
+    <div class="tv-panel">
+      <div class="tv-panel-head"><div class="tv-panel-title glow">{{ t.movers_today if t.movers_today else 'Movers today' }}</div></div>
+      <div class="tv-panel-body">
+        {% if ov.gainers or ov.losers %}
+        <div class="tv-movers">
+          {% for m in ov.gainers %}
+          <div class="tv-mover" data-position-id="{{ m.holding_id }}">
+            <span class="tv-mover-sym">{{ m.symbol }}</span>
+            <span class="tv-mover-name">{{ m.name }}</span>
+            <span class="tv-mover-pct pos">{{ signed_pct(m.day_pct) }}</span>
+          </div>
+          {% endfor %}
+          {% if ov.gainers and ov.losers %}<div class="tv-movers-divider"></div>{% endif %}
+          {% for m in ov.losers %}
+          <div class="tv-mover" data-position-id="{{ m.holding_id }}">
+            <span class="tv-mover-sym">{{ m.symbol }}</span>
+            <span class="tv-mover-name">{{ m.name }}</span>
+            <span class="tv-mover-pct neg">{{ signed_pct(m.day_pct) }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="tv-page-sub">—</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 
-{% set display_prefs_context = 'portfolio' %}
-{% include 'partials/_display_prefs_modal.html' %}
-</body>
-</html>
+  {# ---- Holdings preview ---------------------------------------------------- #}
+  <div class="tv-panel">
+    <div class="tv-panel-head">
+      <div class="tv-panel-title">{{ t.holdings_title }} <span class="tv-badge">{{ portfolio.num_positions }}</span></div>
+      <a href="{{ url_for('positions_view') }}" class="tv-btn tv-btn-ghost tv-btn-sm">{{ t.btn_view_all if t.btn_view_all else t.nav_positions }} {{ tv_icon('arrow-right', 14) }}</a>
+    </div>
+    <div class="tv-panel-body flush">
+      <table class="tv-table">
+        <thead>
+          <tr>
+            <th>{{ t.col_position if t.col_position else t.holdings_title }}</th>
+            <th>{{ t.stat_total_value }}</th>
+            <th class="tv-hide-sm">{{ t.stat_cost }}</th>
+            <th>{{ t.stat_cost_change }}</th>
+            <th>{{ t.col_weight if t.col_weight else '%' }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in ov.holdings[:6] %}
+          <tr data-position-id="{{ h.holding_id }}">
+            <td>
+              <div class="tv-pos-cell">
+                <span class="tv-monogram">{{ (h.symbol or h.name)[:2]|upper }}</span>
+                <div>
+                  <div class="tv-pos-name">{{ h.name }}</div>
+                  <div class="tv-pos-sub">{{ h.symbol }}{% if h.day_pct %} · <span class="{{ 'pos' if h.day_pct >= 0 else 'neg' }}">{{ signed_pct(h.day_pct) }}</span>{% endif %}</div>
+                </div>
+              </div>
+            </td>
+            <td class="tv-num">{{ money(h.market_value) }}</td>
+            <td class="tv-num tv-hide-sm">{{ money(h.cost_basis) }}</td>
+            <td class="tv-num {{ 'pos' if h.pnl >= 0 else 'neg' }}">{{ signed_money(h.pnl) }}<br><span style="font-size:var(--fs-2xs);">{{ signed_pct(h.pnl_pct) }}</span></td>
+            <td>
+              <div class="tv-weight">
+                <span class="tv-weight-track"><span class="tv-weight-fill" style="width:{{ [h.weight*4, 100]|min }}%;"></span></span>
+                <span class="tv-num">{{ '{:.1f}'.format(h.weight) }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ---- Import data (compact) ---------------------------------------------- #}
+  <details class="tv-panel" style="padding:0;">
+    <summary style="padding:13px 16px; cursor:pointer; font-size:var(--fs-sm); font-weight:var(--fw-semibold); color:var(--text-heading); list-style:none;">
+      {{ tv_icon('plus', 14) }} {{ t.upload_title }}
+    </summary>
+    <div class="tv-panel-body" style="border-top:1px solid var(--border-soft);">
+      <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="import_type" class="tv-input" style="width:auto;">
+          <option value="daily">{{ t.import_type_daily }}</option>
+          <option value="trades">{{ t.import_type_trades }}</option>
+          <option value="morning-balance">{{ t.import_type_morning }}</option>
+        </select>
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" required multiple class="tv-input" style="width:auto; padding-top:7px;">
+        <input type="date" name="date" required class="tv-input mono" style="width:auto;">
+        <label style="display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-xs); color:var(--text-secondary);">
+          <input type="checkbox" name="force" value="on"> {{ t.upload_force_label }}
+        </label>
+        <button type="submit" class="tv-btn tv-btn-primary tv-btn-sm">{{ t.btn_import }}</button>
+      </form>
+    </div>
+  </details>
+
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if portfolio %}
+<script>
+(function () {
+  var series = {{ ov.series|tojson }};
+  var alloc = {{ ov.allocation|tojson }};
+  var sym = {{ currency_symbol|tojson }};
+  var css = TV.css;
+
+  // ---- Value chart (equity vs net invested) ----
+  var vctx = document.getElementById('tv-value-chart');
+  var valueChart = null;
+  function sliceSeries(n) {
+    return (n && n > 0 && series.length > n) ? series.slice(series.length - n) : series;
+  }
+  function drawValue(n) {
+    var data = sliceSeries(n);
+    var labels = data.map(function (d) { return d.date; });
+    var grad = vctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
+    grad.addColorStop(0, 'rgba(163,130,247,0.28)');
+    grad.addColorStop(1, 'rgba(163,130,247,0.0)');
+    var cfg = {
+      type: 'line',
+      data: { labels: labels, datasets: [
+        { label: 'equity', data: data.map(function (d) { return d.equity; }),
+          borderColor: css('--accent'), backgroundColor: grad, borderWidth: 2, fill: true,
+          tension: 0.25, pointRadius: 0, pointHoverRadius: 4 },
+        { label: 'invested', data: data.map(function (d) { return d.invested; }),
+          borderColor: css('--text-muted'), borderWidth: 1.5, borderDash: [5, 4], fill: false,
+          tension: 0, pointRadius: 0 }
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + TV.fmtMoney(c.parsed.y, sym); } } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: css('--text-muted') } },
+          y: { grid: { color: css('--border-soft') }, ticks: { color: css('--text-muted'),
+               callback: function (v) { return TV.fmtMoney(v, sym, 0); } } }
+        }
+      }
+    };
+    if (valueChart) { valueChart.data = cfg.data; valueChart.update(); }
+    else { valueChart = new Chart(vctx, cfg); }
+  }
+  drawValue(132);
+  var seg = document.getElementById('tv-period');
+  if (seg) seg.addEventListener('tv:seg', function (e) { drawValue(parseInt(e.detail.value, 10)); });
+
+  // ---- Allocation donut ----
+  var actx = document.getElementById('tv-alloc-chart');
+  if (actx && alloc.length) {
+    new Chart(actx, {
+      type: 'doughnut',
+      data: { labels: alloc.map(function (a) { return a.label; }),
+        datasets: [{ data: alloc.map(function (a) { return a.value; }),
+          backgroundColor: alloc.map(function (a) { return a.color; }),
+          borderColor: css('--surface-card'), borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: function (c) { return c.label + ': ' + TV.fmtMoney(c.parsed, sym); } } } } }
+    });
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

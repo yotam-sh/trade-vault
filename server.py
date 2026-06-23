@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file, Response, g, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, make_response, send_file, send_from_directory, Response, g, session
 from flask_wtf.csrf import CSRFProtect
 from app.connection import get_db, close_db, flush_db
 from app.settings import init_default_settings
@@ -39,7 +39,6 @@ from app.analytics import (
     compute_yearly_tax,
     compute_potential_tax,
     get_position_data,
-    get_positions_list,
     get_historical_performance,
     get_allocation_history,
     get_top_positions_pnl,
@@ -127,7 +126,7 @@ def _client_ip():
 
 limiter = Limiter(key_func=_client_ip, app=app, storage_uri='memory://')
 
-_AUTH_EXEMPT_ENDPOINTS = {'login', 'logout', 'health_check', 'static'}
+_AUTH_EXEMPT_ENDPOINTS = {'login', 'logout', 'health_check', 'static', 'asset'}
 _login_guard_lock = threading.Lock()
 _login_failures = {}            # ip -> {'count': int, 'until': float}
 _LOGIN_MAX_FAILS = 5
@@ -574,6 +573,22 @@ def _default_display_prefs(lang):
     return _DEFAULT_DISPLAY_PREFS_HE if lang == 'he' else _DEFAULT_DISPLAY_PREFS_EN
 
 
+# Inline SVG icon helper for the v1.0 redesigned templates (base.html and pages
+# that extend it). Available as {{ tv_icon('name', size) }} in every template.
+from app.icons import tv_icon as _tv_icon
+app.jinja_env.globals['tv_icon'] = _tv_icon
+
+
+# Brand SVGs live in asset/ (separate from static/ JS/CSS). Served here since Flask's
+# default static handler only covers static/.
+_ASSET_DIR = os.path.join(app.root_path, 'asset')
+
+
+@app.route('/asset/<path:filename>')
+def asset(filename):
+    return send_from_directory(_ASSET_DIR, filename, max_age=86400)
+
+
 @app.context_processor
 def inject_translations():
     """Make t, lang, dir, t_json, app_version, and display_prefs available in every template."""
@@ -802,6 +817,8 @@ def portfolio_refresh_prices():
         res = refresh_prices_and_snapshot()
         flash(_t('prices_refreshed', lang, positions=res['positions'],
                  priced=res['priced'], stale=res['stale']), 'success')
+        if res.get('backfilled'):
+            flash(_t('prices_backfilled', lang, days=res['backfilled']), 'info')
     except Exception:
         app.logger.exception('price refresh failed')
         flash(_t('flash_import_error', lang), 'error')
@@ -838,8 +855,10 @@ def settings_portfolios():
 
 @app.route('/')
 def index():
-    portfolio = get_portfolio_value()
-    return render_template('index.html', portfolio=portfolio)
+    from app.analytics.portfolio_analytics import get_overview
+    overview = get_overview(_get_lang())
+    portfolio = overview['portfolio'] if overview else None
+    return render_template('index.html', portfolio=portfolio, ov=overview)
 
 
 def _upload_trades(lang):
@@ -1014,6 +1033,20 @@ def _cash_card_context():
     equity = snap.get('total_equity') or 0
     pct = (cash / equity * 100) if (cash is not None and equity) else None
     return {'current_cash': cash, 'cash_pct': pct, 'cash_as_of': snap.get('date')}
+
+
+@app.route('/analytics')
+def analytics_view():
+    """Statistics deep-dive (Analytics page) on the v1.0 shell."""
+    from app.analytics.portfolio_analytics import get_analytics
+    return render_template('analytics.html', a=get_analytics(_get_lang()))
+
+
+@app.route('/activity')
+def activity_view():
+    """Unified activity timeline (trades + dividends + cash) on the v1.0 shell."""
+    from app.analytics.trade_analytics import get_activity
+    return render_template('activity.html', rows=get_activity(_get_lang()))
 
 
 @app.route('/transactions')
@@ -1276,18 +1309,7 @@ def daily_details_view():
     key = f'{start}:{end}'
     details = cached(f'daily_details:{key}',
                      lambda: get_daily_details(start_date=start, end_date=end))
-    pivot_security = cached(f'daily_pivot_sec:{key}',
-                            lambda: get_pivot_by_security(start_date=start, end_date=end))
-    pivot_date = cached(f'daily_pivot_date:{key}',
-                        lambda: get_pivot_by_date(start_date=start, end_date=end))
-    type_chart = cached(f'daily_type_chart:{key}',
-                        lambda: get_daily_type_chart_data(start_date=start, end_date=end))
-    return render_template('daily_details.html',
-                           details=details,
-                           pivot_security=pivot_security,
-                           pivot_date=pivot_date,
-                           type_chart=type_chart,
-                           start=start, end=end)
+    return render_template('daily_details.html', details=details, start=start, end=end)
 
 
 # API endpoints for AJAX filtering
@@ -1338,85 +1360,9 @@ def delete_transaction_route(doc_id):
 
 @app.route('/trades')
 def trades_view():
-    year_param  = request.args.get('year')
-    start_param = request.args.get('start')
-    end_param   = request.args.get('end')
-    if not year_param and not start_param and not end_param:
-        today = datetime.now().date()
-        _start = today.strftime('%Y-%m-01')
-        _end   = today.strftime('%Y-%m-%d')
-        return redirect(url_for('trades_view') + f'?start={_start}&end={_end}')
-
-    # Yearly tax with loss carryover
-    by_year, tax_years = compute_yearly_tax()
-    current_year = datetime.now().year
-    selected_year = 'all' if not year_param or year_param == 'all' else int(year_param)
-
-    # Date picker overrides year bounds; otherwise default to selected year
-    if selected_year == 'all':
-        start = request.args.get('start')
-        end = request.args.get('end')
-    else:
-        start = request.args.get('start') or f'{selected_year}-01-01'
-        end = request.args.get('end') or f'{selected_year}-12-31'
-    trades = get_trade_history(start_date=start, end_date=end)
-    closed = get_closed_positions()
-
-    if selected_year == 'all':
-        # Aggregate across all years
-        all_gains = sum(y['total_gains'] for y in by_year.values())
-        all_losses = sum(y['total_losses'] for y in by_year.values())
-        all_net = all_gains + all_losses
-        last_year = by_year[tax_years[-1]] if tax_years else {}
-        sales_summary = {
-            'year': 'all', 'total_gains': all_gains, 'total_losses': all_losses,
-            'net_pnl': all_net, 'loss_carryover_in': 0, 'taxable': max(0, all_net),
-            'loss_carryover_out': last_year.get('loss_carryover_out', 0),
-            'tax_on_gains': all_gains * 0.25,
-            'tax_offset_from_losses': abs(all_losses) * 0.25,
-            'net_tax': max(0, all_net * 0.25),
-        }
-    else:
-        sales_summary = by_year.get(selected_year, {
-            'year': selected_year, 'total_gains': 0, 'total_losses': 0,
-            'net_pnl': 0, 'loss_carryover_in': 0, 'taxable': 0,
-            'loss_carryover_out': 0, 'tax_on_gains': 0,
-            'tax_offset_from_losses': 0, 'net_tax': 0,
-        })
-
-    potential_tax_data = compute_potential_tax()
-
-    raw_open = get_positions_list()['open']
-    open_positions = []
-    for pos in raw_open:
-        pnl = pos['unrealized_pnl']
-        days = pos.get('days_holding')
-        if days is None:
-            duration = '—'
-        elif days >= 730:
-            y, m = days // 365, (days % 365) // 30
-            duration = f'{y}y {m}m' if m else f'{y}y'
-        elif days >= 365:
-            m = (days % 365) // 30
-            duration = f'1y {m}m' if m else '1y'
-        elif days >= 30:
-            duration = f'{days // 30}m'
-        else:
-            duration = f'{days}d'
-        open_positions.append({
-            **pos,
-            'holding_duration': duration,
-            'days_holding': days or 0,
-            'potential_tax':  round(max(0,  pnl) * 0.25, 2),
-            'loss_offset':    round(max(0, -pnl) * 0.25, 2),
-        })
-
-    return render_template('trades.html', trades=trades, closed=closed,
-                           sales_summary=sales_summary, tax_years=tax_years,
-                           selected_year=selected_year,
-                           start=start, end=end,
-                           potential_tax_data=potential_tax_data,
-                           open_positions=open_positions, **_cash_card_context())
+    # Retired in v1.0 — trade entry moved to the Quick-Add drawer and trade history
+    # now lives in the Activity timeline. Kept as a redirect so old links don't 404.
+    return redirect(url_for('activity_view'))
 
 
 @app.route('/api/graph-layout', methods=['GET'])
@@ -1504,95 +1450,18 @@ def graphs_view():
 
 @app.route('/positions')
 def positions_view():
-    data = get_positions_list()
-    return render_template('positions.html', data=data)
+    from app.analytics.portfolio_analytics import get_overview
+    from app.analytics.trade_analytics import get_closed_positions
+    ov = get_overview(_get_lang())
+    closed = get_closed_positions()
+    return render_template('holdings.html', ov=ov, closed=closed)
 
 
 @app.route('/rebalance')
 def rebalance_view():
-    from app.analytics.portfolio_analytics import get_portfolio_value
-    from app.settings import get_setting
-    pf = get_portfolio_value() or {}  # empty portfolio (no snapshot yet)
-    saved = get_setting('target_allocations_v2', {}) or {}
-    group_targets = saved.get('groups', {})
-    holding_targets = saved.get('holdings', {})
-    total_value = pf.get('total_value', 0) or 0
-
-    TYPE_ORDER = ['stock', 'mutual_fund', 'etf', 'bond', 'other']
-
-    # Group positions by security_type
-    type_groups = {}
-    for pos in (pf.get('positions') or []):
-        st = pos.get('security_type') or 'other'
-        if st not in TYPE_ORDER:
-            st = 'other'
-        type_groups.setdefault(st, []).append(pos)
-
-    group_data = []
-    for stype in TYPE_ORDER:
-        positions = type_groups.get(stype, [])
-        if not positions:
-            continue
-
-        group_value = sum(p.get('market_value', 0) or 0 for p in positions)
-        current_group_pct = round(group_value / total_value * 100, 2) if total_value else 0
-        target_group_pct = float(group_targets.get(stype, 0))
-        group_delta = round(current_group_pct - target_group_pct, 2)
-        target_group_value = target_group_pct / 100 * total_value
-
-        # Group-level action ILS
-        group_action_ils = round(abs(group_delta / 100 * total_value), 0)
-        if group_delta > 0.1:
-            group_action = 'sell'
-        elif group_delta < -0.1:
-            group_action = 'buy'
-        else:
-            group_action = 'hold'
-
-        holding_rows = []
-        for pos in positions:
-            hid = str(pos['holding_id'])
-            mv = pos.get('market_value', 0) or 0
-            current_in_group = round(mv / group_value * 100, 2) if group_value else 0
-            target_in_group = float(holding_targets.get(hid, 0))
-            delta_in_group = round(current_in_group - target_in_group, 2)
-            target_holding_value = target_in_group / 100 * target_group_value
-            action_ils = round(abs(mv - target_holding_value), 0)
-            if delta_in_group > 0.1:
-                action = 'sell'
-            elif delta_in_group < -0.1:
-                action = 'buy'
-            else:
-                action = 'hold'
-            holding_rows.append({
-                **pos,
-                'current_in_group': current_in_group,
-                'target_in_group': target_in_group,
-                'delta_in_group': delta_in_group,
-                'action_ils': action_ils,
-                'action': action,
-            })
-
-        holding_rows.sort(key=lambda r: r['delta_in_group'])
-
-        group_data.append({
-            'type': stype,
-            'current_pct': current_group_pct,
-            'target_pct': target_group_pct,
-            'delta_pct': group_delta,
-            'group_value': round(group_value, 0),
-            'group_action': group_action,
-            'group_action_ils': group_action_ils,
-            'holdings': holding_rows,
-        })
-
-    total_group_targeted = round(sum(float(v) for v in group_targets.values()), 2)
-
-    return render_template('rebalance.html',
-        group_data=group_data,
-        total_value=total_value,
-        total_group_targeted=total_group_targeted,
-    )
+    # Retired in v1.0 — the rebalance page is not part of the redesigned surface.
+    # Kept as a redirect so old links/bookmarks resolve to Holdings.
+    return redirect(url_for('positions_view'))
 
 
 @app.route('/api/rebalance-targets', methods=['POST'])
@@ -1658,7 +1527,77 @@ def position_view(holding_id):
         yf_data = ensure_hebrew_translations_cached(data['holding'])
         if yf_data:
             data['yfinance_info'] = {**(data['yfinance_info'] or {}), **yf_data}
-    return render_template('position.html', data=data)
+    from app.analytics.position_analytics import get_position_drawer
+    pd = get_position_drawer(holding_id, _get_lang())
+    ph = (data.get('price_history') or [])[-180:]
+    return render_template('position.html', data=data, pd=pd,
+                           price_series=[{'date': r['date'], 'close': r['close']} for r in ph])
+
+
+@app.route('/api/holdings-lookup')
+def api_holdings_lookup():
+    """Active open holdings (id/name/symbol/last price) for Quick-Add autocomplete."""
+    from app.analytics.portfolio_analytics import get_overview
+    ov = get_overview(_get_lang())
+    items = [{'id': h['holding_id'], 'name': h['name'], 'symbol': h['symbol'],
+              'price': round(h['market_value'] / h['quantity'], 4) if h['quantity'] else 0}
+             for h in (ov['holdings'] if ov else [])]
+    return jsonify(items)
+
+
+@app.route('/api/quick-add', methods=['POST'])
+def api_quick_add():
+    """Record a buy/sell/deposit/withdrawal from the Quick-Add drawer. Returns JSON."""
+    lang = _get_lang()
+    data = request.get_json(silent=True) or {}
+    kind = (data.get('kind') or '').lower()
+    date_str = (data.get('date') or '').strip()
+    try:
+        if not date_str:
+            raise ValueError(_t('flash_no_date', lang))
+        datetime.strptime(date_str, '%Y-%m-%d')
+
+        if kind in ('buy', 'sell'):
+            from app.manual_portfolio import record_trade
+            from app.snapshots import materialize_position_in_snapshot
+            hid = int(data.get('holding_id'))
+            shares = float(data.get('shares'))
+            price = float(data.get('price'))
+            commission = float(data.get('commission') or 0)
+            record_trade(hid, kind, date_str, shares, price, commission=commission)
+            materialize_position_in_snapshot(hid, price)
+            flush_db()
+            message = _t('trade_added', lang)
+        elif kind in ('deposit', 'withdraw'):
+            amount = float(data.get('amount'))
+            if not math.isfinite(amount) or amount <= 0:
+                raise ValueError(_t('flash_invalid_amount', lang))
+            if kind == 'deposit':
+                add_deposit(date=date_str, amount=amount)
+            else:
+                add_withdrawal(date=date_str, amount=amount)
+            from app.recompute import recompute_cash
+            recompute_cash()
+            message = _t('trade_added', lang)
+        else:
+            return jsonify({'ok': False, 'error': 'unknown kind'}), 400
+        _spawn_chart_warm()
+        return jsonify({'ok': True, 'message': message})
+    except ValueError as e:
+        return jsonify({'ok': False, 'error': str(e) or _t('flash_trade_error', lang)}), 400
+    except Exception:
+        app.logger.exception('quick-add failed')
+        return jsonify({'ok': False, 'error': _t('flash_trade_error', lang)}), 500
+
+
+@app.route('/api/position/<int:holding_id>')
+def api_position(holding_id):
+    """Lightweight JSON for the Overview position deep-dive drawer (no network)."""
+    from app.analytics.position_analytics import get_position_drawer
+    data = get_position_drawer(holding_id, _get_lang())
+    if data is None:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify(data)
 
 
 @app.route('/position/<int:holding_id>/refresh-info', methods=['POST'])

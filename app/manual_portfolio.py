@@ -124,8 +124,13 @@ def refresh_prices_and_snapshot(date=None, prefer_session=None):
     from app.yfinance_cache import upsert_yfinance_cache
     from app.settings import set_setting
     from app.connection import flush_db
+    from app.backfill import backfill_active_gaps
 
     data_date = date or _date.today().isoformat()
+
+    # Fill any missing trading days (e.g. a skipped refresh) back to the first trade
+    # before writing today's live snapshot. No-op + no network when there is no gap.
+    gap = backfill_active_gaps()
 
     # Aggregate open lots → {holding_id: [qty, cost]}
     agg = {}
@@ -144,6 +149,12 @@ def refresh_prices_and_snapshot(date=None, prefer_session=None):
     for hid, (qty, cost) in agg.items():
         holding = get_holding(hid)
         if not holding or qty <= 0:
+            continue
+        # Never resurrect a closed position from a lingering open lot. is_active is the
+        # authoritative "currently held" flag for both portfolio kinds (manual trades keep
+        # it in step; daily imports set it from the file). A holding the broker/file shows
+        # as closed must stay out of today's snapshot even if a stale lot remains.
+        if holding.get('is_active') is False:
             continue
         ticker = holding.get('ticker')
         currency = holding.get('currency', 'ILS')
@@ -201,4 +212,5 @@ def refresh_prices_and_snapshot(date=None, prefer_session=None):
 
     flush_db()
     return {'date': data_date, 'positions': len(rows), 'priced': priced,
-            'stale': stale, 'session': portfolio_session}
+            'stale': stale, 'session': portfolio_session,
+            'backfilled': gap.get('filled', 0)}

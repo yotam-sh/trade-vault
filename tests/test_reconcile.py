@@ -45,3 +45,20 @@ def test_equity_identity_mismatch_is_error():
     })
     errors = [i for i in reconcile() if i[0] == 'error']
     assert any('total_equity' in msg for _sev, _date, msg in errors)
+
+
+def test_phantom_open_lot_not_in_snapshot_is_warned():
+    """A holding with open lots but absent from the latest snapshot (closed but its lots
+    were never closed) is surfaced as a 'phantom' warning."""
+    get_db(); init_default_settings()
+    from app.tax_lots import create_lot
+    hid = add_holding(tase_id=7, tase_symbol='X', name_he='מניה', security_type='stock',
+                      currency='ILS', ticker='X.TA')
+    # Latest snapshot holds nothing for this holding...
+    create_snapshot('2026-03-05', total_market_value=0, total_cost_basis=0,
+                    total_daily_pnl=0, positions=[], total_deposits=0, total_withdrawals=0)
+    # ...but an open lot lingers.
+    create_lot(holding_id=hid, ticker='X.TA', buy_transaction_id=None,
+               buy_date='2026-03-01', buy_price=100.0, shares=10, currency='ILS')
+    warns = [msg for sev, _date, msg in reconcile() if sev == 'warn']
+    assert any('phantom' in msg and f'holding {hid}' in msg for msg in warns)

@@ -180,6 +180,50 @@ def _most_recent_us_trading_day():
     return d.isoformat()
 
 
+def _previous_us_trading_day():
+    """The latest US trading day strictly before today (ISO date string)."""
+    from datetime import date, timedelta
+    from app.utils.trading_calendar import is_us_non_trading_day
+    d = date.today() - timedelta(days=1)
+    for _ in range(10):
+        if not is_us_non_trading_day(d.isoformat()):
+            return d.isoformat()
+        d -= timedelta(days=1)
+    return d.isoformat()
+
+
+def backfill_active_gaps():
+    """Fill any missing trading days in the active portfolio up to the previous close.
+
+    Called from the manual price-refresh path so a user who skipped a day (or several)
+    gets the gap filled back to each holding's first trade. Cheap when there is no gap:
+    just a snapshot lookup + a calendar calc, **no network**. The heavy yfinance
+    full-history fetch only runs when a trading day was actually missed.
+
+    Backfills only up to the *previous* US trading day so the regular-close prices it
+    writes never overwrite today's live / extended-hours snapshot that the caller
+    writes next. No-ops on a daily-file (TASE) portfolio — those get history from
+    imports. Returns ``{'filled', 'first_date', 'last_date'}``.
+    """
+    from app.snapshots import get_latest_snapshot
+
+    if _portfolio_has_daily_file():
+        return {'filled': 0}
+
+    prev = _previous_us_trading_day()
+    snap = get_latest_snapshot()
+    latest = snap.get('date') if snap else None
+    if latest is not None and latest >= prev:
+        return {'filled': 0}
+
+    res = _rebuild_active(end_date=prev)
+    return {
+        'filled': res.get('dates', 0),
+        'first_date': res.get('first_date'),
+        'last_date': res.get('last_date'),
+    }
+
+
 def catch_up_all():
     """Fill the daily-snapshot gap for every manual/US portfolio (startup catch-up).
 

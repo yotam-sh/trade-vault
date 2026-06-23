@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% set sym = currency_symbol %}
+{% block title %}{{ t.nav_activity if t.nav_activity else t.nav_transactions }} · TradeVault{% endblock %}
+
+{% macro signed_money(n) -%}
+{{ '+' if (n or 0) >= 0 else '−' }}{{ sym }}{{ '{:,.2f}'.format((n or 0)|abs) }}
+{%- endmacro %}
+
+{% set kind_meta = {
+  'buy':      ('arrow-down-left', t.activity_buy if t.activity_buy else 'Buy'),
+  'sell':     ('arrow-up-right',  t.activity_sell if t.activity_sell else 'Sell'),
+  'dividend': ('coins',           t.activity_dividend if t.activity_dividend else 'Dividend'),
+  'deposit':  ('plus',            t.activity_deposit if t.activity_deposit else 'Deposit'),
+  'withdraw': ('banknote',        t.activity_withdraw if t.activity_withdraw else 'Withdrawal')
+} %}
+
+{% block content %}
+<div class="tv-page-head">
+  <div>
+    <h1>{{ t.nav_activity if t.nav_activity else t.nav_transactions }}</h1>
+    <div class="tv-page-sub">{{ t.activity_sub if t.activity_sub else '' }}</div>
+  </div>
+</div>
+
+<div class="tv-chips" data-chips="tv-activity-list">
+  <button class="tv-chip active" data-filter="all">{{ t.filter_all if t.filter_all else 'All' }}</button>
+  <button class="tv-chip" data-filter="buy">{{ t.activity_buys if t.activity_buys else 'Buys' }}</button>
+  <button class="tv-chip" data-filter="sell">{{ t.activity_sells if t.activity_sells else 'Sells' }}</button>
+  <button class="tv-chip" data-filter="dividend">{{ t.activity_dividend if t.activity_dividend else 'Dividends' }}</button>
+  <button class="tv-chip" data-filter="cash">{{ t.activity_cash if t.activity_cash else 'Cash' }}</button>
+</div>
+
+<div class="tv-panel">
+  <div class="tv-activity" id="tv-activity-list">
+    {% for r in rows %}
+    {% set meta = kind_meta.get(r.kind, ('plus', r.kind)) %}
+    <div class="tv-act-row" data-kind="{{ r.group }}">
+      <span class="tv-act-tile {{ r.kind }}">{{ tv_icon(meta[0], 18) }}</span>
+      <div class="tv-act-main">
+        <div class="tv-act-kind">{{ meta[1] }}{% if r.symbol %} <span class="tv-sym-chip">{{ r.symbol }}</span>{% endif %}</div>
+        <div class="tv-act-sub">
+          {%- if r.name %}{{ r.name }}{% endif -%}
+          {%- if r.shares and r.price %} · {{ '{:g}'.format(r.shares) }} @ {{ sym }}{{ '{:,.2f}'.format(r.price) }}{% endif -%}
+        </div>
+      </div>
+      <div class="tv-act-right">
+        <div class="tv-act-amt {{ 'pos' if r.amount >= 0 else 'neg' }}">{{ signed_money(r.amount) }}</div>
+        <div class="tv-act-date">{{ r.date }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

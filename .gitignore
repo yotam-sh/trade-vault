@@ -42,3 +42,6 @@ gunicorn.pid
 
 # Local notes, prompts, and audit docs
 notes/
+
+# Design
+.design_handoff/

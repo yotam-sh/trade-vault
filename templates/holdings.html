@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% set sym = currency_symbol %}
+{% block title %}{{ t.nav_positions }} · TradeVault{% endblock %}
+
+{% macro money(n, dec=2) -%}
+{{ sym }}{{ '{:,.{}f}'.format(n or 0, dec) }}
+{%- endmacro %}
+{% macro signed_money(n) -%}
+{{ '+' if (n or 0) >= 0 else '−' }}{{ sym }}{{ '{:,.2f}'.format((n or 0)|abs) }}
+{%- endmacro %}
+{% macro signed_pct(n) -%}
+{{ '+' if (n or 0) >= 0 else '−' }}{{ '{:.2f}'.format((n or 0)|abs) }}%
+{%- endmacro %}
+
+{% block content %}
+{% set holdings = ov.holdings if ov else [] %}
+<div class="tv-page-head">
+  <div>
+    <h1>{{ t.nav_positions }}</h1>
+    <div class="tv-page-sub">{{ holdings|length }} {{ t.col_position }} · {{ money(ov.portfolio.total_value if ov else 0) }}</div>
+  </div>
+  <div class="tv-search">
+    {{ tv_icon('search', 16) }}
+    <input type="text" class="tv-input" data-search-table="tv-holdings" placeholder="{{ t.search_placeholder if t.search_placeholder else '' }}">
+  </div>
+</div>
+
+<div class="tv-panel">
+  <div class="tv-panel-body flush">
+    <table class="tv-table" id="tv-holdings" data-sortable style="background:transparent;">
+      <thead style="background:var(--surface-elevated);">
+        <tr>
+          <th data-key="name" data-type="text">{{ t.col_position }}</th>
+          <th data-key="value" data-type="num" class="tv-sorted" data-dir="desc">{{ t.stat_total_value }}</th>
+          <th data-key="cost" data-type="num" class="tv-hide-sm">{{ t.stat_cost }}</th>
+          <th data-key="price" data-type="num" class="tv-hide-sm">{{ t.col_price }}</th>
+          <th data-key="day" data-type="num">{{ t.col_day }}</th>
+          <th data-key="pnl" data-type="num">{{ t.stat_cost_change }}</th>
+          <th data-key="weight" data-type="num">{{ t.col_weight }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in holdings %}
+        {% set price = (h.market_value / h.quantity) if h.quantity else 0 %}
+        <tr data-position-id="{{ h.holding_id }}"
+            data-search="{{ (h.name ~ ' ' ~ h.symbol)|lower }}"
+            data-name="{{ h.name }}" data-value="{{ h.market_value }}" data-cost="{{ h.cost_basis }}"
+            data-price="{{ price }}" data-day="{{ h.day_pct }}" data-pnl="{{ h.pnl }}" data-weight="{{ h.weight }}">
+          <td>
+            <div class="tv-pos-cell">
+              <span class="tv-monogram">{{ (h.symbol or h.name)[:2]|upper }}</span>
+              <div>
+                <div class="tv-pos-name">{{ h.name }}</div>
+                <div class="tv-pos-sub">{{ h.symbol }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="tv-num">{{ money(h.market_value) }}</td>
+          <td class="tv-num tv-hide-sm">{{ money(h.cost_basis) }}</td>
+          <td class="tv-num tv-hide-sm">{{ money(price, 4 if price < 10 else 2) }}</td>
+          <td class="tv-num {{ 'pos' if h.day_pct >= 0 else 'neg' }}">{{ signed_pct(h.day_pct) }}</td>
+          <td class="tv-num {{ 'pos' if h.pnl >= 0 else 'neg' }}">{{ signed_money(h.pnl) }}<br><span style="font-size:var(--fs-2xs);">{{ signed_pct(h.pnl_pct) }}</span></td>
+          <td>
+            <div class="tv-weight">
+              <span class="tv-weight-track"><span class="tv-weight-fill" style="width:{{ [h.weight*4, 100]|min }}%;"></span></span>
+              <span class="tv-num">{{ '{:.1f}'.format(h.weight) }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if closed %}
+<details class="tv-panel" style="margin-top:16px; padding:0;">
+  <summary style="padding:13px 16px; cursor:pointer; font-size:var(--fs-sm); font-weight:var(--fw-semibold); color:var(--text-heading); list-style:none;">
+    {{ t.positions_closed_title if t.positions_closed_title else 'Closed' }} <span class="tv-badge">{{ closed|length }}</span>
+  </summary>
+  <div class="tv-panel-body flush" style="border-top:1px solid var(--border-soft);">
+    <table class="tv-table">
+      <thead>
+        <tr>
+          <th>{{ t.col_position }}</th>
+          <th class="tv-hide-sm">{{ t.col_qty }}</th>
+          <th>{{ t.stat_cost_change }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in closed %}
+        {% set cname = (c.name_en or c.name_he) if lang == 'en' else (c.name_he or c.name_tase_he) %}
+        {% set csym = (c.symbol_en or c.symbol) if lang == 'en' else c.symbol %}
+        <tr data-href="{{ url_for('position_view', holding_id=c.holding_id) if c.holding_id }}">
+          <td>
+            <div class="tv-pos-cell">
+              <span class="tv-monogram">{{ (csym or cname)[:2]|upper }}</span>
+              <div><div class="tv-pos-name">{{ cname }}</div><div class="tv-pos-sub">{{ csym }}</div></div>
+            </div>
+          </td>
+          <td class="tv-num tv-hide-sm">{{ '{:g}'.format(c.total_shares or 0) }}</td>
+          <td class="tv-num {{ 'pos' if (c.total_pnl or 0) >= 0 else 'neg' }}">{{ signed_money(c.total_pnl) }}<br><span style="font-size:var(--fs-2xs);">{{ signed_pct(c.pnl_pct) }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+{% endblock %}

@@ -20,15 +20,260 @@ def get_portfolio_value():
         positions.append(enriched)
 
     net_invested = get_total_deposits() - get_total_withdrawals()
+    # Total return compares current worth to net invested. Current worth is *equity*
+    # (positions + idle cash), not market value alone — otherwise uninvested cash is
+    # counted as a loss. This is most visible on books carrying meaningful idle cash
+    # (e.g. the US portfolio), where market_value - net_invested understates the return
+    # by the whole cash balance.
+    cash = snap.get('cash_balance', 0) or 0
+    equity = snap.get('total_equity')
+    if equity is None:
+        equity = snap['total_market_value'] + cash
+    total_return = equity - net_invested
     return {
         'date': snap['date'],
         'total_value': snap['total_market_value'],
         'total_cost': net_invested,
-        'unrealized_pnl': snap['total_market_value'] - net_invested,
-        'unrealized_pnl_pct': ((snap['total_market_value'] - net_invested) / net_invested * 100) if net_invested else 0,
+        'unrealized_pnl': total_return,
+        'unrealized_pnl_pct': (total_return / net_invested * 100) if net_invested else 0,
         'daily_pnl': snap['total_daily_pnl'],
         'num_positions': snap['num_positions'],
         'positions': positions,
+    }
+
+
+# Security-type → (he label, en label, hex color from the Comet series palette).
+_TYPE_META = {
+    'stock':       ('מניות', 'Stocks', '#a382f7'),
+    'etf':         ('תעודות סל', 'ETFs', '#5cc8ff'),
+    'mutual_fund': ('קרנות', 'Funds', '#ff9d6b'),
+    'bond':        ('אג"ח', 'Bonds', '#46cf83'),
+    'other':       ('אחר', 'Other', '#f0ab3e'),
+    'cash':        ('מזומן', 'Cash', '#756a8c'),
+}
+
+
+def _display_name(pos, lang):
+    """Pick the best display name/symbol for a position in the active language."""
+    if lang == 'en':
+        name = pos.get('name_en') or pos.get('name_yf_short') or pos.get('name_tase_en') or pos.get('name_he')
+        symbol = pos.get('symbol_en') or pos.get('ticker') or pos.get('symbol')
+    else:
+        name = pos.get('name_he') or pos.get('name_tase_he') or pos.get('name_en')
+        symbol = pos.get('symbol') or pos.get('ticker')
+    return name or '', symbol or ''
+
+
+def _realized_ytd():
+    """Sum realized P&L from sell transactions dated in the current calendar year."""
+    from datetime import date
+    from app.transactions import list_transactions
+    start = f'{date.today().year}-01-01'
+    total = 0.0
+    for t in list_transactions(type_='sell', start_date=start):
+        for d in (t.get('sell_lot_details') or []):
+            total += d.get('realized_pnl', 0) or 0
+    return round(total, 2)
+
+
+def get_overview(lang='he'):
+    """Assemble everything the redesigned Overview (dashboard) needs in one call.
+
+    Reuses the canonical series/value helpers so the dashboard agrees with every
+    other view. Returns None when there is no snapshot yet.
+    """
+    from app.analytics.series import equity_series, daily_changes
+    from app.snapshots import get_latest_snapshot
+
+    pv = get_portfolio_value()
+    if not pv:
+        return None
+
+    snap = get_latest_snapshot()
+    idle_cash = (snap.get('cash_balance', 0) or 0) if snap else 0
+
+    # Today's change % (canonical, includes the manual/US derivation).
+    dc = daily_changes().get(pv['date'], {})
+    daily_pct = round(dc.get('change_pct', 0), 2)
+
+    # Value chart: equity vs net invested over time.
+    series = [{'date': s['date'], 'equity': round(s['total_equity'], 2),
+               'invested': round(s['net_invested'], 2)}
+              for s in equity_series()]
+
+    # Allocation by security type (+ a cash band so the donut totals to equity).
+    by_type = {}
+    for p in pv['positions']:
+        mv = p.get('market_value', 0) or 0
+        if mv <= 0:
+            continue
+        by_type[p.get('security_type', 'other')] = by_type.get(p.get('security_type', 'other'), 0) + mv
+    if idle_cash > 0:
+        by_type['cash'] = by_type.get('cash', 0) + idle_cash
+    total_alloc = sum(by_type.values()) or 1
+    allocation = []
+    for tkey, val in sorted(by_type.items(), key=lambda kv: kv[1], reverse=True):
+        he, en, color = _TYPE_META.get(tkey, (tkey, tkey, '#f070c4'))
+        allocation.append({'key': tkey, 'label': en if lang == 'en' else he,
+                           'value': round(val, 2), 'weight': round(val / total_alloc * 100, 1),
+                           'color': color})
+
+    # Previous trading day's prices (one query) so we can derive a per-position day
+    # change for manual/US books, whose snapshot positions carry daily_pnl=0.
+    from app.daily_prices import get_prices_by_date, list_dates
+    prior = [d for d in list_dates() if d < pv['date']]
+    prev_px = {}
+    if prior:
+        for r in get_prices_by_date(max(prior)):
+            if (r.get('quantity', 0) or 0) > 0:
+                prev_px[r.get('holding_id')] = r
+
+    def _day_change(p, mv, dpnl):
+        """(day_pnl, day_pct) for a position. Prefer the snapshot's stored daily_pnl
+        (IBI); else derive per-share vs the previous trading day (manual/US)."""
+        if dpnl:
+            morning = mv - dpnl
+            return dpnl, (dpnl / morning * 100 if morning else 0)
+        prev = prev_px.get(p.get('holding_id'))
+        qty = p.get('quantity', 0) or 0
+        if not prev or qty <= 0:
+            return 0.0, 0.0
+        pq = prev.get('quantity', 0) or 0
+        if pq <= 0:
+            return 0.0, 0.0
+        today_pps = mv / qty                 # ILS per share (market_value basis)
+        prev_pps = (prev.get('market_value', 0) or 0) / pq
+        if prev_pps <= 0:
+            return 0.0, 0.0
+        return round(qty * (today_pps - prev_pps), 2), round((today_pps / prev_pps - 1) * 100, 2)
+
+    # Holdings + movers, with language-resolved display name/symbol.
+    holdings = []
+    for p in pv['positions']:
+        if (p.get('quantity', 0) or 0) <= 0:
+            continue
+        name, symbol = _display_name(p, lang)
+        mv = p.get('market_value', 0) or 0
+        cost = p.get('cost_basis', 0) or 0
+        dpnl, dpct = _day_change(p, mv, p.get('daily_pnl', 0) or 0)
+        holdings.append({
+            'holding_id': p.get('holding_id'), 'name': name, 'symbol': symbol,
+            'quantity': p.get('quantity', 0), 'market_value': round(mv, 2),
+            'cost_basis': round(cost, 2),
+            'pnl': round(mv - cost, 2),
+            'pnl_pct': round((mv - cost) / cost * 100, 2) if cost else 0,
+            'day_pnl': round(dpnl, 2),
+            'day_pct': round(dpct, 2),
+            'weight': round(p.get('weight', 0) or 0, 2),
+        })
+    holdings.sort(key=lambda h: h['market_value'], reverse=True)
+
+    movers = sorted([h for h in holdings], key=lambda h: h['day_pct'])
+    gainers = [h for h in reversed(movers) if h['day_pct'] > 0][:3]
+    losers = [h for h in movers if h['day_pct'] < 0][:3]
+
+    return {
+        'portfolio': pv,
+        'daily_pct': daily_pct,
+        'idle_cash': round(idle_cash, 2),
+        'realized_ytd': _realized_ytd(),
+        'series': series,
+        'allocation': allocation,
+        'holdings': holdings,
+        'gainers': gainers,
+        'losers': losers,
+    }
+
+
+def get_analytics(lang='he'):
+    """Aggregate the statistics deep-dive (Analytics page). Reuses canonical series.
+
+    Returns summary stats + chart-ready series, or None when there is no history.
+    """
+    from datetime import date
+    from app.analytics.series import equity_series, daily_changes
+    from app.analytics.daily_analytics import get_historical_performance
+
+    eq = equity_series()
+    if not eq:
+        return None
+
+    # Total-return path: (equity − net_invested) / net_invested, per snapshot date.
+    ret_path, peak, max_dd = [], None, 0.0
+    dd_path = []
+    for s in eq:
+        inv = s['net_invested'] or 0
+        tr_pct = ((s['total_equity'] - inv) / inv * 100) if inv else 0
+        ret_path.append({'date': s['date'], 'value': round(tr_pct, 2)})
+        peak = s['total_equity'] if peak is None else max(peak, s['total_equity'])
+        dd = (s['total_equity'] / peak - 1) * 100 if peak else 0
+        dd_path.append({'date': s['date'], 'value': round(dd, 2)})
+        max_dd = min(max_dd, dd)
+
+    # Monthly returns from Δ(equity − net_invested) within each calendar month.
+    by_month = {}
+    for s in eq:
+        ym = s['date'][:7]
+        tr = (s['total_equity'] - (s['net_invested'] or 0))
+        m = by_month.setdefault(ym, {'first_tr': tr, 'first_eq': s['total_equity'], 'last_tr': tr})
+        m['last_tr'] = tr
+    monthly = []
+    for ym in sorted(by_month):
+        m = by_month[ym]
+        base = m['first_eq'] or 1
+        monthly.append({'month': ym, 'pct': round((m['last_tr'] - m['first_tr']) / base * 100, 2)})
+    month_pcts = [m['pct'] for m in monthly]
+    best_month = max(month_pcts) if month_pcts else 0
+    worst_month = min(month_pcts) if month_pcts else 0
+
+    # Win rate + heatmap from canonical daily changes.
+    changes = daily_changes()
+    day_items = sorted(changes.items())
+    wins = sum(1 for _, c in day_items if (c.get('change_pct') or 0) > 0)
+    losses = sum(1 for _, c in day_items if (c.get('change_pct') or 0) < 0)
+    win_rate = round(wins / (wins + losses) * 100, 1) if (wins + losses) else 0
+    heatmap = [{'date': d, 'pct': round(c.get('change_pct') or 0, 2)} for d, c in day_items][-112:]
+    heat_max = max((abs(h['pct']) for h in heatmap), default=1) or 1
+
+    # Annualized from the total-return span.
+    pv = get_portfolio_value()
+    total_ret_pct = pv['unrealized_pnl_pct'] if pv else 0
+    try:
+        span = (date.fromisoformat(eq[-1]['date']) - date.fromisoformat(eq[0]['date'])).days or 1
+        annualized = round(((1 + total_ret_pct / 100) ** (365.0 / span) - 1) * 100, 2)
+    except Exception:
+        annualized = 0
+
+    # P&L by position (from the shared overview holdings).
+    ov = get_overview(lang) or {'holdings': []}
+    pnl_by_pos = sorted(
+        [{'name': h['name'], 'symbol': h['symbol'], 'pnl': h['pnl'], 'pnl_pct': h['pnl_pct']}
+         for h in ov['holdings']],
+        key=lambda x: x['pnl'], reverse=True)
+
+    # Weekday performance + allocation over time.
+    weekday = [{'label': (w['label_en'] if lang == 'en' else w['label_he']), 'pct': w['avg_pct']}
+               for w in get_historical_performance().get('by_day', [])]
+    alloc_history = get_allocation_history()
+
+    return {
+        'summary': {
+            'total_return_pct': round(total_ret_pct, 2),
+            'annualized': annualized,
+            'best_month': best_month,
+            'worst_month': worst_month,
+            'max_drawdown': round(max_dd, 2),
+            'win_rate': win_rate,
+        },
+        'return_path': ret_path,
+        'drawdown_path': dd_path,
+        'monthly': monthly,
+        'pnl_by_pos': pnl_by_pos,
+        'weekday': weekday,
+        'alloc_history': alloc_history,
+        'heatmap': heatmap,
+        'heat_max': heat_max,
+        'date_range': {'start': eq[0]['date'], 'end': eq[-1]['date']},
     }
 
 

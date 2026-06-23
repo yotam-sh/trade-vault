@@ -162,6 +162,51 @@ def test_backfill_skips_real_tase_holding(monkeypatch):
     assert summary['dates'] == 0
 
 
+# ── Gap-fill on price refresh ─────────────────────────────────────────────────
+
+def _patch_live_price(monkeypatch, price=120.0):
+    monkeypatch.setattr('app.utils.translation_service.fetch_rich_info_from_yfinance',
+                        lambda t: {'market_state': 'REGULAR', 'regular_price': price,
+                                   'current_price': price})
+
+
+def test_refresh_backfills_missing_trading_days(monkeypatch):
+    """A manual refresh fills missing trading days back to the first trade, skips weekends."""
+    get_db(); init_default_settings()
+    _setup_aapl_with_trades()
+    _patch_history(monkeypatch)
+    _patch_live_price(monkeypatch)
+
+    from app.manual_portfolio import refresh_prices_and_snapshot
+    res = refresh_prices_and_snapshot()
+
+    assert res['backfilled'] == 5                    # the 5 trading days from history
+    assert _snap_on('2026-06-03') is not None        # past weekday filled
+    assert _snap_on('2026-06-05') is not None
+    assert _snap_on('2026-06-06') is None            # Saturday never emitted
+    assert _snap_on('2026-06-07') is None            # Sunday never emitted
+
+    # Second refresh the same day: today's snapshot exists → no re-backfill.
+    res2 = refresh_prices_and_snapshot()
+    assert res2['backfilled'] == 0
+
+
+def test_refresh_backfill_noop_for_daily_file_portfolio(monkeypatch):
+    """Daily-file (TASE) portfolios get history from imports — refresh never fabricates it."""
+    get_db(); init_default_settings()
+    _setup_aapl_with_trades()
+    _patch_history(monkeypatch)
+    _patch_live_price(monkeypatch)
+    from app.imports import create_import
+    create_import('data.xlsx', 'data.xlsx', 'hash123', '2026-06-04',
+                  'daily_portfolio', rows_imported=1)
+
+    from app.manual_portfolio import refresh_prices_and_snapshot
+    res = refresh_prices_and_snapshot()
+    assert res['backfilled'] == 0
+    assert _snap_on('2026-06-03') is None            # no fabricated history
+
+
 # ── US trading calendar + number locale ───────────────────────────────────────
 
 def test_us_trading_calendar():

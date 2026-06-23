@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% set sym = currency_symbol %}
+{% block title %}{{ t.nav_analytics if t.nav_analytics else t.nav_graphs }} · TradeVault{% endblock %}
+
+{% macro pct(n) -%}{{ '{:+.2f}'.format(n or 0) }}%{%- endmacro %}
+{% macro heat(p, mx) -%}
+{%- set a = ((p|abs) / mx if mx else 0) -%}{%- set al = (a*0.8 + 0.12) -%}
+{%- if p > 0 -%}rgba(70,207,131,{{ '%.2f'|format(al) }})
+{%- elif p < 0 -%}rgba(255,93,108,{{ '%.2f'|format(al) }})
+{%- else -%}var(--surface-inset){%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+{% if not a %}
+  <div class="tv-panel" style="text-align:center; padding:48px 20px;"><h2>{{ t.no_data_title }}</h2></div>
+{% else %}
+<div class="tv-page-head">
+  <div>
+    <h1>{{ t.nav_analytics if t.nav_analytics else t.nav_graphs }}</h1>
+    <div class="tv-page-sub">{{ t.analytics_sub if t.analytics_sub else '' }}</div>
+  </div>
+  <div class="tv-page-sub mono">{{ tv_icon('chart-line', 14) }} {{ a.date_range.start }} → {{ a.date_range.end }}</div>
+</div>
+
+{# ---- Summary strip ---- #}
+<div class="tv-summary-strip">
+  {% set s = a.summary %}
+  {% set cards = [
+    (t.stat_cost_change, s.total_return_pct, true),
+    (t.an_annualized if t.an_annualized else 'Annualized', s.annualized, true),
+    (t.an_best_month if t.an_best_month else 'Best month', s.best_month, true),
+    (t.an_worst_month if t.an_worst_month else 'Worst month', s.worst_month, true),
+    (t.an_max_drawdown if t.an_max_drawdown else 'Max drawdown', s.max_drawdown, true),
+    (t.an_win_rate if t.an_win_rate else 'Win rate', s.win_rate, false)
+  ] %}
+  {% for label, val, signed in cards %}
+  <div class="tv-panel">
+    <div class="tv-overline">{{ label }}</div>
+    <div class="tv-kpi-val {{ ('pos' if val >= 0 else 'neg') if signed else '' }}">{{ pct(val) if signed else ('{:.1f}%'.format(val)) }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ---- Cumulative return ---- #}
+<div class="tv-panel" style="margin-bottom:16px;">
+  <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_cumulative if t.an_cumulative else 'Cumulative return' }}</div></div>
+  <div class="tv-panel-body"><div style="height:260px;"><canvas id="an-return"></canvas></div></div>
+</div>
+
+{# ---- Monthly | Drawdown ---- #}
+<div class="tv-grid-2" style="margin-bottom:16px;">
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_monthly if t.an_monthly else 'Monthly return' }}</div></div>
+    <div class="tv-panel-body"><div style="height:220px;"><canvas id="an-monthly"></canvas></div></div>
+  </div>
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_drawdown if t.an_drawdown else 'Drawdown from peak' }} <span class="muted" style="font-weight:400;">· {{ pct(a.summary.max_drawdown) }}</span></div></div>
+    <div class="tv-panel-body"><div style="height:220px;"><canvas id="an-drawdown"></canvas></div></div>
+  </div>
+</div>
+
+{# ---- P&L by position | Weekday ---- #}
+<div class="tv-grid-2" style="margin-bottom:16px;">
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_pnl_by_pos if t.an_pnl_by_pos else 'P&L by position' }}</div></div>
+    <div class="tv-panel-body"><div style="height:{{ [a.pnl_by_pos|length * 26, 220]|max }}px;"><canvas id="an-pnlpos"></canvas></div></div>
+  </div>
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_weekday if t.an_weekday else 'Average return by weekday' }}</div></div>
+    <div class="tv-panel-body"><div style="height:220px;"><canvas id="an-weekday"></canvas></div></div>
+  </div>
+</div>
+
+{# ---- Allocation over time ---- #}
+<div class="tv-panel" style="margin-bottom:16px;">
+  <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_alloc_time if t.an_alloc_time else 'Allocation over time' }}</div></div>
+  <div class="tv-panel-body"><div style="height:240px;"><canvas id="an-alloc"></canvas></div></div>
+</div>
+
+{# ---- Heatmap ---- #}
+<div class="tv-panel">
+  <div class="tv-panel-head"><div class="tv-panel-title glow">{{ t.an_heatmap if t.an_heatmap else 'Daily P&L' }}</div></div>
+  <div class="tv-panel-body">
+    <div class="tv-heatmap">
+      {% for h in a.heatmap %}
+      <span class="tv-heat-cell" style="background:{{ heat(h.pct, a.heat_max) }};" title="{{ h.date }}: {{ pct(h.pct) }}"></span>
+      {% endfor %}
+    </div>
+    <div class="tv-heat-legend">
+      <span>{{ t.an_loss if t.an_loss else 'Loss' }}</span>
+      <span class="tv-heat-swatch" style="background:rgba(255,93,108,0.85);"></span>
+      <span class="tv-heat-swatch" style="background:var(--surface-inset);"></span>
+      <span class="tv-heat-swatch" style="background:rgba(70,207,131,0.85);"></span>
+      <span>{{ t.an_gain if t.an_gain else 'Gain' }}</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if a %}
+<script>
+(function () {
+  var css = TV.css, sym = {{ currency_symbol|tojson }};
+  var ret = {{ a.return_path|tojson }}, dd = {{ a.drawdown_path|tojson }},
+      monthly = {{ a.monthly|tojson }}, pnlpos = {{ a.pnl_by_pos|tojson }},
+      weekday = {{ a.weekday|tojson }}, alloc = {{ a.alloc_history|tojson }};
+  var pos = css('--positive'), neg = css('--negative'), acc = css('--accent'), muted = css('--text-muted'), soft = css('--border-soft');
+  var noLegend = { legend: { display: false } };
+  function grid() { return { grid: { color: soft }, ticks: { color: muted } }; }
+
+  new Chart(document.getElementById('an-return'), {
+    type: 'line',
+    data: { labels: ret.map(function (d) { return d.date; }),
+      datasets: [{ data: ret.map(function (d) { return d.value; }), borderColor: acc, borderWidth: 3, fill: false, tension: 0.25, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } },
+        y: { grid: { color: soft }, ticks: { color: muted, callback: function (v) { return v + '%'; } } } } }
+  });
+
+  new Chart(document.getElementById('an-monthly'), {
+    type: 'bar',
+    data: { labels: monthly.map(function (m) { return m.month; }),
+      datasets: [{ data: monthly.map(function (m) { return m.pct; }),
+        backgroundColor: monthly.map(function (m) { return m.pct >= 0 ? pos : neg; }), borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
+      scales: { x: { grid: { display: false }, ticks: { color: muted } }, y: grid() } }
+  });
+
+  var ddctx = document.getElementById('an-drawdown');
+  var dgrad = ddctx.getContext('2d').createLinearGradient(0, 0, 0, 220);
+  dgrad.addColorStop(0, 'rgba(255,93,108,0.0)'); dgrad.addColorStop(1, 'rgba(255,93,108,0.28)');
+  new Chart(ddctx, {
+    type: 'line',
+    data: { labels: dd.map(function (d) { return d.date; }),
+      datasets: [{ data: dd.map(function (d) { return d.value; }), borderColor: neg, backgroundColor: dgrad, borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } },
+        y: { grid: { color: soft }, ticks: { color: muted, callback: function (v) { return v + '%'; } } } } }
+  });
+
+  new Chart(document.getElementById('an-pnlpos'), {
+    type: 'bar',
+    data: { labels: pnlpos.map(function (p) { return p.symbol || p.name; }),
+      datasets: [{ data: pnlpos.map(function (p) { return p.pnl; }),
+        backgroundColor: pnlpos.map(function (p) { return p.pnl >= 0 ? pos : neg; }), borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: function (c) { return TV.fmtMoney(c.parsed.x, sym); } } } },
+      scales: { x: grid(), y: { grid: { display: false }, ticks: { color: muted } } } }
+  });
+
+  new Chart(document.getElementById('an-weekday'), {
+    type: 'bar',
+    data: { labels: weekday.map(function (w) { return w.label; }),
+      datasets: [{ data: weekday.map(function (w) { return w.pct; }),
+        backgroundColor: weekday.map(function (w) { return w.pct >= 0 ? pos : neg; }), borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
+      scales: { x: { grid: { display: false }, ticks: { color: muted } }, y: grid() } }
+  });
+
+  var types = [['stock', '#a382f7'], ['mutual_fund', '#ff9d6b'], ['etf', '#5cc8ff'], ['bond', '#46cf83'], ['other', '#f0ab3e'], ['cash', '#756a8c']];
+  new Chart(document.getElementById('an-alloc'), {
+    type: 'line',
+    data: { labels: alloc.map(function (r) { return r.date; }),
+      datasets: types.map(function (t) { return { label: t[0], data: alloc.map(function (r) { return r[t[0]] || 0; }),
+        borderColor: t[1], backgroundColor: t[1] + '55', borderWidth: 1, fill: true, stack: 's', tension: 0.2, pointRadius: 0 }; }) },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + TV.fmtMoney(c.parsed.y, sym, 0); } } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } },
+        y: { stacked: true, grid: { color: soft }, ticks: { color: muted, callback: function (v) { return TV.fmtMoney(v, sym, 0); } } } } }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

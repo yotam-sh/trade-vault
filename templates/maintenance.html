@@ -1,375 +1,164 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}" dir="{{ dir }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t.nav_maintenance }} - TradeVault</title>
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-    <link rel="stylesheet" href="/static/style.css?v=2">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-</head>
-<body>
-    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
-        <div class="nav-left">
-            {% include 'partials/_portfolio_switcher.html' %}
-            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">{{ t.settings }}</button>
-            <div class="settings-dropdown" id="settings-dropdown">
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_language }}</div>
-                    <div class="lang-options">
-                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">עברית</button>
-                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">English</button>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_theme }}</div>
-                    <div class="theme-options">
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="default" checked>
-                            <span class="theme-name">{{ t.theme_default }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #0d1117"></span>
-                                <span class="color-sample" style="background: #161b22"></span>
-                                <span class="color-sample" style="background: #58a6ff"></span>
-                                <span class="color-sample" style="background: #3fb950"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="crimson">
-                            <span class="theme-name">{{ t.theme_crimson }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #280905"></span>
-                                <span class="color-sample" style="background: #740A03"></span>
-                                <span class="color-sample" style="background: #C3110C"></span>
-                                <span class="color-sample" style="background: #E6501B"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="teal">
-                            <span class="theme-name">{{ t.theme_teal }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #432323"></span>
-                                <span class="color-sample" style="background: #2F5755"></span>
-                                <span class="color-sample" style="background: #5A9690"></span>
-                                <span class="color-sample" style="background: #E0D9D9"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="slate">
-                            <span class="theme-name">{{ t.theme_slate }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #37353E"></span>
-                                <span class="color-sample" style="background: #44444E"></span>
-                                <span class="color-sample" style="background: #715A5A"></span>
-                                <span class="color-sample" style="background: #D3DAD9"></span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_pages }}</div>
-                    <div class="settings-links">
-                        <a href="/settings/portfolios" class="settings-link">{{ t.nav_portfolios }}</a>
-                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
-                        <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
-                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
-                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                    </div>
-                </div>
-                <div class="settings-version">v{{ app_version }}</div>
-            </div>
-        </div>
-        <div class="nav-center">
-            <a href="/">{{ t.nav_home }}</a>
-            <a href="/transactions">{{ t.nav_transactions }}</a>
-            <a href="/trades">{{ t.nav_trades }}</a>
-            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
-            <a href="/daily-details">{{ t.nav_daily_details }}</a>
-            <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/rebalance">{{ t.nav_rebalance }}</a>
-        </div>
-        <div class="nav-right">
-            <a href="/" class="brand"><img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo"></a>
-        </div>
-    </nav>
+{% extends 'base.html' %}
+{% block title %}{{ t.maintenance_title }} · TradeVault{% endblock %}
 
-    <div class="container" id="main-content" role="main">
-        <h1>{{ t.maintenance_title }}</h1>
+{% block content %}
+<div class="tv-page-head"><div><h1>{{ t.maintenance_title }}</h1></div></div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-            <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
-            {% endfor %}
+<div class="tv-stack">
+  {# ---- Login & Security ---- #}
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.security_section }}</div></div>
+    <div class="tv-panel-body">
+      {% if totp_env_managed %}
+        <p class="muted" style="margin:0;">{{ t.totp_env_managed }}</p>
+      {% elif totp_active %}
+        <p class="pos" style="margin:0 0 12px;">✓ {{ t.totp_enabled }}</p>
+        <form method="POST" action="/maintenance/totp/disable">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="tv-btn tv-btn-secondary" style="color:var(--negative);" onclick="return confirm('{{ t.totp_disable_btn }}?')">{{ t.totp_disable_btn }}</button>
+        </form>
+      {% else %}
+        <button id="totp-setup-btn" class="tv-btn tv-btn-secondary">{{ t.totp_setup_btn }}</button>
+        <div id="totp-setup-area" style="display:none; margin-top:16px;">
+          <p class="muted">{{ t.totp_scan_prompt }}</p>
+          <div id="totp-qr" style="max-width:200px; background:#fff; padding:8px; border-radius:6px;"></div>
+          <p style="font-size:var(--fs-sm); margin-top:8px;">{{ t.totp_secret_label }} <code id="totp-secret" style="user-select:all;"></code></p>
+          <label for="totp-code" class="tv-overline" style="display:block; margin:10px 0 4px;">{{ t.totp_confirm_label }}</label>
+          <input id="totp-code" type="text" inputmode="numeric" maxlength="9" dir="ltr" class="tv-input mono" style="width:auto; letter-spacing:0.2em; text-align:center;">
+          <button id="totp-confirm-btn" class="tv-btn tv-btn-primary" style="margin-inline-start:8px;">{{ t.totp_confirm_btn }}</button>
+          <div id="totp-error" class="tv-flash tv-flash-error" style="display:none; margin-top:10px;"></div>
         </div>
-        {% endif %}
-        {% endwith %}
-
-        <!-- Login & Security -->
-        <div class="card">
-            <div class="card-header">{{ t.security_section }}</div>
-            {% if totp_env_managed %}
-                <p style="color:var(--text-secondary);margin:0;">{{ t.totp_env_managed }}</p>
-            {% elif totp_active %}
-                <p style="color:var(--positive);margin:0 0 12px;">✓ {{ t.totp_enabled }}</p>
-                <form method="POST" action="/maintenance/totp/disable">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="admin-danger-btn"
-                            onclick="return confirm('{{ t.totp_disable_btn }}?')">{{ t.totp_disable_btn }}</button>
-                </form>
-            {% else %}
-                <button id="totp-setup-btn" class="admin-action-btn">{{ t.totp_setup_btn }}</button>
-                <div id="totp-setup-area" style="display:none;margin-top:16px;">
-                    <p style="color:var(--text-secondary);">{{ t.totp_scan_prompt }}</p>
-                    <div id="totp-qr" style="max-width:200px;background:#fff;padding:8px;border-radius:6px;"></div>
-                    <p style="font-size:0.85rem;margin-top:8px;">{{ t.totp_secret_label }}
-                        <code id="totp-secret" style="user-select:all;"></code></p>
-                    <label for="totp-code" style="display:block;font-size:0.82rem;color:var(--text-secondary);margin:10px 0 4px;">{{ t.totp_confirm_label }}</label>
-                    <input id="totp-code" type="text" inputmode="numeric" maxlength="9" dir="ltr"
-                           style="padding:8px;border-radius:6px;border:1px solid var(--bg-tertiary);background:var(--bg-primary);color:var(--text-primary);font-size:1.1rem;letter-spacing:0.2em;text-align:center;">
-                    <button id="totp-confirm-btn" class="admin-action-btn" style="margin-inline-start:8px;">{{ t.totp_confirm_btn }}</button>
-                    <div id="totp-error" class="flash flash-error" style="display:none;margin-top:10px;"></div>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Data Health -->
-        <div class="card">
-            <div class="card-header">{{ t.data_health_section }}</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                <button id="reconcile-btn" class="admin-action-btn">{{ t.run_reconcile_btn }}</button>
-                <form method="POST" action="/maintenance/rebuild-lots" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="admin-action-btn"
-                            onclick="return confirm('{{ t.rebuild_lots_btn }}?')">{{ t.rebuild_lots_btn }}</button>
-                </form>
-            </div>
-            <div id="reconcile-result" style="margin-top:14px;"></div>
-        </div>
-
-        <!-- Data & Integrations -->
-        <div class="card">
-            <div class="card-header">{{ t.ops_section }}</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                <form method="POST" action="/maintenance/sync-holdings" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="admin-action-btn">{{ t.sync_holdings_btn }}</button>
-                </form>
-                <form method="POST" action="/maintenance/repair/morning-balance" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="admin-action-btn">{{ t.repair_mb_btn }}</button>
-                </form>
-                <form method="POST" action="/maintenance/refresh-yfinance" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="admin-action-btn">{{ t.refresh_yf_btn }}</button>
-                </form>
-                <button id="check-libs-btn" class="admin-action-btn">{{ t.check_libs_btn }}</button>
-                <form method="POST" action="/maintenance/upgrade-libs" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="admin-action-btn"
-                            onclick="return confirm('{{ t.upgrade_libs_confirm }}')">{{ t.upgrade_libs_btn }}</button>
-                </form>
-                <button id="tase-btn" class="admin-action-btn">{{ t.admin_tase_refresh_btn }}</button>
-                <button id="backfill-btn" class="admin-action-btn">{{ t.btn_rebuild_history }}</button>
-            </div>
-            <div id="tase-status" style="display:none;margin-top:10px;" role="status" aria-live="polite">
-                <span id="tase-status-text" style="color:var(--text-secondary);"></span>
-            </div>
-            <div id="backfill-status" style="display:none;margin-top:10px;" role="status" aria-live="polite">
-                <span id="backfill-status-text" style="color:var(--text-secondary);"></span>
-            </div>
-            <form method="POST" action="/maintenance/repair/interpolated"
-                  style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label style="font-size:0.82rem;color:var(--text-secondary);">{{ t.repair_from_date_label }}</label>
-                <input type="text" name="from_date" placeholder="YYYY-MM-DD" dir="ltr"
-                       style="padding:6px;border-radius:6px;border:1px solid var(--bg-tertiary);background:var(--bg-primary);color:var(--text-primary);">
-                <button type="submit" class="admin-action-btn">{{ t.repair_interp_btn }}</button>
-            </form>
-            <div id="check-libs-result" style="margin-top:14px;"></div>
-        </div>
+      {% endif %}
     </div>
+  </div>
 
-    <script src="/static/app.js"></script>
-    <script>
-    (function () {
-        var csrf = document.querySelector('meta[name="csrf-token"]').content;
-        function post(url, body) {
-            return fetch(url, {method:'POST', credentials:'same-origin',
-                headers: Object.assign({'X-CSRFToken': csrf}, body ? {} : {}),
-                body: body});
-        }
+  {# ---- Data Health ---- #}
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.data_health_section }}</div></div>
+    <div class="tv-panel-body">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button id="reconcile-btn" class="tv-btn tv-btn-secondary">{{ t.run_reconcile_btn }}</button>
+        <form method="POST" action="/maintenance/rebuild-lots">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="tv-btn tv-btn-secondary" onclick="return confirm('{{ t.rebuild_lots_btn }}?')">{{ t.rebuild_lots_btn }}</button>
+        </form>
+      </div>
+      <div id="reconcile-result" style="margin-top:14px;"></div>
+    </div>
+  </div>
 
-        var setupBtn = document.getElementById('totp-setup-btn');
-        if (setupBtn) {
-            setupBtn.addEventListener('click', function () {
-                post('/maintenance/totp/begin').then(function(r){return r.json();}).then(function(d){
-                    if (d.error) { return; }
-                    document.getElementById('totp-qr').innerHTML = d.svg;
-                    document.getElementById('totp-secret').textContent = d.secret;
-                    document.getElementById('totp-setup-area').style.display = 'block';
-                    setupBtn.style.display = 'none';
-                });
-            });
-            document.getElementById('totp-confirm-btn').addEventListener('click', function () {
-                var fd = new FormData();
-                fd.append('code', document.getElementById('totp-code').value);
-                post('/maintenance/totp/confirm', fd).then(function(r){return r.json();}).then(function(d){
-                    if (d.ok) { window.location.reload(); }
-                    else {
-                        var e = document.getElementById('totp-error');
-                        e.textContent = d.error || 'Error'; e.style.display = 'block';
-                    }
-                });
-            });
-        }
+  {# ---- Data & Integrations ---- #}
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.ops_section }}</div></div>
+    <div class="tv-panel-body">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <form method="POST" action="/maintenance/sync-holdings"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="tv-btn tv-btn-secondary">{{ t.sync_holdings_btn }}</button></form>
+        <form method="POST" action="/maintenance/repair/morning-balance"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="tv-btn tv-btn-secondary">{{ t.repair_mb_btn }}</button></form>
+        <form method="POST" action="/maintenance/refresh-yfinance"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="tv-btn tv-btn-secondary">{{ t.refresh_yf_btn }}</button></form>
+        <button id="check-libs-btn" class="tv-btn tv-btn-secondary">{{ t.check_libs_btn }}</button>
+        <form method="POST" action="/maintenance/upgrade-libs"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="tv-btn tv-btn-secondary" onclick="return confirm('{{ t.upgrade_libs_confirm }}')">{{ t.upgrade_libs_btn }}</button></form>
+        <button id="tase-btn" class="tv-btn tv-btn-secondary">{{ t.admin_tase_refresh_btn }}</button>
+        <button id="backfill-btn" class="tv-btn tv-btn-secondary">{{ t.btn_rebuild_history }}</button>
+      </div>
+      <div id="tase-status" style="display:none; margin-top:10px;" role="status" aria-live="polite"><span id="tase-status-text" class="muted"></span></div>
+      <div id="backfill-status" style="display:none; margin-top:10px;" role="status" aria-live="polite"><span id="backfill-status-text" class="muted"></span></div>
+      <form method="POST" action="/maintenance/repair/interpolated" style="display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="tv-overline">{{ t.repair_from_date_label }}</label>
+        <input type="text" name="from_date" placeholder="YYYY-MM-DD" dir="ltr" class="tv-input mono" style="width:auto;">
+        <button type="submit" class="tv-btn tv-btn-secondary">{{ t.repair_interp_btn }}</button>
+      </form>
+      <div id="check-libs-result" style="margin-top:14px;"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
-        var recBtn = document.getElementById('reconcile-btn');
-        recBtn.addEventListener('click', function () {
-            var out = document.getElementById('reconcile-result');
-            out.textContent = '…';
-            post('/maintenance/reconcile').then(function(r){return r.json();}).then(function(d){
-                if (!d.issues || !d.issues.length) {
-                    out.innerHTML = '<div class="flash flash-success">{{ t.reconcile_clean }}</div>';
-                    return;
-                }
-                var rows = d.issues.map(function(i){
-                    return '<tr><td>['+i.sev.toUpperCase()+']</td><td>'+i.date+'</td><td>'+i.msg+'</td></tr>';
-                }).join('');
-                out.innerHTML = '<table class="sortable"><tbody>'+rows+'</tbody></table>';
-            });
-        });
+{% block scripts %}
+<script>
+(function () {
+  var csrf = document.querySelector('meta[name="csrf-token"]').content;
+  function post(url, body) { return fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf }, body: body }); }
 
-        var libsBtn = document.getElementById('check-libs-btn');
-        libsBtn.addEventListener('click', function () {
-            var out = document.getElementById('check-libs-result');
-            out.textContent = '…';
-            post('/maintenance/check-libs').then(function(r){return r.json();}).then(function(d){
-                if (!d.outdated || !d.outdated.length) {
-                    out.innerHTML = '<div class="flash flash-success">{{ t.check_libs_clean }}</div>';
-                    return;
-                }
-                var rows = d.outdated.map(function(p){
-                    return '<tr><td>'+p.name+'</td><td>'+p.version+'</td><td>→ '+p.latest+'</td></tr>';
-                }).join('');
-                out.innerHTML = '<table class="sortable"><tbody>'+rows+'</tbody></table>';
-            });
-        });
+  var setupBtn = document.getElementById('totp-setup-btn');
+  if (setupBtn) {
+    setupBtn.addEventListener('click', function () {
+      post('/maintenance/totp/begin').then(function (r) { return r.json(); }).then(function (d) {
+        if (d.error) return;
+        document.getElementById('totp-qr').innerHTML = d.svg;
+        document.getElementById('totp-secret').textContent = d.secret;
+        document.getElementById('totp-setup-area').style.display = 'block';
+        setupBtn.style.display = 'none';
+      });
+    });
+    document.getElementById('totp-confirm-btn').addEventListener('click', function () {
+      var fd = new FormData(); fd.append('code', document.getElementById('totp-code').value);
+      post('/maintenance/totp/confirm', fd).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) { window.location.reload(); }
+        else { var e = document.getElementById('totp-error'); e.textContent = d.error || 'Error'; e.style.display = 'block'; }
+      });
+    });
+  }
 
-        // ── TASE / Bizportal name refresh (async with live counter) ──
-        var taseBtn = document.getElementById('tase-btn');
-        var taseBox = document.getElementById('tase-status');
-        var taseText = document.getElementById('tase-status-text');
-        var pollTimer = null;
-        var pollCount = 0;
-        var MAX_POLL = 800;  // ~20 min @ 1.5s — guards against a server that never returns done
-        function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
-        function startPolling(fn) { pollCount = 0; pollTimer = setInterval(fn, 1500); }
-        function showRunning(d) {
-            taseBox.style.display = 'block';
-            taseText.textContent = '⏳ ' + (d.updated + d.failed) + ' / ' + (d.total || '…');
-            taseBtn.disabled = true;
-        }
-        function showDone(d) {
-            stopPolling();
-            var msg = '✓ ' + d.updated + ' / ' + d.total + ' updated';
-            if (d.bp_updated > 0) msg += ' — ' + d.bp_updated + ' from Bizportal';
-            if (d.failed > 0) msg += ', ' + d.failed + ' failed';
-            taseBox.style.display = 'block';
-            taseText.textContent = msg;
-            taseBtn.disabled = false;
-        }
-        function pollTimeout() {
-            stopPolling();
-            taseBox.style.display = 'block';
-            taseText.textContent = '⚠ Timeout';
-            taseBtn.disabled = false;
-        }
-        function pollStatus() {
-            if (++pollCount > MAX_POLL) { pollTimeout(); return; }
-            fetch('/maintenance/refresh-tase-status', {credentials:'same-origin'})
-                .then(function(r){return r.json();})
-                .then(function(d){ if (d.running) showRunning(d); else if (d.done && d.total > 0) showDone(d); })
-                .catch(stopPolling);
-        }
-        fetch('/maintenance/refresh-tase-status', {credentials:'same-origin'})
-            .then(function(r){return r.json();})
-            .then(function(d){ if (d.running) { showRunning(d); startPolling(pollStatus); } });
-        taseBtn.addEventListener('click', function () {
-            fetch('/maintenance/refresh-tase-names', {
-                method: 'POST', credentials: 'same-origin',
-                headers: {'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest'}
-            }).then(function(r){return r.json();}).then(function(d){
-                if (d.started) {
-                    taseBtn.disabled = true;
-                    taseBox.style.display = 'block';
-                    taseText.textContent = '⏳ 0 / …';
-                    startPolling(pollStatus);
-                } else {
-                    taseBox.style.display = 'block';
-                    taseText.textContent = d.reason === 'already_running' ? '⚠ Already running' : '⚠ Failed to start';
-                }
-            });
-        });
+  document.getElementById('reconcile-btn').addEventListener('click', function () {
+    var out = document.getElementById('reconcile-result'); out.textContent = '…';
+    post('/maintenance/reconcile').then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.issues || !d.issues.length) { out.innerHTML = '<div class="tv-flash tv-flash-success">{{ t.reconcile_clean }}</div>'; return; }
+      var rows = d.issues.map(function (i) { return '<tr><td>[' + i.sev.toUpperCase() + ']</td><td>' + i.date + '</td><td>' + i.msg + '</td></tr>'; }).join('');
+      out.innerHTML = '<table class="tv-table"><tbody>' + rows + '</tbody></table>';
+    });
+  });
 
-        // ── Daily-history backfill (async with status) ──
-        var bfBtn = document.getElementById('backfill-btn');
-        var bfBox = document.getElementById('backfill-status');
-        var bfText = document.getElementById('backfill-status-text');
-        var bfTimer = null;
-        var bfCount = 0;
-        function bfStop() { if (bfTimer) { clearInterval(bfTimer); bfTimer = null; } }
-        function bfStart() { bfCount = 0; bfTimer = setInterval(bfPoll, 1500); }
-        function bfShow(d) {
-            bfBox.style.display = 'block';
-            if (d.running) {
-                bfText.textContent = '⏳ {{ t.rebuild_history_running }}';
-                bfBtn.disabled = true;
-            } else if (d.done) {
-                bfStop();
-                bfBtn.disabled = false;
-                if (d.error) {
-                    bfText.textContent = '⚠ ' + d.error;
-                } else if (d.result && d.result.skipped === 'daily_file_portfolio') {
-                    bfText.textContent = '⚠ {{ t.rebuild_history_skipped_daily_file }}';
-                } else if (d.result) {
-                    bfText.textContent = '✓ {{ t.rebuild_history_done }}'
-                        .replace('{holdings}', d.result.holdings)
-                        .replace('{dates}', d.result.dates);
-                }
-            }
-        }
-        function bfPoll() {
-            if (++bfCount > MAX_POLL) {
-                bfStop(); bfBox.style.display = 'block';
-                bfText.textContent = '⚠ Timeout'; bfBtn.disabled = false; return;
-            }
-            fetch('/maintenance/rebuild-history-status', {credentials:'same-origin'})
-                .then(function(r){return r.json();})
-                .then(function(d){ bfShow(d); }).catch(bfStop);
-        }
-        fetch('/maintenance/rebuild-history-status', {credentials:'same-origin'})
-            .then(function(r){return r.json();})
-            .then(function(d){ if (d.running) { bfShow(d); bfStart(); } });
-        bfBtn.addEventListener('click', function () {
-            fetch('/maintenance/rebuild-history', {
-                method: 'POST', credentials: 'same-origin',
-                headers: {'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest'}
-            }).then(function(r){return r.json();}).then(function(d){
-                if (d.started) {
-                    bfBtn.disabled = true;
-                    bfBox.style.display = 'block';
-                    bfText.textContent = '⏳ {{ t.rebuild_history_running }}';
-                    bfStart();
-                } else {
-                    bfBox.style.display = 'block';
-                    bfText.textContent = d.reason === 'already_running' ? '⚠ {{ t.rebuild_history_running }}' : '⚠ Failed to start';
-                }
-            });
-        });
-    })();
-    </script>
-</body>
-</html>
+  document.getElementById('check-libs-btn').addEventListener('click', function () {
+    var out = document.getElementById('check-libs-result'); out.textContent = '…';
+    post('/maintenance/check-libs').then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.outdated || !d.outdated.length) { out.innerHTML = '<div class="tv-flash tv-flash-success">{{ t.check_libs_clean }}</div>'; return; }
+      var rows = d.outdated.map(function (p) { return '<tr><td>' + p.name + '</td><td>' + p.version + '</td><td>→ ' + p.latest + '</td></tr>'; }).join('');
+      out.innerHTML = '<table class="tv-table"><tbody>' + rows + '</tbody></table>';
+    });
+  });
+
+  var MAX_POLL = 800;
+  // ── TASE name refresh ──
+  var taseBtn = document.getElementById('tase-btn'), taseBox = document.getElementById('tase-status'), taseText = document.getElementById('tase-status-text');
+  var pollTimer = null, pollCount = 0;
+  function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+  function startPolling(fn) { pollCount = 0; pollTimer = setInterval(fn, 1500); }
+  function showRunning(d) { taseBox.style.display = 'block'; taseText.textContent = '⏳ ' + (d.updated + d.failed) + ' / ' + (d.total || '…'); taseBtn.disabled = true; }
+  function showDone(d) { stopPolling(); var msg = '✓ ' + d.updated + ' / ' + d.total + ' updated'; if (d.bp_updated > 0) msg += ' — ' + d.bp_updated + ' from Bizportal'; if (d.failed > 0) msg += ', ' + d.failed + ' failed'; taseBox.style.display = 'block'; taseText.textContent = msg; taseBtn.disabled = false; }
+  function pollTimeout() { stopPolling(); taseBox.style.display = 'block'; taseText.textContent = '⚠ Timeout'; taseBtn.disabled = false; }
+  function pollStatus() { if (++pollCount > MAX_POLL) { pollTimeout(); return; } fetch('/maintenance/refresh-tase-status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.running) showRunning(d); else if (d.done && d.total > 0) showDone(d); }).catch(stopPolling); }
+  fetch('/maintenance/refresh-tase-status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.running) { showRunning(d); startPolling(pollStatus); } });
+  taseBtn.addEventListener('click', function () {
+    fetch('/maintenance/refresh-tase-names', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.started) { taseBtn.disabled = true; taseBox.style.display = 'block'; taseText.textContent = '⏳ 0 / …'; startPolling(pollStatus); }
+      else { taseBox.style.display = 'block'; taseText.textContent = d.reason === 'already_running' ? '⚠ Already running' : '⚠ Failed to start'; }
+    });
+  });
+
+  // ── Daily-history backfill ──
+  var bfBtn = document.getElementById('backfill-btn'), bfBox = document.getElementById('backfill-status'), bfText = document.getElementById('backfill-status-text');
+  var bfTimer = null, bfCount = 0;
+  function bfStop() { if (bfTimer) { clearInterval(bfTimer); bfTimer = null; } }
+  function bfStart() { bfCount = 0; bfTimer = setInterval(bfPoll, 1500); }
+  function bfShow(d) {
+    bfBox.style.display = 'block';
+    if (d.running) { bfText.textContent = '⏳ {{ t.rebuild_history_running }}'; bfBtn.disabled = true; }
+    else if (d.done) {
+      bfStop(); bfBtn.disabled = false;
+      if (d.error) bfText.textContent = '⚠ ' + d.error;
+      else if (d.result && d.result.skipped === 'daily_file_portfolio') bfText.textContent = '⚠ {{ t.rebuild_history_skipped_daily_file }}';
+      else if (d.result) bfText.textContent = '✓ {{ t.rebuild_history_done }}'.replace('{holdings}', d.result.holdings).replace('{dates}', d.result.dates);
+    }
+  }
+  function bfPoll() { if (++bfCount > MAX_POLL) { bfStop(); bfBox.style.display = 'block'; bfText.textContent = '⚠ Timeout'; bfBtn.disabled = false; return; } fetch('/maintenance/rebuild-history-status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { bfShow(d); }).catch(bfStop); }
+  fetch('/maintenance/rebuild-history-status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.running) { bfShow(d); bfStart(); } });
+  bfBtn.addEventListener('click', function () {
+    fetch('/maintenance/rebuild-history', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.started) { bfBtn.disabled = true; bfBox.style.display = 'block'; bfText.textContent = '⏳ {{ t.rebuild_history_running }}'; bfStart(); }
+      else { bfBox.style.display = 'block'; bfText.textContent = d.reason === 'already_running' ? '⚠ {{ t.rebuild_history_running }}' : '⚠ Failed to start'; }
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,235 +1,54 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}" dir="{{ dir }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ t.nav_daily_summary }} - TradeVault</title>
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-    <script>var T = {{ t_json|safe }};</script>
-</head>
-<body>
-    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
-    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
-        <div class="nav-left">
-            {% include 'partials/_portfolio_switcher.html' %}
-            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
-                {{ t.settings }}
-            </button>
-            <div class="settings-dropdown" id="settings-dropdown">
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_language }}</div>
-                    <div class="lang-options">
-                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
-                            עברית
-                        </button>
-                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
-                            English
-                        </button>
-                    </div>
-                </div>
+{% extends 'base.html' %}
+{% set sym = currency_symbol %}
+{% block title %}{{ t.nav_daily_summary }} · TradeVault{% endblock %}
 
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_theme }}</div>
-                    <div class="theme-options">
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="default" checked>
-                            <span class="theme-name">{{ t.theme_default }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #0d1117"></span>
-                                <span class="color-sample" style="background: #161b22"></span>
-                                <span class="color-sample" style="background: #58a6ff"></span>
-                                <span class="color-sample" style="background: #3fb950"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="crimson">
-                            <span class="theme-name">{{ t.theme_crimson }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #280905"></span>
-                                <span class="color-sample" style="background: #740A03"></span>
-                                <span class="color-sample" style="background: #C3110C"></span>
-                                <span class="color-sample" style="background: #E6501B"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="teal">
-                            <span class="theme-name">{{ t.theme_teal }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #432323"></span>
-                                <span class="color-sample" style="background: #2F5755"></span>
-                                <span class="color-sample" style="background: #5A9690"></span>
-                                <span class="color-sample" style="background: #E0D9D9"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="slate">
-                            <span class="theme-name">{{ t.theme_slate }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #37353E"></span>
-                                <span class="color-sample" style="background: #44444E"></span>
-                                <span class="color-sample" style="background: #715A5A"></span>
-                                <span class="color-sample" style="background: #D3DAD9"></span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_pages }}</div>
-                    <div class="settings-links">
-                        <a href="/settings/portfolios" class="settings-link">{{ t.nav_portfolios }}</a>
-                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
-                        <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
-                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
-                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                    </div>
-                </div>
-                <div class="settings-version">v{{ app_version }}</div>
-            </div>
-        </div>
+{% macro money(n) -%}{{ sym }}{{ '{:,.2f}'.format(n or 0) }}{%- endmacro %}
+{% macro signed_money(n) -%}{{ '+' if (n or 0) >= 0 else '−' }}{{ sym }}{{ '{:,.2f}'.format((n or 0)|abs) }}{%- endmacro %}
+{% macro signed_pct(n) -%}{{ '+' if (n or 0) >= 0 else '−' }}{{ '{:.2f}'.format((n or 0)|abs) }}%{%- endmacro %}
+{% macro best_name(b) -%}{{ (b.symbol_en or b.symbol) if lang == 'en' else b.symbol }}{%- endmacro %}
 
-        <div class="nav-center">
-            <a href="/">{{ t.nav_home }}</a>
-            <a href="/transactions">{{ t.nav_transactions }}</a>
-            <a href="/trades">{{ t.nav_trades }}</a>
-            <a href="/daily-summary" class="active" aria-current="page">{{ t.nav_daily_summary }}</a>
-            <a href="/daily-details">{{ t.nav_daily_details }}</a>
-            <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions">{{ t.nav_positions }}</a>
-            <a href="/rebalance">{{ t.nav_rebalance }}</a>
-        </div>
+{% block content %}
+<div class="tv-page-head">
+  <div><h1>{{ t.nav_daily_summary }}</h1></div>
+  <form method="get" class="tv-actions" style="gap:8px;">
+    <input type="date" name="start" value="{{ start }}" class="tv-input mono" style="width:auto;">
+    <input type="date" name="end" value="{{ end }}" class="tv-input mono" style="width:auto;">
+    <button type="submit" class="tv-btn tv-btn-secondary tv-btn-sm">{{ t.btn_filter if t.btn_filter else 'Filter' }}</button>
+  </form>
+</div>
 
-        <div class="nav-right">
-            <a href="/" class="brand">
-                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
-            </a>
-        </div>
-    </nav>
-
-    <div class="container" id="main-content" role="main">
-
-        <div class="filters">
-            <label>{{ t.label_date }}</label>
-            <div class="calendar-picker">
-                <button type="button" class="date-picker-btn">{{ t.pick_date }}</button>
-                <div class="date-picker-dropdown">
-                    <div class="mode-tabs">
-                        <div class="mode-tab" data-mode="single">{{ t.mode_single }}</div>
-                        <div class="mode-tab active" data-mode="range">{{ t.mode_range }}</div>
-                    </div>
-                    <div class="calendar-header">
-                        <button type="button" class="next-month">&#9654;</button>
-                        <span class="month-label"></span>
-                        <button type="button" class="prev-month">&#9664;</button>
-                    </div>
-                    <div class="calendar-grid">
-                        <div class="day-header">{{ t.day_sun }}</div>
-                        <div class="day-header">{{ t.day_mon }}</div>
-                        <div class="day-header">{{ t.day_tue }}</div>
-                        <div class="day-header">{{ t.day_wed }}</div>
-                        <div class="day-header">{{ t.day_thu }}</div>
-                        <div class="day-header">{{ t.day_fri }}</div>
-                        <div class="day-header">{{ t.day_sat }}</div>
-                    </div>
-                    <div class="selected-dates">{{ t.no_date_selected }}</div>
-                    <div class="date-picker-actions">
-                        <button type="button" class="clear-btn">{{ t.btn_clear }}</button>
-                    </div>
-                </div>
-            </div>
-            <button type="button" class="clear-filters-btn" id="clear-dates">{{ t.clear_date }}</button>
-            <div class="date-presets">
-                <button type="button" class="date-preset" data-range="week">{{ t.preset_week }}</button>
-                <button type="button" class="date-preset" data-range="month">{{ t.preset_month }}</button>
-                <button type="button" class="date-preset" data-range="30">{{ t.preset_30 }}</button>
-            </div>
-            <a href="/export/daily-summary?start={{ start or '' }}&end={{ end or '' }}" class="export-btn">{{ t.btn_export }} &#8595;</a>
-        </div>
-
-        {% set chart_period_hidden = true %}
-        {% if data %}{% include 'partials/_chart_daily_pnl.html' %}{% endif %}
-
-        <div class="card">
-            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>{{ t.page_daily_summary }}</span>
-                <button class="table-settings-btn" onclick="openDisplayPrefsModal(null, this)" title="{{ t.nav_display_settings }}">&#9881;</button>
-            </div>
-            <div class="table-wrapper">
-                <table class="sortable">
-                    <caption class="visually-hidden">{{ t.page_daily_summary }}</caption>
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ t.th_date }}</th>
-                            <th scope="col">{{ t.th_morning_value }}</th>
-                            <th scope="col">{{ t.th_current_value }}</th>
-                            <th scope="col">{{ t.th_deposits }}</th>
-                            <th scope="col">{{ t.th_daily_pnl }}</th>
-                            <th scope="col">{{ t.th_change_pct }}</th>
-                            <th scope="col">{{ t.th_best_stock }}</th>
-                            <th scope="col">{{ currency_symbol }}</th>
-                            <th scope="col">%</th>
-                            <th scope="col">{{ t.th_worst_stock }}</th>
-                            <th scope="col">{{ currency_symbol }}</th>
-                            <th scope="col">%</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for day in data %}
-                        <tr data-pnl="{{ day.daily_pnl }}">
-                            <td><a href="/daily-details?start={{ day.date }}&end={{ day.date }}" class="position-link">{{ day.date | format_date(lang) }}</a></td>
-                            <td class="num">{{ '{:,.2f}'.format(day.morning_value) }}</td>
-                            <td class="num">{{ '{:,.2f}'.format(day.current_value) }}</td>
-                            <td class="num">
-                                {% if day.deposits %}
-                                    {{ '{:,.0f}'.format(day.deposits) }}
-                                {% endif %}
-                            </td>
-                            <td class="num pnl">{{ '{:,.2f}'.format(day.daily_pnl) }}</td>
-                            <td class="num pnl">{{ '{:.2f}'.format(day.change_pct) }}%</td>
-
-                            <!-- Best performer -->
-                            {% if day.best %}
-                            <td>
-                                {% if day.best.holding_id %}<a href="/position/{{ day.best.holding_id }}" class="position-link">{% endif %}
-                                {{ day.best[display_prefs.daily_summary_best_worst] or day.best.name_en or day.best.symbol }}
-                                {% if day.best.holding_id %}</a>{% endif %}
-                            </td>
-                            <td class="num positive">{{ '{:,.2f}'.format(day.best.daily_pnl) }}</td>
-                            <td class="num positive">{{ '{:.2f}'.format(day.best.daily_pnl_pct) }}%</td>
-                            {% else %}
-                            <td>-</td><td>-</td><td>-</td>
-                            {% endif %}
-
-                            <!-- Worst performer -->
-                            {% if day.worst %}
-                            <td>
-                                {% if day.worst.holding_id %}<a href="/position/{{ day.worst.holding_id }}" class="position-link">{% endif %}
-                                {{ day.worst[display_prefs.daily_summary_best_worst] or day.worst.name_en or day.worst.symbol }}
-                                {% if day.worst.holding_id %}</a>{% endif %}
-                            </td>
-                            <td class="num negative">{{ '{:,.2f}'.format(day.worst.daily_pnl) }}</td>
-                            <td class="num negative">{{ '{:.2f}'.format(day.worst.daily_pnl_pct) }}%</td>
-                            {% else %}
-                            <td>-</td><td>-</td><td>-</td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {% if not data %}
-        <div class="card">
-            <p>{{ t.empty_daily_summary }}</p>
-        </div>
-        {% endif %}
-    </div>
-
-    <script src="/static/app.js"></script>
-{% set display_prefs_context = 'daily_summary' %}
-{% include 'partials/_display_prefs_modal.html' %}
-</body>
-</html>
+<div class="tv-panel">
+  <div class="tv-panel-body flush">
+    <table class="tv-table">
+      <thead>
+        <tr>
+          <th>{{ t.stat_data_date }}</th>
+          <th class="tv-hide-sm">{{ t.dsum_morning if t.dsum_morning else 'Morning' }}</th>
+          <th>{{ t.stat_total_value }}</th>
+          <th>{{ t.stat_daily_pnl }}</th>
+          <th>%</th>
+          <th class="tv-hide-sm">{{ t.dsum_best if t.dsum_best else 'Best' }}</th>
+          <th class="tv-hide-sm">{{ t.dsum_worst if t.dsum_worst else 'Worst' }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in data %}
+        <tr style="cursor:default;">
+          <td class="mono">{{ r.date }}</td>
+          <td class="tv-num tv-hide-sm">{{ money(r.morning_value) }}</td>
+          <td class="tv-num">{{ money(r.current_value) }}</td>
+          <td class="tv-num {{ 'pos' if r.daily_pnl >= 0 else 'neg' }}">{{ signed_money(r.daily_pnl) }}</td>
+          <td class="tv-num {{ 'pos' if r.change_pct >= 0 else 'neg' }}">{{ signed_pct(r.change_pct) }}</td>
+          <td class="tv-num tv-hide-sm">
+            {% if r.best %}<span class="tv-pos-sub">{{ best_name(r.best) }}</span> <span class="pos">{{ signed_pct(r.best.daily_pnl_pct) }}</span>{% else %}—{% endif %}
+          </td>
+          <td class="tv-num tv-hide-sm">
+            {% if r.worst %}<span class="tv-pos-sub">{{ best_name(r.worst) }}</span> <span class="neg">{{ signed_pct(r.worst.daily_pnl_pct) }}</span>{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

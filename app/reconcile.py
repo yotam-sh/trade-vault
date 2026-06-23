@@ -47,4 +47,13 @@ def reconcile(tolerance=1.0):
                 issues.append(('warn', latest.get('date', '?'),
                                f'holding {hid}: open-lot shares {lq} != position qty {qty}'))
 
+        # Phantom open lots: a holding with open lots that is NOT held in the latest
+        # snapshot (closed at the broker / sold to zero, but its lots were never closed).
+        # The snapshot looks fine, but lot-derived paths (price refresh, backfill) would
+        # resurrect the position. Surfaced so it can be repaired (repair interpolated).
+        for hid, lq in lot_qty.items():
+            if lq > 0.01 and hid not in pos_qty:
+                issues.append(('warn', latest.get('date', '?'),
+                               f'holding {hid}: open-lot shares {lq} but not held in latest snapshot — phantom'))
+
     return issues

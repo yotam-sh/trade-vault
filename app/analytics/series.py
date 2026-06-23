@@ -40,10 +40,18 @@ def daily_changes(start_date=None, end_date=None):
     / morning_value. Returns {date: {daily_pnl, morning_value, change_pct}}.
     """
     all_snaps = sorted(list_snapshots(), key=lambda s: s['date'])
-    prev_close = {}
+    prev_snap = {}
     for i, s in enumerate(all_snaps):
         if i > 0:
-            prev_close[s['date']] = all_snaps[i - 1].get('total_market_value', 0) or 0
+            prev_snap[s['date']] = all_snaps[i - 1]
+
+    def _total_return(snap):
+        mv = snap.get('total_market_value', 0) or 0
+        cash = snap.get('cash_balance', 0) or 0
+        equity = snap.get('total_equity')
+        if equity is None:
+            equity = mv + cash
+        return equity - (snap.get('net_invested', 0) or 0)
 
     result = {}
     for s in all_snaps:
@@ -54,7 +62,16 @@ def daily_changes(start_date=None, end_date=None):
             continue
         pnl = s.get('total_daily_pnl', 0) or 0
         mv = s.get('total_market_value', 0) or 0
-        pc = prev_close.get(date)
+        prev = prev_snap.get(date)
+        pc = (prev.get('total_market_value', 0) or 0) if prev else None
+        # Manual / US snapshots never populate total_daily_pnl (refresh writes no
+        # per-position daily P&L), so it sits at 0 even when value moved. Derive the
+        # day's P&L from the change in total return — Δ(equity − net_invested) — which
+        # excludes deposits and trades (cash↔securities moves leave equity unchanged).
+        # IBI snapshots already carry a computed total_daily_pnl, so this only fills the
+        # genuine zeros.
+        if pnl == 0 and prev is not None:
+            pnl = round(_total_return(s) - _total_return(prev), 2)
         morning = pc if (pc and pc > 0) else (mv - pnl)
         result[date] = {
             'daily_pnl': pnl,

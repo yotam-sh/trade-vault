@@ -1,1109 +1,144 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}" dir="{{ dir }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>
-        {{ (data.holding.name_en if lang == 'en' and data.holding.name_en else data.holding.name_he) }} - TradeVault
-    </title>
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-</head>
-<body>
-    <a href="#main-content" class="skip-link">{% if lang == 'he' %}דלג לתוכן הראשי{% else %}Skip to main content{% endif %}</a>
-    <nav aria-label="{% if lang == 'he' %}ניווט ראשי{% else %}Main navigation{% endif %}">
-        <div class="nav-left">
-            {% include 'partials/_portfolio_switcher.html' %}
-            <button class="settings-btn" id="settings-toggle" aria-haspopup="true" aria-expanded="false">
-                {{ t.settings }}
-            </button>
-            <div class="settings-dropdown" id="settings-dropdown">
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_language }}</div>
-                    <div class="lang-options">
-                        <button class="lang-option {% if lang == 'he' %}active{% endif %}" data-lang="he">
-                            עברית
-                        </button>
-                        <button class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en">
-                            English
-                        </button>
-                    </div>
-                </div>
+{% extends 'base.html' %}
+{% set sym = currency_symbol %}
+{% set h = data.holding %}
+{% block title %}{{ pd.name if pd else h.name_he }} · TradeVault{% endblock %}
 
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_theme }}</div>
-                    <div class="theme-options">
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="default" checked>
-                            <span class="theme-name">{{ t.theme_default }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #0d1117"></span>
-                                <span class="color-sample" style="background: #161b22"></span>
-                                <span class="color-sample" style="background: #58a6ff"></span>
-                                <span class="color-sample" style="background: #3fb950"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="crimson">
-                            <span class="theme-name">{{ t.theme_crimson }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #280905"></span>
-                                <span class="color-sample" style="background: #740A03"></span>
-                                <span class="color-sample" style="background: #C3110C"></span>
-                                <span class="color-sample" style="background: #E6501B"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="teal">
-                            <span class="theme-name">{{ t.theme_teal }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #432323"></span>
-                                <span class="color-sample" style="background: #2F5755"></span>
-                                <span class="color-sample" style="background: #5A9690"></span>
-                                <span class="color-sample" style="background: #E0D9D9"></span>
-                            </div>
-                        </label>
-                        <label class="theme-option">
-                            <input type="radio" name="theme" value="slate">
-                            <span class="theme-name">{{ t.theme_slate }}</span>
-                            <div class="theme-preview">
-                                <span class="color-sample" style="background: #37353E"></span>
-                                <span class="color-sample" style="background: #44444E"></span>
-                                <span class="color-sample" style="background: #715A5A"></span>
-                                <span class="color-sample" style="background: #D3DAD9"></span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-label">{{ t.settings_pages }}</div>
-                    <div class="settings-links">
-                        <a href="/settings/portfolios" class="settings-link">{{ t.nav_portfolios }}</a>
-                        <a href="/exports" class="settings-link">{{ t.nav_exports }}</a>
-                        <a href="/maintenance" class="settings-link">{{ t.nav_maintenance }}</a>
-                        <a href="/admin" class="settings-link">{{ t.nav_admin }}</a>
-                        <a href="/accessibility" class="settings-link">{{ t.nav_accessibility }}</a>
-                    </div>
-                </div>
-                <div class="settings-version">v{{ app_version }}</div>
-            </div>
-        </div>
+{% macro money(n, dec=2) -%}{{ sym }}{{ '{:,.{}f}'.format(n or 0, dec) }}{%- endmacro %}
+{% macro signed_money(n) -%}{{ '+' if (n or 0) >= 0 else '−' }}{{ sym }}{{ '{:,.2f}'.format((n or 0)|abs) }}{%- endmacro %}
+{% macro signed_pct(n) -%}{{ '+' if (n or 0) >= 0 else '−' }}{{ '{:.2f}'.format((n or 0)|abs) }}%{%- endmacro %}
 
-        <div class="nav-center">
-            <a href="/">{{ t.nav_home }}</a>
-            <a href="/transactions">{{ t.nav_transactions }}</a>
-            <a href="/trades">{{ t.nav_trades }}</a>
-            <a href="/daily-summary">{{ t.nav_daily_summary }}</a>
-            <a href="/daily-details">{{ t.nav_daily_details }}</a>
-            <a href="/graphs">{{ t.nav_graphs }}</a>
-            <a href="/positions" class="active" aria-current="page">{{ t.nav_positions }}</a>
-            <a href="/rebalance">{{ t.nav_rebalance }}</a>
-        </div>
+{% block content %}
+{% set yi = data.yfinance_info or {} %}
+<div class="tv-page-head">
+  <div>
+    <h1>{{ pd.name if pd else h.name_he }}</h1>
+    <div class="tv-page-sub">{{ pd.symbol if pd else h.tase_symbol }}{% if pd and pd.sector %} · {{ pd.sector }}{% endif %}{% if data.is_open %} · <span class="tv-badge tv-badge-accent">{{ t.position_open if t.position_open else 'Open' }}</span>{% else %} · <span class="tv-badge">{{ t.position_closed if t.position_closed else 'Closed' }}</span>{% endif %}</div>
+  </div>
+  <a href="{{ url_for('positions_view') }}" class="tv-btn tv-btn-ghost tv-btn-sm">{{ tv_icon('arrow-right', 14) }} {{ t.nav_positions }}</a>
+</div>
 
-        <div class="nav-right">
-            <a href="/" class="brand">
-                <img src="/static/logo_with_name.svg" alt="TradeVault" class="brand-logo">
-            </a>
-        </div>
-    </nav>
-
-    <div class="container" id="main-content" role="main">
-        {# TASE-native holding? (Israeli, non-manual). Non-TASE/foreign holdings hide TASE identity. #}
-        {% set is_tase = (data.holding.currency == 'ILS' and not data.holding.manual) %}
-
-        <!-- Back link -->
-        <div style="margin-bottom: 1rem;">
-            <a href="/positions" class="position-link" style="font-size: 0.9rem; color: var(--text-secondary);">
-                {{ t.position_back }}
-            </a>
-        </div>
-
-        <!-- ── Header ───────────────────────────────────────────────────────── -->
-        <div class="card" style="margin-bottom: 1rem;">
-            <!-- Title row -->
-            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem;">
-                <div>
-                    <h2 style="margin: 0 0 0.35rem;">
-                        {{ (data.holding.name_en if lang == 'en' and data.holding.name_en else data.holding.name_he) }}
-                    </h2>
-                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                        {% if data.holding.security_type %}
-                        <span class="badge badge-{{ data.holding.security_type }}">
-                            {% if data.holding.security_type == 'stock' %}{{ t.type_stock }}
-                            {% elif data.holding.security_type == 'mutual_fund' %}{{ t.type_mutual_fund }}
-                            {% elif data.holding.security_type == 'etf' %}{{ t.type_etf }}
-                            {% elif data.holding.security_type == 'bond' %}{{ t.type_bond }}
-                            {% else %}{{ data.holding.security_type }}{% endif %}
-                        </span>
-                        {% endif %}
-                        {% if data.is_open %}
-                        <span class="badge badge-buy">{{ t.position_status_open }}</span>
-                        {% else %}
-                        <span class="badge badge-sell">{{ t.position_status_closed }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                <button id="editNameBtn" onclick="toggleNameEdit()" style="background: none; border: 1px solid var(--border); border-radius: 5px; padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;" title="{{ t.position_edit_name }}">✏ {{ t.position_edit_name }}</button>
-            </div>
-            <!-- Identity grid -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); padding-top: 0.75rem; border-top: 1px solid var(--border);">
-                {% if is_tase %}
-                <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_name_he }}</div>
-                    <div style="font-size: 0.9rem; font-weight: 500;" dir="rtl">{{ data.holding.name_he }}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem;" dir="rtl">{{ data.holding.tase_symbol }}</div>
-                </div>
-                {% endif %}
-                <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_name_en }}</div>
-                    <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.name_en or '—' }}</div>
-                    {% if is_tase %}
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem;">{{ data.holding.tase_symbol_en or '—' }}</div>
-                    {% endif %}
-                </div>
-                <div style="padding: 0.1rem 1.25rem 0.1rem 0; border-right: 1px solid var(--border); margin-right: 1.25rem;">
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_yfinance_symbol }}</div>
-                    {% if data.holding.ticker %}
-                    <div style="font-size: 0.9rem; font-weight: 500;">
-                        <a href="https://finance.yahoo.com/quote/{{ data.holding.ticker }}" target="_blank" class="position-link" style="color: var(--accent);">{{ data.holding.ticker }} ↗</a>
-                    </div>
-                    {% else %}
-                    <div style="font-size: 0.9rem; font-weight: 500;">—</div>
-                    {% endif %}
-                </div>
-                <div style="padding: 0.1rem 0;">
-                    {% if is_tase %}
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_tase_id }}</div>
-                    <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.tase_id }}</div>
-                    {% else %}
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">{{ t.position_exchange }}</div>
-                    <div style="font-size: 0.9rem; font-weight: 500;">{{ data.holding.exchange or '—' }}</div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- ── Inline name edit panel ── -->
-            <div id="nameEditPanel" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                <div style="display: grid; gap: 0.75rem;">
-                    <div>
-                        <label style="display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem;">{{ t.position_name_he }}</label>
-                        <input id="editNameHe" type="text" value="{{ data.holding.name_he }}" dir="rtl"
-                            style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box;">
-                    </div>
-                    <div style="position: relative;">
-                        <label style="display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem;">{{ t.position_name_en }}</label>
-                        <input id="editNameEn" type="text" value="{{ data.holding.name_en or '' }}"
-                            placeholder="{{ t.position_yf_search_placeholder }}"
-                            autocomplete="off"
-                            style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box;">
-                        <input id="editTicker" type="hidden" value="{{ data.holding.ticker or '' }}">
-                        <div id="yfDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 5px; z-index: 100; max-height: 220px; overflow-y: auto; margin-top: 2px;"></div>
-                    </div>
-                    {% if is_tase %}
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <button type="button" id="fetchTaseBtn" onclick="fetchFromTase()"
-                            style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;">
-                            {{ t.position_fetch_tase }}
-                        </button>
-                        <span id="fetchTaseStatus" style="font-size: 0.78rem; color: var(--text-secondary);"></span>
-                    </div>
-                    {% endif %}
-                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                        <button onclick="toggleNameEdit()" style="padding: 0.4rem 1rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary);">{{ t.position_name_cancel }}</button>
-                        <button onclick="openConfirmModal()" style="padding: 0.4rem 1rem; background: var(--accent); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600;">{{ t.position_name_save }}</button>
-                    </div>
-                </div>
-            </div>
-
-            {% if data.yfinance_symbol %}
-            <!-- ── yfinance refresh review panel ── -->
-            <div style="margin-top: 0.75rem;">
-                <button type="button" id="yfRefreshBtn" onclick="openYfReview()"
-                    style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.8rem;">
-                    {{ t.yf_refresh_btn }}
-                </button>
-                <span id="yfRefreshStatus" style="font-size: 0.78rem; color: var(--text-secondary); margin-inline-start: 0.5rem;"></span>
-            </div>
-            <div id="yfReviewPanel" style="display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary);">
-                <div style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.6rem;">{{ t.yf_review_title }}</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
-                    <thead>
-                        <tr style="color: var(--text-secondary);">
-                            <th style="padding: 0.2rem 0.4rem; text-align: start; width: 1.5rem;"></th>
-                            <th style="padding: 0.2rem 0.4rem; text-align: start;">{{ t.yf_review_field }}</th>
-                            <th style="padding: 0.2rem 0.4rem; text-align: start;">{{ t.yf_review_current }}</th>
-                            <th style="padding: 0.2rem 0.4rem; text-align: start;">{{ t.yf_review_proposed }}</th>
-                        </tr>
-                    </thead>
-                    <tbody id="yfReviewRows"></tbody>
-                </table>
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.6rem;">
-                    <button type="button" onclick="closeYfReview()" style="padding: 0.3rem 0.75rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-size: 0.82rem;">{{ t.yf_review_cancel }}</button>
-                    <button type="button" id="yfApplyBtn" onclick="applyYfData()" style="padding: 0.3rem 0.75rem; background: var(--accent); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600; font-size: 0.82rem;">{{ t.yf_review_apply }}</button>
-                </div>
-            </div>
-            {% else %}
-            <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; color: var(--text-secondary);">
-                ⚠ {{ t.position_no_yfinance }}
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- ── Confirmation modal ── -->
-        <div id="confirmModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
-            <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; max-width: 420px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
-                <h3 style="margin: 0 0 0.75rem;">{{ t.position_edit_name }}</h3>
-                <div id="confirmSummary" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.6;"></div>
-                <label style="display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem;">{{ t.position_name_confirm_prompt }}:</label>
-                <input id="confirmInput" type="text" dir="rtl"
-                    style="width: 100%; padding: 0.45rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box; margin-bottom: 0.5rem;"
-                    placeholder="{{ data.holding.name_he }}">
-                <div id="confirmError" style="display: none; color: var(--negative, #f85149); font-size: 0.82rem; margin-bottom: 0.5rem;">{{ t.position_name_confirm_mismatch }}</div>
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
-                    <button onclick="closeConfirmModal()" style="padding: 0.4rem 1rem; background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text-secondary);">{{ t.position_name_cancel }}</button>
-                    <button onclick="submitNameChange()" style="padding: 0.4rem 1rem; background: var(--negative, #da3633); border: none; border-radius: 5px; cursor: pointer; color: #fff; font-weight: 600;">{{ t.position_name_save }}</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Market stats bar (yfinance) ──────────────────────────────────── -->
-        {% if data.yfinance_info %}
-        {% set yf = data.yfinance_info %}
-        <div class="stat-grid" style="margin-bottom: 1rem;">
-            {% if yf.current_price %}
-            <div class="stat-item">
-                <span class="stat-label">{{ t.position_current_price }}</span>
-                <span class="stat-value">{{ '{:,.0f}'.format(yf.current_price) }}</span>
-            </div>
-            {% endif %}
-            {% if yf.price_change_pct is not none %}
-            <div class="stat-item">
-                <span class="stat-label">{{ t.th_change_pct }}</span>
-                <span class="stat-value {% if yf.price_change_pct >= 0 %}positive{% else %}negative{% endif %}">
-                    {{ '{:+.2f}'.format(yf.price_change_pct) }}%
-                </span>
-            </div>
-            {% endif %}
-            {% if yf.fifty_two_week_high %}
-            <div class="stat-item">
-                <span class="stat-label">{{ t.position_52w_range }}</span>
-                <span class="stat-value" style="font-size: 0.9rem;">
-                    {{ '{:,.0f}'.format(yf.fifty_two_week_low or 0) }} – {{ '{:,.0f}'.format(yf.fifty_two_week_high) }}
-                </span>
-            </div>
-            {% endif %}
-            {% if yf.market_cap %}
-            <div class="stat-item">
-                <span class="stat-label">{{ t.position_market_cap }}</span>
-                <span class="stat-value" style="font-size: 0.9rem;">
-                    {% if yf.market_cap >= 1000000000 %}
-                        {{ '{:.2f}'.format(yf.market_cap / 1000000000) }}B
-                    {% elif yf.market_cap >= 1000000 %}
-                        {{ '{:.1f}'.format(yf.market_cap / 1000000) }}M
-                    {% else %}
-                        {{ '{:,}'.format(yf.market_cap) }}
-                    {% endif %}
-                </span>
-            </div>
-            {% endif %}
-            {% if yf.dividend_yield %}
-            <div class="stat-item">
-                <span class="stat-label">{{ t.position_dividend_yield }}</span>
-                <span class="stat-value">{{ '{:.2f}'.format(yf.dividend_yield * 100) }}%</span>
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- ── Your Position Card ────────────────────────────────────────────── -->
-        {% if data.is_open and data.current_position %}
-        {% set pos = data.current_position %}
-        {% set unrealized = pos.market_value - pos.cost_basis %}
-        {% set unrealized_pct = (unrealized / pos.cost_basis * 100) if pos.cost_basis else 0 %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header">{{ t.positions_open }}</div>
-            <div class="stat-grid">
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.th_quantity }}</span>
-                    <span class="stat-value">{{ '{:,.4g}'.format(pos.quantity) }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_avg_cost }}</span>
-                    <span class="stat-value">
-                        {{ ('{:,.1f}'.format(pos.cost_basis / pos.quantity * 100) if is_agorot else '{:,.2f}'.format(pos.cost_basis / pos.quantity)) if pos.quantity else '—' }}
-                    </span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_total_invested }}</span>
-                    <span class="stat-value">{{ '{:,.2f}'.format(pos.cost_basis) }} {{ currency_symbol }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_current_value }}</span>
-                    <span class="stat-value">{{ '{:,.2f}'.format(pos.market_value) }} {{ currency_symbol }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_unrealized_pnl }} {{ currency_symbol }}</span>
-                    <span class="stat-value {% if unrealized >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ '{:+,.2f}'.format(unrealized) }}
-                    </span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_unrealized_pnl }} %</span>
-                    <span class="stat-value {% if unrealized_pct >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ '{:+.2f}'.format(unrealized_pct) }}%
-                    </span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_weight }}</span>
-                    <span class="stat-value">{{ '{:.1f}'.format(pos.weight) }}%</span>
-                </div>
-                {% if data.holding.first_bought %}
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_first_bought }}</span>
-                    <span class="stat-value" style="font-size: 0.9rem;">{{ data.holding.first_bought }}</span>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% elif data.closed_summary %}
-        {% set cs = data.closed_summary %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header">{{ t.positions_closed }}</div>
-            <div class="stat-grid">
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.th_quantity }}</span>
-                    <span class="stat-value">{{ '{:,.4g}'.format(cs.total_shares) }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.th_avg_buy }}</span>
-                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_buy_price * 100) if is_agorot else '{:,.2f}'.format(cs.avg_buy_price) }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.th_avg_sell }}</span>
-                    <span class="stat-value">{{ '{:,.1f}'.format(cs.avg_sell_price * 100) if is_agorot else '{:,.2f}'.format(cs.avg_sell_price) }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_total_invested }}</span>
-                    <span class="stat-value">{{ '{:,.2f}'.format(cs.total_cost) }} {{ currency_symbol }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_realized_pnl }} {{ currency_symbol }}</span>
-                    <span class="stat-value {% if cs.total_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ '{:+,.2f}'.format(cs.total_pnl) }}
-                    </span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_realized_pnl }} %</span>
-                    <span class="stat-value {% if cs.pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ '{:+.2f}'.format(cs.pnl_pct) }}%
-                    </span>
-                </div>
-                {% if cs.period %}
-                <div class="stat-item">
-                    <span class="stat-label">{{ t.position_period }}</span>
-                    <span class="stat-value" style="font-size: 0.82rem;">{{ cs.period }}</span>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- What-if kept card -->
-            {% if data.hypothetical %}
-            {% set hyp = data.hypothetical %}
-            <div class="what-if-card">
-                <h4>{{ t.position_what_if }}</h4>
-                <div class="stat-grid" style="margin-bottom: 0;">
-                    <div class="stat-item">
-                        <span class="stat-label">{{ t.position_current_price }}</span>
-                        <span class="stat-value">{{ '{:,.0f}'.format(hyp.current_price) }}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">{{ t.position_hyp_value }}</span>
-                        <span class="stat-value">{{ '{:,.2f}'.format(hyp.hypothetical_value) }} {{ currency_symbol }}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">{{ t.position_opp_cost }}</span>
-                        <span class="stat-value {% if hyp.opportunity_cost >= 0 %}positive{% else %}negative{% endif %}">
-                            {{ '{:+,.2f}'.format(hyp.opportunity_cost) }} {{ currency_symbol }}
-                            ({{ '{:+.1f}'.format(hyp.opportunity_cost_pct) }}%)
-                        </span>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- ── Price Chart ───────────────────────────────────────────────────── -->
-        {% if data.yfinance_symbol or data.daily_prices %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header">{{ t.position_price_chart }}</div>
-            {% if data.daily_prices or data.price_history %}
-            <!-- Range toggle buttons -->
-            <div class="range-toggle" id="rangeToggle">
-                <button class="range-btn" data-range="1w" aria-pressed="false">{{ t.chart_range_1w }}</button>
-                <button class="range-btn" data-range="1m" aria-pressed="false">{{ t.chart_range_1m }}</button>
-                <button class="range-btn" data-range="3m" aria-pressed="false">{{ t.chart_range_3m }}</button>
-                <button class="range-btn" data-range="6m" aria-pressed="false">{{ t.chart_range_6m }}</button>
-                <button class="range-btn" data-range="ytd" aria-pressed="false">{{ t.chart_range_ytd }}</button>
-                <button class="range-btn" data-range="1y" aria-pressed="false">{{ t.chart_range_1y }}</button>
-                <button class="range-btn active" data-range="since_buy" aria-pressed="true">{{ t.chart_range_since_buy }}</button>
-                {% if not data.is_open %}
-                <button class="range-btn" data-range="since_close" aria-pressed="false">{{ t.chart_range_since_close }}</button>
-                {% endif %}
-                <button class="range-btn" data-range="all" aria-pressed="false">{{ t.chart_range_all }}</button>
-            </div>
-            <canvas id="priceChart" role="img" aria-label="{{ t.position_price_chart }}" style="max-height: 320px;"></canvas>
-            {% else %}
-            <p class="empty-state" style="padding: 1.5rem 0;">{{ t.position_price_unavailable }}</p>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- ── P&L Over Time Chart ─────────────────────────────────────────── -->
-        {% if data.daily_prices %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header">{{ t.position_pnl_chart }}</div>
-            <canvas id="pnlChart" role="img" aria-label="{{ t.position_pnl_chart }}" style="max-height: 220px;"></canvas>
-        </div>
-        {% endif %}
-
-        <!-- ── Trade History ─────────────────────────────────────────────────── -->
-        {% if data.trades %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header">{{ t.position_trade_history }}</div>
-            <table>
-                <caption class="visually-hidden">{{ t.position_trade_history }}</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">{{ t.th_date }}</th>
-                        <th scope="col">{{ t.th_trade_action }}</th>
-                        <th scope="col">{{ t.th_trade_type }}</th>
-                        <th scope="col" class="num">{{ t.th_quantity }}</th>
-                        <th scope="col" class="num">{{ t.th_price_per_share }}</th>
-                        <th scope="col" class="num">{{ t.th_total_ils }}</th>
-                        <th scope="col" class="num">{{ t.th_realized_pnl }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for tr in data.trades %}
-                    <tr>
-                        <td>{{ tr.date | format_date(lang) }}</td>
-                        <td>
-                            {% if tr.type == 'buy' %}
-                            <span class="badge badge-buy">{{ t.badge_buy }}</span>
-                            {% else %}
-                            <span class="badge badge-sell">{{ t.badge_sell }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge badge-{{ tr.position_type }}">
-                                {{ t[tr.position_type] if tr.position_type in t else tr.position_type }}
-                            </span>
-                        </td>
-                        <td class="num">{{ '{:,.4g}'.format(tr.shares) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(tr.price_per_share * 100) if is_agorot else '{:,.2f}'.format(tr.price_per_share) }}</td>
-                        <td class="num">{{ '{:,.2f}'.format(tr.total_amount) }}</td>
-                        <td class="num pnl">
-                            {% if tr.type == 'sell' and tr.realized_pnl %}
-                            {{ '{:+,.2f}'.format(tr.realized_pnl) }}
-                            {% else %}—{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-
-        <!-- ── Open FIFO Lots ────────────────────────────────────────────────── -->
-        {% if data.is_open and data.open_lots %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header">{{ t.position_open_lots }}</div>
-            <table>
-                <caption class="visually-hidden">{{ t.position_open_lots }}</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">{{ t.th_date }}</th>
-                        <th scope="col" class="num">{{ t.th_lot_shares }}</th>
-                        <th scope="col" class="num">{{ t.th_lot_cost }}</th>
-                        <th scope="col" class="num">{{ t.th_cost_basis }}</th>
-                        <th scope="col" class="num">{{ t.th_days_held }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for lot in data.open_lots %}
-                    <tr>
-                        <td>{{ lot.buy_date | format_date(lang) }}</td>
-                        <td class="num">{{ '{:,.4g}'.format(lot.remaining_shares) }}</td>
-                        <td class="num">{{ '{:,.1f}'.format(lot.cost_per_share * 100) if is_agorot else '{:,.2f}'.format(lot.cost_per_share) }}</td>
-                        <td class="num">{{ '{:,.2f}'.format(lot.total_cost) }}</td>
-                        <td class="num">{{ lot.days_held or '—' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-
-        <!-- ── Company Info ──────────────────────────────────────────────────── -->
-        {% if data.yfinance_symbol %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
-                <span>{{ t.position_company_info }}</span>
-                <form method="post" action="/position/{{ data.holding_id }}/refresh-info" style="margin: 0;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="export-btn" style="font-size: 0.78rem; padding: 0.2rem 0.6rem;">
-                        {{ t.position_refresh_info }}
-                    </button>
-                </form>
-            </div>
-            {% if data.yfinance_info %}
-            {% set yf = data.yfinance_info %}
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.5rem 1.5rem; margin-bottom: 0.75rem;">
-                {% if yf.sector %}
-                <div>
-                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">{{ t.position_sector }}</span><br>
-                    <span>{{ (yf.sector_he if lang == 'he' and yf.sector_he else yf.sector) }}</span>
-                </div>
-                {% endif %}
-                {% if yf.industry %}
-                <div>
-                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">{{ t.position_industry }}</span><br>
-                    <span>{{ (yf.industry_he if lang == 'he' and yf.industry_he else yf.industry) }}</span>
-                </div>
-                {% endif %}
-                <div>
-                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">Yahoo Finance</span><br>
-                    <a href="https://finance.yahoo.com/quote/{{ data.yfinance_symbol }}" target="_blank" class="position-link" style="color: var(--accent);">
-                        {{ data.yfinance_symbol }} ↗
-                    </a>
-                </div>
-                {% if yf.info_fetched_at %}
-                <div>
-                    <span style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">{{ t.th_date }}</span><br>
-                    <span style="color: var(--text-secondary); font-size: 0.82rem;">{{ yf.info_fetched_at }}</span>
-                </div>
-                {% endif %}
-            </div>
-            {% if yf.description %}
-            <div>
-                <p class="description-text" id="descText">{{ (yf.description_he if lang == 'he' and yf.description_he else yf.description) }}</p>
-                <button class="description-toggle" id="descToggle" onclick="toggleDesc()">▼</button>
-            </div>
-            {% endif %}
-            {% else %}
-            <p class="empty-state" style="padding: 1.5rem 0;">
-                {{ t.position_info_unavailable }}
-                {% if data.holding.yfinance_data and data.holding.yfinance_data.fetch_failed_at %}
-                <br><small style="color: var(--text-secondary);">{{ t.position_last_attempted }}: {{ data.holding.yfinance_data.fetch_failed_at[:10] }}</small>
-                {% endif %}
-            </p>
-            {% endif %}
-        </div>
-        {% endif %}
-
+<div class="tv-stack">
+{% if pd and data.is_open %}
+  {# ---- Value + price chart ---- #}
+  <div class="tv-panel">
+    <div class="tv-panel-body">
+      <div class="tv-overline">{{ t.stat_total_value }}</div>
+      <div class="tv-hero-row" style="gap:12px; margin-top:4px;">
+        <span class="tv-num" style="font-size:var(--fs-3xl); font-weight:var(--fw-bold);">{{ money(pd.market_value) }}</span>
+        <span class="tv-pill {{ 'pos' if pd.pnl >= 0 else 'neg' }}">{{ signed_money(pd.pnl) }} ({{ signed_pct(pd.pnl_pct) }})</span>
+        {% if pd.day_pct %}<span class="tv-num {{ 'pos' if pd.day_pct >= 0 else 'neg' }}" style="font-size:var(--fs-sm);">{{ signed_pct(pd.day_pct) }} {{ t.col_day if t.col_day else 'today' }}</span>{% endif %}
+      </div>
+      {% if price_series %}<div style="height:200px; margin-top:16px;"><canvas id="pd-price"></canvas></div>{% endif %}
     </div>
+  </div>
 
-    <script>var T = {{ t_json | safe }};</script>
-    <script>
-    (function() {
-        // ── Embedded data from Python ──────────────────────────────────────
-        var dailyPrices  = {{ data.daily_prices  | tojson }};
-        // Plot OUR tracked daily closes (same scale used everywhere else, no
-        // Yahoo split-adjustment artifacts). Fall back to Yahoo history only when
-        // we have no daily_prices yet (e.g. a brand-new holding).
-        var priceHistory = (dailyPrices && dailyPrices.length)
-            ? dailyPrices.map(function(r) { return {date: r.date, close: r.price}; })
-            : {{ data.price_history | tojson }};
-        var trades       = {{ data.trades        | tojson }};
-        var firstBought  = {{ data.holding.first_bought | tojson }};
-        var lastSold     = {{ data.holding.last_sold | tojson }};
-        // Fallback: derive firstBought from earliest buy trade when holding field is missing
-        if (!firstBought && trades && trades.length > 0) {
-            var buyDates = trades.filter(function(t) { return t.type === 'buy'; }).map(function(t) { return t.date; }).sort();
-            if (buyDates.length > 0) firstBought = buyDates[0];
-        }
-        var isOpen       = {{ 'true' if data.is_open else 'false' }};
+  {# ---- Stat grid ---- #}
+  <div class="tv-panel">
+    <div class="tv-panel-body">
+      <div class="tv-stat-grid" style="grid-template-columns:repeat(3,1fr);">
+        {% set stats = [
+          (t.col_qty, '{:g}'.format(pd.quantity)),
+          (t.col_price, money(pd.last_price, 4 if pd.last_price < 10 else 2)),
+          (t.col_day, signed_pct(pd.day_pct)),
+          (t.col_avg_cost, money(pd.avg_cost, 4 if pd.avg_cost < 10 else 2)),
+          (t.stat_cost, money(pd.book_cost)),
+          (t.col_weight, '{:.1f}%'.format(pd.weight))
+        ] %}
+        {% for label, val in stats %}
+        <div class="tv-stat"><span class="tv-overline">{{ label }}</span><span class="tv-num">{{ val }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 
-        function css(v) {
-            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-        }
+  {# ---- Lots ---- #}
+  {% if data.open_lots %}
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.lots_title }}</div></div>
+    <div class="tv-panel-body flush">
+      <table class="tv-table">
+        <thead><tr><th>{{ t.qa_date if t.qa_date else 'Date' }}</th><th>{{ t.col_qty }}</th><th>{{ t.col_avg_cost }}</th><th class="tv-hide-sm">{{ t.an_days_held if t.an_days_held else 'Days' }}</th></tr></thead>
+        <tbody>
+          {% for l in data.open_lots %}
+          <tr style="cursor:default;">
+            <td class="mono">{{ l.buy_date }}</td>
+            <td class="tv-num">{{ '{:g}'.format(l.remaining_shares) }}</td>
+            <td class="tv-num">{{ money(l.cost_per_share, 4 if l.cost_per_share < 10 else 2) }}</td>
+            <td class="tv-num tv-hide-sm">{{ l.days_held if l.days_held is not none else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+{% elif data.closed_summary %}
+  {% set cs = data.closed_summary %}
+  <div class="tv-panel"><div class="tv-panel-body">
+    <div class="tv-overline">{{ t.stat_cost_change }}</div>
+    <div class="tv-num {{ 'pos' if (cs.total_pnl or 0) >= 0 else 'neg' }}" style="font-size:var(--fs-2xl); font-weight:var(--fw-bold);">{{ signed_money(cs.total_pnl) }} ({{ signed_pct(cs.pnl_pct) }})</div>
+  </div></div>
+{% endif %}
 
-        // ── Price Chart ────────────────────────────────────────────────────
-        {% if data.daily_prices or data.price_history %}
-        var priceChart = null;
-        var activeRange = 'since_buy';
+  {# ---- Trades ---- #}
+  {% if data.trades %}
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.nav_trades }}</div></div>
+    <div class="tv-panel-body flush">
+      <table class="tv-table">
+        <thead><tr><th>{{ t.qa_date if t.qa_date else 'Date' }}</th><th>{{ t.th_action if t.th_action else 'Type' }}</th><th>{{ t.col_qty }}</th><th>{{ t.col_price }}</th></tr></thead>
+        <tbody>
+          {% for tr in data.trades %}
+          <tr style="cursor:default;">
+            <td class="mono">{{ tr.date }}</td>
+            <td><span class="tv-badge {{ 'tv-badge-pos' if tr.type == 'buy' else 'tv-badge-neg' }}">{{ t.qa_buy if tr.type == 'buy' else t.qa_sell }}</span></td>
+            <td class="tv-num">{{ '{:g}'.format(tr.shares or 0) }}</td>
+            <td class="tv-num">{{ money(tr.price_per_share, 4 if (tr.price_per_share or 0) < 10 else 2) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
 
-        function filterHistory(range) {
-            if (!priceHistory || priceHistory.length === 0) return [];
-            var today = new Date();
-            var cutoff = null;
+  {# ---- About (yfinance) ---- #}
+  {% if yi and (yi.description_he or yi.description or yi.market_cap) %}
+  <div class="tv-panel">
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.position_about if t.position_about else 'About' }}</div></div>
+    <div class="tv-panel-body">
+      <div class="tv-stat-grid" style="grid-template-columns:repeat(2,1fr); margin-bottom:14px;">
+        {% if yi.fifty_two_week_high %}<div class="tv-stat"><span class="tv-overline">52W</span><span class="tv-num">{{ money(yi.fifty_two_week_low) }} – {{ money(yi.fifty_two_week_high) }}</span></div>{% endif %}
+        {% if yi.market_cap %}<div class="tv-stat"><span class="tv-overline">{{ t.position_mktcap if t.position_mktcap else 'Market cap' }}</span><span class="tv-num">{{ '{:,.0f}'.format(yi.market_cap) }}</span></div>{% endif %}
+      </div>
+      {% set desc = (yi.description_he if (lang == 'he' and yi.description_he) else yi.description) %}
+      {% if desc %}<p style="color:var(--text-secondary); font-size:var(--fs-sm); line-height:1.65;">{{ desc }}</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
 
-            if (range === '1w') {
-                cutoff = new Date(today); cutoff.setDate(today.getDate() - 7);
-            } else if (range === '1m') {
-                cutoff = new Date(today); cutoff.setMonth(today.getMonth() - 1);
-            } else if (range === '3m') {
-                cutoff = new Date(today); cutoff.setMonth(today.getMonth() - 3);
-            } else if (range === '6m') {
-                cutoff = new Date(today); cutoff.setMonth(today.getMonth() - 6);
-            } else if (range === 'ytd') {
-                cutoff = new Date(today.getFullYear(), 0, 1);
-            } else if (range === '1y') {
-                cutoff = new Date(today); cutoff.setFullYear(today.getFullYear() - 1);
-            } else if (range === 'since_buy') {
-                cutoff = firstBought ? new Date(firstBought) : null;
-            } else if (range === 'since_close') {
-                cutoff = lastSold ? new Date(lastSold) : null;
-            } else {
-                // 'all'
-                cutoff = null;
-            }
-
-            if (!cutoff) return priceHistory;
-            var cutoffStr = cutoff.toISOString().slice(0, 10);
-            return priceHistory.filter(function(p) { return p.date >= cutoffStr; });
-        }
-
-        function buildTradeAnnotations(filteredDates) {
-            if (!filteredDates || filteredDates.length === 0) return { buys: [], sells: [] };
-            var buys = [], sells = [];
-            trades.forEach(function(tr) {
-                // Find exact or nearest price on/before trade date within visible range
-                var ph = priceHistory.find(function(p) { return p.date === tr.date; });
-                if (!ph) {
-                    // Find closest entry on or before trade date (handles weekends/holidays)
-                    var before = filteredDates.filter(function(d) { return d <= tr.date; });
-                    if (before.length > 0) {
-                        var nearestDate = before[before.length - 1];
-                        ph = priceHistory.find(function(p) { return p.date === nearestDate; });
-                    }
-                }
-                if (!ph) return;  // trade is before the visible range entirely
-                var idx = filteredDates.indexOf(ph.date);
-                if (idx === -1) return;
-                if (tr.type === 'buy') {
-                    buys.push({ x: ph.date, y: ph.close, shares: tr.shares, total: tr.total_amount });
-                } else {
-                    sells.push({ x: ph.date, y: ph.close, shares: tr.shares, pnl: tr.realized_pnl });
-                }
-            });
-            return { buys: buys, sells: sells };
-        }
-
-        function buildPriceChart(range) {
-            var filtered = filterHistory(range);
-            var labels = filtered.map(function(p) { return p.date; });
-            var prices = filtered.map(function(p) { return p.close; });
-
-            var acc = css('--accent');
-            var annotations = buildTradeAnnotations(labels);
-
-            var datasets = [
-                {
-                    label: T['position_current_price'] || 'Price',
-                    data: prices,
-                    borderColor: acc,
-                    backgroundColor: acc + '18',
-                    fill: true,
-                    pointRadius: 0,
-                    tension: 0.1,
-                    borderWidth: 2,
-                    order: 1,  // rendered behind markers
-                }
-            ];
-
-            if (annotations.buys.length > 0) {
-                var buyData = labels.map(function(d) {
-                    var b = annotations.buys.find(function(b) { return b.x === d; });
-                    return b ? b.y : null;
-                });
-                datasets.push({
-                    label: T['badge_buy'] || 'Buy',
-                    data: buyData,
-                    borderColor: css('--positive'),
-                    backgroundColor: css('--positive'),
-                    pointRadius: buyData.map(function(v) { return v !== null ? 7 : 0; }),
-                    pointHoverRadius: buyData.map(function(v) { return v !== null ? 9 : 0; }),
-                    pointStyle: buyData.map(function(v) { return v !== null ? 'triangle' : 'circle'; }),
-                    pointRotation: 0,
-                    showLine: false,
-                    order: 0,  // drawn on top of price line
-                });
-            }
-            if (annotations.sells.length > 0) {
-                var sellData = labels.map(function(d) {
-                    var s = annotations.sells.find(function(s) { return s.x === d; });
-                    return s ? s.y : null;
-                });
-                datasets.push({
-                    label: T['badge_sell'] || 'Sell',
-                    data: sellData,
-                    borderColor: css('--negative'),
-                    backgroundColor: css('--negative'),
-                    pointRadius: sellData.map(function(v) { return v !== null ? 7 : 0; }),
-                    pointHoverRadius: sellData.map(function(v) { return v !== null ? 9 : 0; }),
-                    pointStyle: sellData.map(function(v) { return v !== null ? 'triangle' : 'circle'; }),
-                    pointRotation: 180,
-                    showLine: false,
-                    order: 0,  // drawn on top of price line
-                });
-            }
-
-            if (priceChart) priceChart.destroy();
-            priceChart = new Chart(document.getElementById('priceChart'), {
-                type: 'line',
-                data: { labels: labels, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: datasets.length > 1, labels: { color: css('--text-primary') } },
-                        tooltip: {
-                            filter: function(item) { return item.raw !== null; },
-                            callbacks: {
-                                label: function(ctx) {
-                                    if (ctx.raw === null) return null;
-                                    var val = typeof ctx.raw === 'object' ? ctx.raw.y : ctx.raw;
-                                    return ctx.dataset.label + ': ' + Number(val).toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 });
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { ticks: { color: css('--text-secondary'), maxTicksLimit: 8 }, grid: { color: css('--border') } },
-                        y: { ticks: { color: css('--text-secondary'), callback: function(value) { return value.toLocaleString('{{ number_locale }}', { maximumFractionDigits: 0 }); } }, grid: { color: css('--border') } },
-                    }
-                }
-            });
-        }
-
-        buildPriceChart(activeRange);
-
-        document.querySelectorAll('#rangeToggle .range-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('#rangeToggle .range-btn').forEach(function(b) {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-pressed', 'false');
-                });
-                btn.classList.add('active');
-                btn.setAttribute('aria-pressed', 'true');
-                activeRange = btn.getAttribute('data-range');
-                buildPriceChart(activeRange);
-            });
-        });
-        {% endif %}
-
-        // ── P&L Over Time Chart ────────────────────────────────────────────
-        {% if data.daily_prices %}
-        var pnlLabels = dailyPrices.map(function(d) { return d.date; });
-        var pnlValues = dailyPrices.map(function(d) { return d.daily_pnl || 0; });
-
-        function buildPnlColors(vals) {
-            return vals.map(function(v) {
-                return v >= 0 ? css('--positive') + 'bb' : css('--negative') + 'bb';
-            });
-        }
-
-        var pnlChart = new Chart(document.getElementById('pnlChart'), {
-            type: 'bar',
-            data: {
-                labels: pnlLabels,
-                datasets: [{
-                    label: T['position_pnl_chart'] || 'Daily P&L',
-                    data: pnlValues,
-                    backgroundColor: buildPnlColors(pnlValues),
-                    borderWidth: 0,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: {
-                        label: function(ctx) { return (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(2) + ' {{ currency_symbol }}'; }
-                    }}
-                },
-                scales: {
-                    x: { ticks: { color: css('--text-secondary'), maxTicksLimit: 10 }, grid: { color: css('--border') } },
-                    y: { ticks: { color: css('--text-secondary') }, grid: { color: css('--border') } },
-                }
-            }
-        });
-        {% endif %}
-
-        // ── Theme re-render ────────────────────────────────────────────────
-        var themeObserver = new MutationObserver(function() {
-            {% if data.price_history %}
-            buildPriceChart(activeRange);
-            {% endif %}
-            {% if data.daily_prices %}
-            pnlChart.data.datasets[0].backgroundColor = buildPnlColors(pnlValues);
-            pnlChart.options.scales.x.ticks.color = css('--text-secondary');
-            pnlChart.options.scales.x.grid.color = css('--border');
-            pnlChart.options.scales.y.ticks.color = css('--text-secondary');
-            pnlChart.options.scales.y.grid.color = css('--border');
-            pnlChart.update();
-            {% endif %}
-        });
-        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-
-    })();
-
-    function toggleDesc() {
-        var el = document.getElementById('descText');
-        var btn = document.getElementById('descToggle');
-        if (el.classList.toggle('expanded')) {
-            btn.textContent = '▲';
-        } else {
-            btn.textContent = '▼';
-        }
-    }
-
-    // ── Name edit ──────────────────────────────��─────────────────────────────
-    var _yfSearchTimer = null;
-
-    function toggleNameEdit() {
-        var panel = document.getElementById('nameEditPanel');
-        var btn = document.getElementById('editNameBtn');
-        var visible = panel.style.display !== 'none';
-        panel.style.display = visible ? 'none' : 'block';
-        if (!visible) {
-            document.getElementById('editNameEn').focus();
-        }
-    }
-
-    document.getElementById('editNameEn').addEventListener('input', function() {
-        clearTimeout(_yfSearchTimer);
-        var q = this.value.trim();
-        if (q.length < 2) { hideDropdown(); return; }
-        _yfSearchTimer = setTimeout(function() { fetchYfSearch(q); }, 300);
-    });
-
-    document.getElementById('editNameEn').addEventListener('blur', function() {
-        setTimeout(hideDropdown, 200);
-    });
-
-    function fetchYfSearch(q) {
-        fetch('/api/yfinance/search?q=' + encodeURIComponent(q))
-            .then(function(r) { return r.json(); })
-            .then(function(results) { renderDropdown(results); });
-    }
-
-    function renderDropdown(results) {
-        var dd = document.getElementById('yfDropdown');
-        if (!results.length) { hideDropdown(); return; }
-        dd.innerHTML = results.map(function(r) {
-            return '<div class="yf-option" data-symbol="' + r.symbol + '" data-name="' + (r.name || '').replace(/"/g, '&quot;') + '" ' +
-                'style="padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid var(--border);">' +
-                '<span style="font-weight: 600;">' + r.symbol + '</span>' +
-                '<span style="color: var(--text-secondary); margin-inline-start: 0.5rem;">' + (r.name || '') + '</span>' +
-                (r.exchange ? '<span style="color: var(--text-secondary); font-size: 0.75rem; float: ' + (document.documentElement.dir === 'rtl' ? 'left' : 'right') + ';">' + r.exchange + '</span>' : '') +
-                '</div>';
-        }).join('');
-        dd.querySelectorAll('.yf-option').forEach(function(el) {
-            el.addEventListener('mouseenter', function() { this.style.background = 'var(--bg-primary)'; });
-            el.addEventListener('mouseleave', function() { this.style.background = ''; });
-            el.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                document.getElementById('editNameEn').value = this.dataset.name;
-                document.getElementById('editTicker').value = this.dataset.symbol;
-                hideDropdown();
-            });
-        });
-        dd.style.display = 'block';
-    }
-
-    function hideDropdown() {
-        document.getElementById('yfDropdown').style.display = 'none';
-    }
-
-    function fetchFromTase() {
-        var btn = document.getElementById('fetchTaseBtn');
-        var status = document.getElementById('fetchTaseStatus');
-        btn.disabled = true;
-        status.textContent = '...';
-        fetch('/api/holdings/{{ data.holding_id }}/fetch-tase-name')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.name) {
-                    document.getElementById('editNameEn').value = d.name;
-                    if (d.ticker) {
-                        document.getElementById('editTicker').value = d.ticker;
-                    }
-                    status.textContent = '{{ t.position_fetch_tase_ok }}';
-                    status.style.color = 'var(--positive, #3fb950)';
-                } else {
-                    status.textContent = '{{ t.position_fetch_tase_fail }}';
-                    status.style.color = 'var(--negative, #f85149)';
-                }
-            })
-            .catch(function() {
-                status.textContent = '{{ t.position_fetch_tase_fail }}';
-                status.style.color = 'var(--negative, #f85149)';
-            })
-            .finally(function() { btn.disabled = false; });
-    }
-
-    function openConfirmModal() {
-        var newHe = document.getElementById('editNameHe').value.trim();
-        var newEn = document.getElementById('editNameEn').value.trim();
-        if (!newHe) { document.getElementById('editNameHe').focus(); return; }
-        var currentHe = '{{ data.holding.name_he | e }}';
-        var currentEn = '{{ data.holding.name_en | e }}' || '—';
-        var summary = document.getElementById('confirmSummary');
-        summary.innerHTML =
-            '<strong>{{ t.position_name_he }}:</strong> ' + currentHe + ' → ' + (newHe || currentHe) + '<br>' +
-            '<strong>{{ t.position_name_en }}:</strong> ' + currentEn + ' → ' + (newEn || currentEn);
-        document.getElementById('confirmInput').value = '';
-        document.getElementById('confirmError').style.display = 'none';
-        var modal = document.getElementById('confirmModal');
-        modal.style.display = 'flex';
-        setTimeout(function() { document.getElementById('confirmInput').focus(); }, 50);
-    }
-
-    function closeConfirmModal() {
-        document.getElementById('confirmModal').style.display = 'none';
-    }
-
-    function submitNameChange() {
-        var confirm = document.getElementById('confirmInput').value.trim();
-        var currentHe = '{{ data.holding.name_he | e }}';
-        if (confirm !== currentHe) {
-            document.getElementById('confirmError').style.display = 'block';
-            document.getElementById('confirmInput').focus();
-            return;
-        }
-        var payload = {
-            name_he: document.getElementById('editNameHe').value.trim(),
-            name_en: document.getElementById('editNameEn').value.trim(),
-            ticker: document.getElementById('editTicker').value.trim(),
-            confirm: confirm,
-        };
-        fetch('/api/holdings/{{ data.holding_id }}/update-name', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
-            },
-            body: JSON.stringify(payload),
-        })
-        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
-        .then(function(res) {
-            if (res.ok) {
-                window.location.reload();
-            } else {
-                document.getElementById('confirmError').style.display = 'block';
-            }
-        });
-    }
-
-    document.getElementById('confirmModal').addEventListener('click', function(e) {
-        if (e.target === this) closeConfirmModal();
-    });
-
-    // ── yfinance review panel ────────────────────────────────────────────────
-    var _yfPreviewData = null;
-
-    var _yfFieldLabels = {
-        'name_yf_long':  '{{ t.yf_field_name_yf_long }}',
-        'name_yf_short': '{{ t.yf_field_name_yf_short }}',
-        'ticker':        '{{ t.yf_field_ticker }}',
-    };
-
-    function openYfReview() {
-        var btn = document.getElementById('yfRefreshBtn');
-        var status = document.getElementById('yfRefreshStatus');
-        btn.disabled = true;
-        status.textContent = '...';
-        fetch('/api/holdings/{{ data.holding_id }}/fetch-yfinance-preview')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.error === 'no_mapping') {
-                    status.textContent = '{{ t.yf_review_no_mapping }}';
-                    status.style.color = 'var(--negative, #f85149)';
-                    return;
-                }
-                if (d.error) {
-                    status.textContent = '{{ t.yf_review_fetch_failed }}';
-                    status.style.color = 'var(--negative, #f85149)';
-                    return;
-                }
-                _yfPreviewData = d;
-                status.textContent = '';
-                renderYfReview(d);
-                document.getElementById('yfReviewPanel').style.display = '';
-            })
-            .catch(function() {
-                status.textContent = '{{ t.yf_review_fetch_failed }}';
-                status.style.color = 'var(--negative, #f85149)';
-            })
-            .finally(function() { btn.disabled = false; });
-    }
-
-    function renderYfReview(d) {
-        var editableFields = ['name_yf_long', 'name_yf_short'];
-        var displayFields = ['ticker'];
-        var rows = editableFields.map(function(f) {
-            var cur = d.current[f] || '—';
-            var prop = d.proposed[f] || '—';
-            var changed = (d.current[f] || '') !== (d.proposed[f] || '');
-            return '<tr style="border-top: 1px solid var(--border);">' +
-                '<td style="padding: 0.25rem 0.4rem;"><input type="checkbox" data-field="' + f + '" ' + (changed ? 'checked' : '') + '></td>' +
-                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + (_yfFieldLabels[f] || f) + '</td>' +
-                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + cur + '</td>' +
-                '<td style="padding: 0.25rem 0.4rem; font-weight: ' + (changed ? '600' : '400') + ';">' + prop + '</td>' +
-                '</tr>';
-        });
-        rows = rows.concat(displayFields.map(function(f) {
-            var cur = d.current[f] || '—';
-            var prop = d.proposed[f] || '—';
-            return '<tr style="border-top: 1px solid var(--border); opacity: 0.55;">' +
-                '<td style="padding: 0.25rem 0.4rem;"></td>' +
-                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + (_yfFieldLabels[f] || f) + ' (read-only)</td>' +
-                '<td style="padding: 0.25rem 0.4rem; color: var(--text-secondary);">' + cur + '</td>' +
-                '<td style="padding: 0.25rem 0.4rem;">' + prop + '</td>' +
-                '</tr>';
-        }));
-        document.getElementById('yfReviewRows').innerHTML = rows.join('');
-    }
-
-    function closeYfReview() {
-        document.getElementById('yfReviewPanel').style.display = 'none';
-        _yfPreviewData = null;
-    }
-
-    function applyYfData() {
-        if (!_yfPreviewData) return;
-        var checkboxes = document.querySelectorAll('#yfReviewRows input[type="checkbox"]');
-        var payload = {};
-        checkboxes.forEach(function(cb) {
-            if (cb.checked) {
-                var f = cb.dataset.field;
-                payload[f] = _yfPreviewData.proposed[f];
-            }
-        });
-        if (!Object.keys(payload).length) { closeYfReview(); return; }
-        fetch('/api/holdings/{{ data.holding_id }}/apply-yfinance-data', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload),
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            if (d.success) {
-                closeYfReview();
-                document.getElementById('yfRefreshStatus').textContent = '{{ t.yf_review_applied }}';
-                document.getElementById('yfRefreshStatus').style.color = 'var(--positive, #3fb950)';
-                setTimeout(function() { window.location.reload(); }, 1000);
-            }
-        });
-    }
-    </script>
-    <script src="/static/app.js"></script>
-</body>
-</html>
+{% block scripts %}
+{% if price_series %}
+<script>
+(function () {
+  var ps = {{ price_series|tojson }}, css = TV.css;
+  var ctx = document.getElementById('pd-price'); if (!ctx) return;
+  var up = {{ 'true' if (pd and pd.pnl >= 0) else 'false' }};
+  var col = css(up ? '--positive' : '--negative');
+  var grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 200);
+  grad.addColorStop(0, up ? 'rgba(70,207,131,0.28)' : 'rgba(255,93,108,0.28)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels: ps.map(function (p) { return p.date; }),
+      datasets: [{ data: ps.map(function (p) { return p.close; }), borderColor: col, backgroundColor: grad, borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: css('--text-muted') } },
+        y: { grid: { color: css('--border-soft') }, ticks: { color: css('--text-muted') } } } }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -154,6 +154,59 @@ def test_has_nearby_trade_suppresses_on_manual_source():
     assert has_nearby_trade(hid, '2026-06-10', 'buy') is True
 
 
+def test_full_exit_to_zero_closes_lots_and_deactivates():
+    """A holding still listed in the daily file at quantity 0 (full exit) must get an
+    interpolated sell, have its lots closed, and be deactivated — not left as a phantom
+    open lot that a price refresh would resurrect."""
+    get_db(); init_default_settings()
+    from app.manual_portfolio import record_trade
+    from app.daily_prices import add_daily_price
+    from app.importers.position_tracker import interpolate_position_changes
+    from app.tax_lots import get_all_lots
+    from app.transactions import list_transactions
+
+    # Buy well before the close so no nearby trade suppresses interpolation.
+    hid = add_holding(name_he='בורסה', tase_symbol='ברסה', ticker='TASE.TA',
+                      security_type='stock', currency='ILS')
+    record_trade(hid, 'buy', '2026-06-10', shares=14, price=138.5)
+    assert get_holding(hid)['is_active'] is True
+
+    # Prior trading day: held 14 shares (market_value in ILS = 14 * 129.8).
+    add_daily_price(hid, 'TASE.TA', '2026-06-17', 12980.0, 14, 1817.2, 1939.0, 'ILS', None,
+                    session='regular')
+    # Today's file lists the security at quantity 0 (closed at the broker).
+    today = [{'holding_id': hid, 'ticker': 'TASE.TA', 'quantity': 0,
+              'market_value': 0, 'currency': 'ILS'}]
+
+    buys, sells = interpolate_position_changes('2026-06-18', today)
+    assert sells == 1                                            # a sell was interpolated
+    open_lots = [l for l in get_all_lots() if l['holding_id'] == hid and not l['is_closed']]
+    assert open_lots == []                                       # lots closed
+    assert get_holding(hid)['is_active'] is False                # holding deactivated
+    sell_txns = [t for t in list_transactions(type_='sell') if t.get('holding_id') == hid]
+    assert len(sell_txns) == 1 and sell_txns[0]['shares'] == 14
+
+
+def test_refresh_skips_inactive_holding_with_open_lot(monkeypatch):
+    """The price-refresh guard must not resurrect a closed (is_active=False) holding even
+    if a stale open lot lingers in the ledger."""
+    get_db(); init_default_settings()
+    from app.manual_portfolio import record_trade, refresh_prices_and_snapshot
+    from app.holdings import deactivate_holding
+
+    hid = add_holding(name_he='בורסה', ticker='TASE.TA', security_type='stock', currency='ILS')
+    record_trade(hid, 'buy', '2026-06-10', shares=14, price=138.5)
+    deactivate_holding(hid)                                      # closed, but lot stays open
+
+    # No network: backfill finds no history, refresh prices from a stub.
+    monkeypatch.setattr('app.utils.translation_service.get_yfinance_history', lambda s: [])
+    monkeypatch.setattr('app.utils.translation_service.fetch_rich_info_from_yfinance',
+                        lambda t: {'market_state': 'REGULAR', 'regular_price': 130.0,
+                                   'current_price': 130.0})
+    res = refresh_prices_and_snapshot()
+    assert res['positions'] == 0                                 # inactive holding skipped
+
+
 # ── Phase 3: US (IBI Smart) CSV import ────────────────────────────────────────
 
 _US_CSV = (

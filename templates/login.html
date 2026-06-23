@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ t.login_title }} - TradeVault</title>
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="/asset/tradevault-favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
@@ -12,7 +12,7 @@
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
         <div class="card" style="max-width:360px;width:100%;">
             <div style="text-align:center;margin-bottom:20px;">
-                <img src="/static/logo_with_name.svg" alt="TradeVault" style="height:40px;">
+                <img src="/asset/tradevault-mark.svg" alt="TradeVault" style="height:40px;">
             </div>
 
             {% with messages = get_flashed_messages(with_categories=true) %}

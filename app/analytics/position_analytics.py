@@ -107,6 +107,69 @@ def get_top_positions_pnl():
     return result
 
 
+def get_position_drawer(holding_id, lang='he'):
+    """Lightweight position payload for the Overview deep-dive drawer (no network).
+
+    Reuses get_overview() for the current value/day-change/P&L derivation (so the
+    drawer agrees with the dashboard), then adds open FIFO lots and our own daily
+    price path. Returns None if the holding is unknown.
+    """
+    from app.analytics.portfolio_analytics import get_overview, _display_name, _TYPE_META
+    from app.daily_prices import get_price_history
+
+    holding = get_holding(holding_id)
+    if not holding:
+        return None
+
+    ov = get_overview(lang) or {'holdings': []}
+    h = next((x for x in ov['holdings'] if x['holding_id'] == holding_id), None)
+
+    qty = (h['quantity'] if h else 0) or 0
+    mv = (h['market_value'] if h else 0) or 0
+    book = (h['cost_basis'] if h else 0) or 0
+    name, symbol = _display_name(enrich_position_with_holding({'holding_id': holding_id}), lang)
+
+    # Open lots
+    lt = get_table(TAX_LOTS)
+    LT = Query()
+    lots = []
+    for l in sorted(lt.search((LT.holding_id == holding_id) & (LT.is_closed == False)),
+                    key=lambda x: x.get('buy_date') or ''):
+        rem = l.get('remaining_shares', 0) or 0
+        lots.append({
+            'date': l.get('buy_date'),
+            'shares': rem,
+            'price': l.get('cost_per_share', 0),
+            'cost': round(rem * (l.get('cost_per_share', 0) or 0), 2),
+        })
+
+    # Value path from our own regular-close daily prices.
+    path = [{'date': r['date'], 'value': round(r.get('market_value', 0) or 0, 2)}
+            for r in get_price_history(holding_id, session='regular')
+            if (r.get('quantity', 0) or 0) > 0]
+
+    he, en, _ = _TYPE_META.get(holding.get('security_type', 'other'),
+                               (holding.get('security_type', ''), holding.get('security_type', ''), ''))
+    return {
+        'holding_id': holding_id,
+        'name': name,
+        'symbol': symbol,
+        'sector': en if lang == 'en' else he,
+        'quantity': qty,
+        'market_value': round(mv, 2),
+        'last_price': round(mv / qty, 4) if qty else 0,
+        'avg_cost': round(book / qty, 4) if qty else 0,
+        'book_cost': round(book, 2),
+        'weight': h['weight'] if h else 0,
+        'pnl': h['pnl'] if h else round(mv - book, 2),
+        'pnl_pct': h['pnl_pct'] if h else 0,
+        'day_pnl': h['day_pnl'] if h else 0,
+        'day_pct': h['day_pct'] if h else 0,
+        'lots': lots,
+        'path': path,
+    }
+
+
 def get_position_data(holding_id):
     """Return all data for an individual position page.
 
