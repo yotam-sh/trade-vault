@@ -76,6 +76,19 @@ def _realized_ytd():
     return round(total, 2)
 
 
+def _realized_total():
+    """All-time realized P&L across every sell — partial and full closes.
+
+    Reuses the canonical per-sell realizer (``_realized_pnl_from_lots``) so it matches
+    the trade-history / closed-position figures.
+    """
+    from app.transactions import list_transactions
+    from app.analytics.trade_analytics import _realized_pnl_from_lots
+    total = sum(_realized_pnl_from_lots(t.get('sell_lot_details') or [])
+                for t in list_transactions(type_='sell'))
+    return round(total, 2)
+
+
 def get_overview(lang='he'):
     """Assemble everything the redesigned Overview (dashboard) needs in one call.
 
@@ -96,10 +109,15 @@ def get_overview(lang='he'):
     dc = daily_changes().get(pv['date'], {})
     daily_pct = round(dc.get('change_pct', 0), 2)
 
-    # Value chart: equity vs net invested over time.
-    series = [{'date': s['date'], 'equity': round(s['total_equity'], 2),
-               'invested': round(s['net_invested'], 2)}
-              for s in equity_series()]
+    # Value chart: equity vs net invested over time, flagging deposit days (a rise in
+    # net_invested vs the prior point) so the chart can mark them.
+    series = []
+    _prev_inv = None
+    for s in equity_series():
+        inv = round(s['net_invested'], 2)
+        series.append({'date': s['date'], 'equity': round(s['total_equity'], 2),
+                       'invested': inv, 'deposit': _prev_inv is not None and inv > _prev_inv + 0.01})
+        _prev_inv = inv
 
     # Allocation by security type (+ a cash band so the donut totals to equity).
     by_type = {}
@@ -157,7 +175,14 @@ def get_overview(lang='he'):
         cost = p.get('cost_basis', 0) or 0
         dpnl, dpct = _day_change(p, mv, p.get('daily_pnl', 0) or 0)
         holdings.append({
-            'holding_id': p.get('holding_id'), 'name': name, 'symbol': symbol,
+            'holding_id': p.get('holding_id'), 'name': name,
+            # Raw enriched name/symbol fields so templates can honor display_prefs.
+            # 'symbol' stays the raw tase symbol (a display_prefs value) — disp_sym reads it.
+            'symbol': p.get('symbol') or symbol,
+            **{k: p.get(k) for k in (
+                'name_he', 'name_en', 'name_tase_he', 'name_tase_en',
+                'name_yf_long', 'name_yf_short', 'symbol_en', 'ticker')},
+            'security_type': p.get('security_type', 'other'),
             'quantity': p.get('quantity', 0), 'market_value': round(mv, 2),
             'cost_basis': round(cost, 2),
             'pnl': round(mv - cost, 2),
@@ -170,13 +195,16 @@ def get_overview(lang='he'):
 
     movers = sorted([h for h in holdings], key=lambda h: h['day_pct'])
     gainers = [h for h in reversed(movers) if h['day_pct'] > 0][:3]
-    losers = [h for h in movers if h['day_pct'] < 0][:3]
+    # Reversed so the hardest faller renders last (at the bottom of the list).
+    losers = list(reversed([h for h in movers if h['day_pct'] < 0][:3]))
 
     return {
         'portfolio': pv,
         'daily_pct': daily_pct,
         'idle_cash': round(idle_cash, 2),
+        'total_equity': round((pv['total_value'] or 0) + idle_cash, 2),
         'realized_ytd': _realized_ytd(),
+        'realized_pnl': _realized_total(),
         'series': series,
         'allocation': allocation,
         'holdings': holdings,
@@ -226,14 +254,12 @@ def get_analytics(lang='he'):
     best_month = max(month_pcts) if month_pcts else 0
     worst_month = min(month_pcts) if month_pcts else 0
 
-    # Win rate + heatmap from canonical daily changes.
+    # Win rate from canonical daily changes.
     changes = daily_changes()
     day_items = sorted(changes.items())
     wins = sum(1 for _, c in day_items if (c.get('change_pct') or 0) > 0)
     losses = sum(1 for _, c in day_items if (c.get('change_pct') or 0) < 0)
     win_rate = round(wins / (wins + losses) * 100, 1) if (wins + losses) else 0
-    heatmap = [{'date': d, 'pct': round(c.get('change_pct') or 0, 2)} for d, c in day_items][-112:]
-    heat_max = max((abs(h['pct']) for h in heatmap), default=1) or 1
 
     # Annualized from the total-return span.
     pv = get_portfolio_value()
@@ -244,16 +270,38 @@ def get_analytics(lang='he'):
     except Exception:
         annualized = 0
 
-    # P&L by position (from the shared overview holdings).
+    # P&L by position: top 5 winners + bottom 5 losers (dedup when ≤10 holdings).
     ov = get_overview(lang) or {'holdings': []}
-    pnl_by_pos = sorted(
-        [{'name': h['name'], 'symbol': h['symbol'], 'pnl': h['pnl'], 'pnl_pct': h['pnl_pct']}
-         for h in ov['holdings']],
+    ranked = sorted(
+        [{'name': _display_name(h, lang)[0], 'symbol': _display_name(h, lang)[1],
+          'pnl': h['pnl'], 'pnl_pct': h['pnl_pct']} for h in ov['holdings']],
         key=lambda x: x['pnl'], reverse=True)
+    if len(ranked) > 10:
+        pnl_by_pos = ranked[:5] + ranked[-5:]
+    else:
+        pnl_by_pos = ranked
 
-    # Weekday performance + allocation over time.
+    # Weekday performance.
     weekday = [{'label': (w['label_en'] if lang == 'en' else w['label_he']), 'pct': w['avg_pct']}
                for w in get_historical_performance().get('by_day', [])]
+
+    # Benchmarks for the cumulative-return chart: portfolio vs S&P 500 / TA-125, each as
+    # cumulative % from the first available point (None-safe, aligned to snapshot dates).
+    dates = [s['date'] for s in eq]
+    try:
+        from app.analytics.benchmark_analytics import get_benchmark_data
+        bm = get_benchmark_data(dates)
+    except Exception:
+        bm = {}
+
+    def _cum_pct(raw):
+        base = next((v for v in raw if v), None)
+        return [None if (v is None or not base) else round((v / base - 1) * 100, 2) for v in raw]
+
+    benchmarks = {key: _cum_pct(bm.get(key) or [])
+                  for key in ('sp500', 'ta125', 'ta35', 'ndq', 'nikkei', 'kospi200', 'eurostoxx')}
+
+    # Allocation over time, recolored to the Comet type palette (matches the donut).
     alloc_history = get_allocation_history()
 
     return {
@@ -266,13 +314,13 @@ def get_analytics(lang='he'):
             'win_rate': win_rate,
         },
         'return_path': ret_path,
+        'benchmarks': benchmarks,
         'drawdown_path': dd_path,
         'monthly': monthly,
         'pnl_by_pos': pnl_by_pos,
         'weekday': weekday,
         'alloc_history': alloc_history,
-        'heatmap': heatmap,
-        'heat_max': heat_max,
+        'treemap': ov['holdings'],
         'date_range': {'start': eq[0]['date'], 'end': eq[-1]['date']},
     }
 

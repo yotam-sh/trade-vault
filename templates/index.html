@@ -28,7 +28,7 @@
   <section style="text-align:center; padding:8px 0 4px;">
     <div class="tv-overline">{{ t.stat_total_value }} · {{ (active_portfolio or {}).get('name','') }}</div>
     <div class="tv-hero-row" style="justify-content:center; margin-top:8px;">
-      <span class="tv-hero-val">{{ money(portfolio.total_value) }}</span>
+      <span class="tv-hero-val">{{ money(ov.total_equity) }}</span>
       <span class="tv-pill {{ tone }}">
         {{ tv_icon('trending-up' if tone=='pos' else 'trending-down', 16) }}
         {{ signed_money(portfolio.daily_pnl) }} ({{ signed_pct(ov.daily_pct) }})
@@ -53,9 +53,12 @@
     </div>
     <div class="tv-panel-body">
       <div style="height:300px;"><canvas id="tv-value-chart"></canvas></div>
-      <div style="display:flex; gap:18px; justify-content:center; margin-top:10px; font-size:var(--fs-xs); color:var(--text-muted);">
+      <div style="display:flex; gap:18px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:10px; font-size:var(--fs-xs); color:var(--text-muted);">
         <span><span style="display:inline-block;width:18px;height:3px;background:var(--accent);vertical-align:middle;border-radius:2px;"></span> {{ t.stat_total_value }}</span>
         <span><span style="display:inline-block;width:18px;height:0;border-top:2px dashed var(--text-muted);vertical-align:middle;"></span> {{ t.stat_cost }}</span>
+        <span><span style="display:inline-block;width:9px;height:9px;background:var(--glow);border-radius:50%;vertical-align:middle;"></span> {{ t.value_deposit if t.value_deposit else 'Deposit' }}</span>
+        <span style="margin-inline-start:auto;">{{ t.value_return_on_invested if t.value_return_on_invested else 'Return on invested' }}:
+          <span class="tv-num {{ 'pos' if portfolio.unrealized_pnl_pct >= 0 else 'neg' }}" style="font-weight:var(--fw-semibold);">{{ signed_pct(portfolio.unrealized_pnl_pct) }}</span></span>
       </div>
     </div>
   </div>
@@ -78,6 +81,10 @@
           <div class="tv-kpi-val {{ 'pos' if ov.realized_ytd >= 0 else 'neg' }}">{{ signed_money(ov.realized_ytd) }}</div>
         </div>
         <div class="tv-kpi">
+          <div class="tv-overline">{{ t.realized_pnl_label if t.realized_pnl_label else 'Realized P/L' }}</div>
+          <div class="tv-kpi-val {{ 'pos' if ov.realized_pnl >= 0 else 'neg' }}">{{ signed_money(ov.realized_pnl) }}</div>
+        </div>
+        <div class="tv-kpi">
           <div class="tv-overline">{{ t.idle_cash if t.idle_cash else 'Idle cash' }}</div>
           <div class="tv-kpi-val">{{ money(ov.idle_cash) }}</div>
         </div>
@@ -91,15 +98,20 @@
       <div class="tv-panel-head"><div class="tv-panel-title">{{ t.chart_allocation if t.chart_allocation else 'Allocation' }}</div></div>
       <div class="tv-panel-body">
         <div class="tv-alloc">
-          <div style="width:150px;height:150px;flex:none;position:relative;">
+          <div class="tv-donut-wrap">
             <canvas id="tv-alloc-chart"></canvas>
+            <div class="tv-donut-center">
+              <div class="tv-num" style="font-size:var(--fs-lg); font-weight:var(--fw-bold);">{{ ov.allocation|length }}</div>
+              <div class="tv-overline">{{ t.alloc_types if t.alloc_types else 'types' }}</div>
+            </div>
           </div>
           <div class="tv-alloc-legend">
             {% for a in ov.allocation %}
             <div class="tv-alloc-row">
               <span class="tv-alloc-chip" style="background:{{ a.color }};"></span>
               <span>{{ a.label }}</span>
-              <span class="tv-num">{{ '{:.1f}'.format(a.weight) }}%</span>
+              <span class="muted" style="margin-inline-start:auto; font-size:var(--fs-2xs);">{{ money(a.value, 0) }}</span>
+              <span class="tv-num" style="min-width:48px; text-align:end;">{{ '{:.1f}'.format(a.weight) }}%</span>
             </div>
             {% endfor %}
           </div>
@@ -114,16 +126,16 @@
         <div class="tv-movers">
           {% for m in ov.gainers %}
           <div class="tv-mover" data-position-id="{{ m.holding_id }}">
-            <span class="tv-mover-sym">{{ m.symbol }}</span>
-            <span class="tv-mover-name">{{ m.name }}</span>
+            <span class="tv-mover-sym">{{ disp_sym(m, 'portfolio_holdings_symbol') }}</span>
+            <span class="tv-mover-name">{{ disp_name(m, 'portfolio_holdings_name') }}</span>
             <span class="tv-mover-pct pos">{{ signed_pct(m.day_pct) }}</span>
           </div>
           {% endfor %}
           {% if ov.gainers and ov.losers %}<div class="tv-movers-divider"></div>{% endif %}
           {% for m in ov.losers %}
           <div class="tv-mover" data-position-id="{{ m.holding_id }}">
-            <span class="tv-mover-sym">{{ m.symbol }}</span>
-            <span class="tv-mover-name">{{ m.name }}</span>
+            <span class="tv-mover-sym">{{ disp_sym(m, 'portfolio_holdings_symbol') }}</span>
+            <span class="tv-mover-name">{{ disp_name(m, 'portfolio_holdings_name') }}</span>
             <span class="tv-mover-pct neg">{{ signed_pct(m.day_pct) }}</span>
           </div>
           {% endfor %}
@@ -154,13 +166,15 @@
         </thead>
         <tbody>
           {% for h in ov.holdings[:6] %}
+          {% set hname = disp_name(h, 'portfolio_holdings_name') %}
+          {% set hsym = disp_sym(h, 'portfolio_holdings_symbol') %}
           <tr data-position-id="{{ h.holding_id }}">
             <td>
               <div class="tv-pos-cell">
-                <span class="tv-monogram">{{ (h.symbol or h.name)[:2]|upper }}</span>
+                <span class="tv-monogram">{{ (hsym or hname)[:2]|upper }}</span>
                 <div>
-                  <div class="tv-pos-name">{{ h.name }}</div>
-                  <div class="tv-pos-sub">{{ h.symbol }}{% if h.day_pct %} · <span class="{{ 'pos' if h.day_pct >= 0 else 'neg' }}">{{ signed_pct(h.day_pct) }}</span>{% endif %}</div>
+                  <div class="tv-pos-name">{{ hname }}</div>
+                  <div class="tv-pos-sub">{{ hsym }}{% if h.day_pct %} · <span class="{{ 'pos' if h.day_pct >= 0 else 'neg' }}">{{ signed_pct(h.day_pct) }}</span>{% endif %}</div>
                 </div>
               </div>
             </td>
@@ -229,6 +243,8 @@
     var grad = vctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
     grad.addColorStop(0, 'rgba(163,130,247,0.28)');
     grad.addColorStop(1, 'rgba(163,130,247,0.0)');
+    // Deposit markers: a point on the invested line at each deposit date, dotted glow.
+    var depData = data.map(function (d) { return d.deposit ? d.invested : null; });
     var cfg = {
       type: 'line',
       data: { labels: labels, datasets: [
@@ -237,13 +253,18 @@
           tension: 0.25, pointRadius: 0, pointHoverRadius: 4 },
         { label: 'invested', data: data.map(function (d) { return d.invested; }),
           borderColor: css('--text-muted'), borderWidth: 1.5, borderDash: [5, 4], fill: false,
-          tension: 0, pointRadius: 0 }
+          tension: 0, pointRadius: 0 },
+        { label: 'deposit', data: depData, showLine: false,
+          borderColor: css('--glow'), backgroundColor: css('--glow'),
+          pointRadius: 4, pointHoverRadius: 6, pointStyle: 'circle' }
       ]},
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { display: false },
-          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + TV.fmtMoney(c.parsed.y, sym); } } } },
+          tooltip: { callbacks: { label: function (c) {
+            if (c.dataset.label === 'deposit') { return c.parsed.y == null ? null : 'deposit'; }
+            return c.dataset.label + ': ' + TV.fmtMoney(c.parsed.y, sym); } } } },
         scales: {
           x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: css('--text-muted') } },
           y: { grid: { color: css('--border-soft') }, ticks: { color: css('--text-muted'),

@@ -12,6 +12,24 @@
 {{ '+' if (n or 0) >= 0 else '−' }}{{ '{:.2f}'.format((n or 0)|abs) }}%
 {%- endmacro %}
 
+{# Security-type groups, in display order (labels reuse the allocation i18n). #}
+{% set type_groups = [
+  ('stock', t.alloc_stock if t.alloc_stock else 'Stocks'),
+  ('etf', t.alloc_etf if t.alloc_etf else 'ETFs'),
+  ('mutual_fund', t.alloc_fund if t.alloc_fund else 'Funds'),
+  ('bond', t.alloc_bond if t.alloc_bond else 'Bonds'),
+  ('other', t.alloc_other if t.alloc_other else 'Other')
+] %}
+
+{% macro group_header(label, count, sub, span) %}
+<tr class="tv-group-row"><td colspan="{{ span }}">
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span>{{ label }}</span><span class="tv-badge">{{ count }}</span>
+    <span class="tv-num" style="margin-inline-start:auto;">{{ sub }}</span>
+  </div>
+</td></tr>
+{% endmacro %}
+
 {% block content %}
 {% set holdings = ov.holdings if ov else [] %}
 <div class="tv-page-head">
@@ -40,18 +58,23 @@
         </tr>
       </thead>
       <tbody>
-        {% for h in holdings %}
+        {% for tkey, tlabel in type_groups %}
+        {% set group = holdings|selectattr('security_type','equalto',tkey)|list %}
+        {% if group %}
+        {{ group_header(tlabel, group|length, money(group|sum(attribute='market_value')), 7) }}
+        {% for h in group %}
         {% set price = (h.market_value / h.quantity) if h.quantity else 0 %}
-        <tr data-position-id="{{ h.holding_id }}"
-            data-search="{{ (h.name ~ ' ' ~ h.symbol)|lower }}"
-            data-name="{{ h.name }}" data-value="{{ h.market_value }}" data-cost="{{ h.cost_basis }}"
+        {% set hname = disp_name(h, 'positions_open_name') %}
+        {% set hsym = disp_sym(h, 'positions_open_symbol') %}
+        <tr data-position-id="{{ h.holding_id }}" data-search="{{ (hname ~ ' ' ~ hsym)|lower }}"
+            data-name="{{ hname }}" data-value="{{ h.market_value }}" data-cost="{{ h.cost_basis }}"
             data-price="{{ price }}" data-day="{{ h.day_pct }}" data-pnl="{{ h.pnl }}" data-weight="{{ h.weight }}">
           <td>
             <div class="tv-pos-cell">
-              <span class="tv-monogram">{{ (h.symbol or h.name)[:2]|upper }}</span>
+              <span class="tv-monogram">{{ (hsym or hname)[:2]|upper }}</span>
               <div>
-                <div class="tv-pos-name">{{ h.name }}</div>
-                <div class="tv-pos-sub">{{ h.symbol }}</div>
+                <div class="tv-pos-name">{{ hname }}</div>
+                <div class="tv-pos-sub">{{ hsym }}</div>
               </div>
             </div>
           </td>
@@ -68,6 +91,8 @@
           </td>
         </tr>
         {% endfor %}
+        {% endif %}
+        {% endfor %}
       </tbody>
     </table>
   </div>
@@ -79,19 +104,24 @@
     {{ t.positions_closed_title if t.positions_closed_title else 'Closed' }} <span class="tv-badge">{{ closed|length }}</span>
   </summary>
   <div class="tv-panel-body flush" style="border-top:1px solid var(--border-soft);">
-    <table class="tv-table">
+    <table class="tv-table" data-sortable>
       <thead>
         <tr>
-          <th>{{ t.col_position }}</th>
-          <th class="tv-hide-sm">{{ t.col_qty }}</th>
-          <th>{{ t.stat_cost_change }}</th>
+          <th data-key="name" data-type="text">{{ t.col_position }}</th>
+          <th data-key="qty" data-type="num" class="tv-hide-sm">{{ t.col_qty }}</th>
+          <th data-key="pnl" data-type="num" class="tv-sorted" data-dir="desc">{{ t.stat_cost_change }}</th>
         </tr>
       </thead>
       <tbody>
-        {% for c in closed %}
-        {% set cname = (c.name_en or c.name_he) if lang == 'en' else (c.name_he or c.name_tase_he) %}
-        {% set csym = (c.symbol_en or c.symbol) if lang == 'en' else c.symbol %}
-        <tr data-href="{{ url_for('position_view', holding_id=c.holding_id) if c.holding_id }}">
+        {% for tkey, tlabel in type_groups %}
+        {% set cgroup = closed|selectattr('security_type','equalto',tkey)|list %}
+        {% if cgroup %}
+        {{ group_header(tlabel, cgroup|length, signed_money(cgroup|sum(attribute='total_pnl')), 3) }}
+        {% for c in cgroup %}
+        {% set cname = disp_name(c, 'positions_closed_name') %}
+        {% set csym = disp_sym(c, 'positions_closed_symbol') %}
+        <tr data-href="{{ url_for('position_view', holding_id=c.holding_id) if c.holding_id }}"
+            data-name="{{ cname }}" data-qty="{{ c.total_shares or 0 }}" data-pnl="{{ c.total_pnl or 0 }}">
           <td>
             <div class="tv-pos-cell">
               <span class="tv-monogram">{{ (csym or cname)[:2]|upper }}</span>
@@ -101,6 +131,8 @@
           <td class="tv-num tv-hide-sm">{{ '{:g}'.format(c.total_shares or 0) }}</td>
           <td class="tv-num {{ 'pos' if (c.total_pnl or 0) >= 0 else 'neg' }}">{{ signed_money(c.total_pnl) }}<br><span style="font-size:var(--fs-2xs);">{{ signed_pct(c.pnl_pct) }}</span></td>
         </tr>
+        {% endfor %}
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>

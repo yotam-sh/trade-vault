@@ -236,6 +236,14 @@ def import_daily_portfolio(filepath, data_date=None, interpolate=True, force=Fal
         interpolated_buys = ib
         interpolated_sells = is_
 
+    # The snapshot above was written before interpolation created the buy/sell
+    # transactions, so its cash_balance/equity predate today's sale proceeds. Heal the
+    # snapshot cash from the (now-complete) transaction history — the same refresh manual
+    # trades trigger — so sale proceeds show up as idle cash automatically.
+    if interpolated_buys or interpolated_sells:
+        from app.recompute import recompute_cash
+        recompute_cash()
+
     result = {
         'status': 'success' if not errors else 'partial',
         'import_id': import_id,

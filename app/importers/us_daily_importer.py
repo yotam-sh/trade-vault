@@ -177,6 +177,12 @@ def import_us_daily_portfolio(filepath, data_date=None, interpolate=True, force=
         interpolated_buys, interpolated_sells = interpolate_position_changes(
             data_date, daily_prices_list, import_id=import_id)
 
+    # Heal snapshot cash after interpolation (the snapshot above predates the new
+    # buy/sell transactions), so sale proceeds land in idle cash automatically.
+    if interpolated_buys or interpolated_sells:
+        from app.recompute import recompute_cash
+        recompute_cash()
+
     return {
         'status': 'success' if not errors else 'partial',
         'import_id': import_id,

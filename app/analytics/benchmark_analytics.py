@@ -14,12 +14,17 @@ index instead?"
 from datetime import datetime, timedelta
 
 _SYMBOLS = {
-    'ta125': '^TA125.TA',
-    'ta35':  'TA35.TA',
+    'ta125':     '^TA125.TA',
+    'ta35':      'TA35.TA',
+    'sp500':     '^GSPC',
+    'ndq':       '^NDX',      # Nasdaq-100 (what QQQ tracks)
+    'nikkei':    '^N225',
+    'kospi200':  '^KS200',
+    'eurostoxx': '^STOXX50E',  # EURO STOXX 50
 }
 
 _CACHE_TTL_HOURS = 24
-_SETTINGS_KEY = 'benchmark_cache_v2'
+_SETTINGS_KEY = 'benchmark_cache_v4'  # bumped when the index set/symbols change
 
 
 def _load_cache():
@@ -72,7 +77,7 @@ def get_benchmark_data(snapshot_dates):
     Returns empty series on yfinance failure.
     """
     if not snapshot_dates:
-        return {'ta125': [], 'ta35': []}
+        return {k: [] for k in _SYMBOLS}
 
     start = snapshot_dates[0]
     # Fetch a day beyond the last snapshot so end_date is inclusive
@@ -86,7 +91,8 @@ def get_benchmark_data(snapshot_dates):
     cache = _load_cache()
     cache_valid = False
 
-    if cache.get('start') == start and cache.get('end') == end:
+    if (cache.get('start') == start and cache.get('end') == end
+            and all(k in cache for k in _SYMBOLS)):  # refetch if a new index was added
         fetched_at = cache.get('fetched_at', '')
         if fetched_at:
             try:

@@ -1,14 +1,19 @@
 {% extends 'base.html' %}
 {% set sym = currency_symbol %}
 {% block title %}{{ t.nav_analytics if t.nav_analytics else t.nav_graphs }} · TradeVault{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3/dist/d3-hierarchy.min.js"></script>{% endblock %}
 
 {% macro pct(n) -%}{{ '{:+.2f}'.format(n or 0) }}%{%- endmacro %}
-{% macro heat(p, mx) -%}
-{%- set a = ((p|abs) / mx if mx else 0) -%}{%- set al = (a*0.8 + 0.12) -%}
-{%- if p > 0 -%}rgba(70,207,131,{{ '%.2f'|format(al) }})
-{%- elif p < 0 -%}rgba(255,93,108,{{ '%.2f'|format(al) }})
-{%- else -%}var(--surface-inset){%- endif -%}
-{%- endmacro %}
+
+{# Allocation-over-time type legend (matches the donut palette / _TYPE_META). #}
+{% set alloc_types = [
+  ('stock', t.alloc_stock if t.alloc_stock else 'Stocks', '#a382f7'),
+  ('etf', t.alloc_etf if t.alloc_etf else 'ETFs', '#5cc8ff'),
+  ('mutual_fund', t.alloc_fund if t.alloc_fund else 'Funds', '#ff9d6b'),
+  ('bond', t.alloc_bond if t.alloc_bond else 'Bonds', '#46cf83'),
+  ('other', t.alloc_other if t.alloc_other else 'Other', '#f0ab3e'),
+  ('cash', t.alloc_cash if t.alloc_cash else 'Cash', '#756a8c')
+] %}
 
 {% block content %}
 {% if not a %}
@@ -41,16 +46,20 @@
   {% endfor %}
 </div>
 
-{# ---- Cumulative return ---- #}
+{# ---- Cumulative return vs benchmarks ---- #}
 <div class="tv-panel" style="margin-bottom:16px;">
-  <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_cumulative if t.an_cumulative else 'Cumulative return' }}</div></div>
-  <div class="tv-panel-body"><div style="height:260px;"><canvas id="an-return"></canvas></div></div>
+  <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_cumulative if t.an_cumulative else 'Cumulative return' }} <span class="muted" style="font-weight:400;">(%)</span></div></div>
+  <div class="tv-panel-body">
+    <div class="tv-chips" id="an-bench-chips" style="margin-bottom:12px;"></div>
+    <div style="height:260px;"><canvas id="an-return"></canvas></div>
+    <div class="tv-alloc" id="an-return-legend" style="gap:18px; margin-top:10px; font-size:var(--fs-xs);"></div>
+  </div>
 </div>
 
 {# ---- Monthly | Drawdown ---- #}
 <div class="tv-grid-2" style="margin-bottom:16px;">
   <div class="tv-panel">
-    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_monthly if t.an_monthly else 'Monthly return' }}</div></div>
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_monthly if t.an_monthly else 'Monthly return' }} <span class="muted" style="font-weight:400;">(%)</span></div></div>
     <div class="tv-panel-body"><div style="height:220px;"><canvas id="an-monthly"></canvas></div></div>
   </div>
   <div class="tv-panel">
@@ -63,37 +72,37 @@
 <div class="tv-grid-2" style="margin-bottom:16px;">
   <div class="tv-panel">
     <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_pnl_by_pos if t.an_pnl_by_pos else 'P&L by position' }}</div></div>
-    <div class="tv-panel-body"><div style="height:{{ [a.pnl_by_pos|length * 26, 220]|max }}px;"><canvas id="an-pnlpos"></canvas></div></div>
+    <div class="tv-panel-body"><div style="height:280px;"><canvas id="an-pnlpos"></canvas></div></div>
   </div>
   <div class="tv-panel">
-    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_weekday if t.an_weekday else 'Average return by weekday' }}</div></div>
-    <div class="tv-panel-body"><div style="height:220px;"><canvas id="an-weekday"></canvas></div></div>
+    <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_weekday if t.an_weekday else 'Average return by weekday' }} <span class="muted" style="font-weight:400;">(%)</span></div></div>
+    <div class="tv-panel-body"><div style="height:280px;"><canvas id="an-weekday"></canvas></div></div>
   </div>
 </div>
 
 {# ---- Allocation over time ---- #}
-<div class="tv-panel" style="margin-bottom:16px;">
-  <div class="tv-panel-head"><div class="tv-panel-title">{{ t.an_alloc_time if t.an_alloc_time else 'Allocation over time' }}</div></div>
+<div class="tv-panel">
+  <div class="tv-panel-head">
+    <div class="tv-panel-title">{{ t.an_alloc_time if t.an_alloc_time else 'Allocation over time' }}</div>
+    <div class="tv-alloc" style="gap:14px; font-size:var(--fs-xs);">
+      {% for key, label, color in alloc_types %}
+      <span class="tv-alloc-row" style="gap:6px;"><span class="tv-alloc-chip" style="background:{{ color }};"></span>{{ label }}</span>
+      {% endfor %}
+    </div>
+  </div>
   <div class="tv-panel-body"><div style="height:240px;"><canvas id="an-alloc"></canvas></div></div>
 </div>
 
-{# ---- Heatmap ---- #}
-<div class="tv-panel">
-  <div class="tv-panel-head"><div class="tv-panel-title glow">{{ t.an_heatmap if t.an_heatmap else 'Daily P&L' }}</div></div>
-  <div class="tv-panel-body">
-    <div class="tv-heatmap">
-      {% for h in a.heatmap %}
-      <span class="tv-heat-cell" style="background:{{ heat(h.pct, a.heat_max) }};" title="{{ h.date }}: {{ pct(h.pct) }}"></span>
-      {% endfor %}
-    </div>
-    <div class="tv-heat-legend">
-      <span>{{ t.an_loss if t.an_loss else 'Loss' }}</span>
-      <span class="tv-heat-swatch" style="background:rgba(255,93,108,0.85);"></span>
-      <span class="tv-heat-swatch" style="background:var(--surface-inset);"></span>
-      <span class="tv-heat-swatch" style="background:rgba(70,207,131,0.85);"></span>
-      <span>{{ t.an_gain if t.an_gain else 'Gain' }}</span>
+{# ---- Treemap (Daily/Total % change map) ---- #}
+<div class="tv-panel" style="margin-top:16px;">
+  <div class="tv-panel-head">
+    <div class="tv-panel-title glow">{{ t.treemap_title if t.treemap_title else 'Daily % Change Map' }}</div>
+    <div class="tv-seg" data-seg id="an-treemap-metric">
+      <button data-value="daily" class="active">{{ t.toggle_daily_pct if t.toggle_daily_pct else 'Daily %' }}</button>
+      <button data-value="total">{{ t.toggle_total_pct if t.toggle_total_pct else 'Total %' }}</button>
     </div>
   </div>
+  <div class="tv-panel-body"><div id="an-treemap" style="height:420px; position:relative; overflow:hidden;"></div></div>
 </div>
 {% endif %}
 {% endblock %}
@@ -103,29 +112,80 @@
 <script>
 (function () {
   var css = TV.css, sym = {{ currency_symbol|tojson }};
-  var ret = {{ a.return_path|tojson }}, dd = {{ a.drawdown_path|tojson }},
+  var ret = {{ a.return_path|tojson }}, bench = {{ a.benchmarks|tojson }}, dd = {{ a.drawdown_path|tojson }},
       monthly = {{ a.monthly|tojson }}, pnlpos = {{ a.pnl_by_pos|tojson }},
       weekday = {{ a.weekday|tojson }}, alloc = {{ a.alloc_history|tojson }};
-  var pos = css('--positive'), neg = css('--negative'), acc = css('--accent'), muted = css('--text-muted'), soft = css('--border-soft');
-  var noLegend = { legend: { display: false } };
+  var pos = css('--positive'), neg = css('--negative'), acc = css('--accent'),
+      info = css('--info'), glow = css('--glow'), muted = css('--text-muted'), soft = css('--border-soft');
+  var idx = { mode: 'index', intersect: false };
   function grid() { return { grid: { color: soft }, ticks: { color: muted } }; }
+  function pctTicks() { return { grid: { color: soft }, ticks: { color: muted, callback: function (v) { return v + '%'; } } }; }
+  function lastNum(arr) { for (var i = arr.length - 1; i >= 0; i--) { if (arr[i] != null) return arr[i]; } return null; }
 
-  new Chart(document.getElementById('an-return'), {
-    type: 'line',
-    data: { labels: ret.map(function (d) { return d.date; }),
-      datasets: [{ data: ret.map(function (d) { return d.value; }), borderColor: acc, borderWidth: 3, fill: false, tension: 0.25, pointRadius: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
-      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } },
-        y: { grid: { color: soft }, ticks: { color: muted, callback: function (v) { return v + '%'; } } } } }
+  // ---- Cumulative return vs optional benchmark indexes ----
+  var labels = ret.map(function (d) { return d.date; });
+  var benchMeta = [
+    { key: 'sp500',     label: {{ (t.label_sp500 if t.label_sp500 else 'S&P 500')|tojson }},          color: info },
+    { key: 'ta125',     label: {{ t.label_ta125|tojson }},                                            color: glow },
+    { key: 'ta35',      label: {{ t.label_ta35|tojson }},                                             color: '#f070c4' },
+    { key: 'ndq',       label: {{ (t.label_ndq if t.label_ndq else 'Nasdaq-100')|tojson }},           color: '#7c84ff' },
+    { key: 'nikkei',    label: {{ (t.label_nikkei if t.label_nikkei else 'Nikkei 225')|tojson }},     color: '#46cf83' },
+    { key: 'kospi200',  label: {{ (t.label_kospi200 if t.label_kospi200 else 'KOSPI 200')|tojson }},  color: '#45d6c4' },
+    { key: 'eurostoxx', label: {{ (t.label_eurostoxx if t.label_eurostoxx else 'EURO STOXX 50')|tojson }}, color: '#f0ab3e' }
+  ];
+  var portLabel = {{ (t.an_portfolio if t.an_portfolio else 'Portfolio')|tojson }};
+  var savedBench;
+  try { savedBench = JSON.parse(localStorage.getItem('tv_benchmarks')) || ['sp500', 'ta125']; }
+  catch (e) { savedBench = ['sp500', 'ta125']; }
+
+  var retDatasets = [{ label: portLabel, data: ret.map(function (d) { return d.value; }),
+      borderColor: acc, borderWidth: 3, fill: false, tension: 0.25, pointRadius: 0, spanGaps: true }];
+  benchMeta.forEach(function (m) {
+    retDatasets.push({ label: m.label, data: bench[m.key] || [], borderColor: m.color, borderWidth: 1.5,
+      fill: false, tension: 0.25, pointRadius: 0, spanGaps: true, hidden: savedBench.indexOf(m.key) === -1 });
   });
+  var retChart = new Chart(document.getElementById('an-return'), {
+    type: 'line',
+    data: { labels: labels, datasets: retDatasets },
+    options: { responsive: true, maintainAspectRatio: false, interaction: idx,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + (c.parsed.y == null ? '—' : c.parsed.y.toFixed(2) + '%'); } } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } }, y: pctTicks() } }
+  });
+
+  function legendEntry(label, color, data) {
+    var fin = lastNum(data); var tone = (fin >= 0) ? 'pos' : 'neg';
+    return '<span class="tv-alloc-row" style="gap:6px;"><span class="tv-alloc-chip" style="background:' + color + ';"></span>' +
+      label + ' <span class="tv-num ' + tone + '">' + (fin == null ? '—' : (fin >= 0 ? '+' : '') + fin.toFixed(2) + '%') + '</span></span>';
+  }
+  function refreshRetLegend() {
+    var html = legendEntry(portLabel, acc, retDatasets[0].data);
+    benchMeta.forEach(function (m, i) { if (retChart.isDatasetVisible(i + 1)) html += legendEntry(m.label, m.color, bench[m.key] || []); });
+    document.getElementById('an-return-legend').innerHTML = html;
+  }
+  // Toggle chips (one per benchmark).
+  document.getElementById('an-bench-chips').innerHTML = benchMeta.map(function (m, i) {
+    return '<button class="tv-chip' + (retChart.isDatasetVisible(i + 1) ? ' active' : '') + '" data-bi="' + i + '">' + m.label + '</button>';
+  }).join('');
+  document.getElementById('an-bench-chips').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-bi]'); if (!b) return;
+    var i = parseInt(b.dataset.bi, 10), vis = retChart.isDatasetVisible(i + 1);
+    retChart.setDatasetVisibility(i + 1, !vis); b.classList.toggle('active', !vis);
+    retChart.update();
+    var keys = benchMeta.filter(function (m, j) { return retChart.isDatasetVisible(j + 1); }).map(function (m) { return m.key; });
+    try { localStorage.setItem('tv_benchmarks', JSON.stringify(keys)); } catch (e2) {}
+    refreshRetLegend();
+  });
+  refreshRetLegend();
 
   new Chart(document.getElementById('an-monthly'), {
     type: 'bar',
     data: { labels: monthly.map(function (m) { return m.month; }),
       datasets: [{ data: monthly.map(function (m) { return m.pct; }),
         backgroundColor: monthly.map(function (m) { return m.pct >= 0 ? pos : neg; }), borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
-      scales: { x: { grid: { display: false }, ticks: { color: muted } }, y: grid() } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: function (c) { return c.parsed.y.toFixed(2) + '%'; } } } },
+      scales: { x: { grid: { display: false }, ticks: { color: muted } }, y: pctTicks() } }
   });
 
   var ddctx = document.getElementById('an-drawdown');
@@ -134,10 +194,12 @@
   new Chart(ddctx, {
     type: 'line',
     data: { labels: dd.map(function (d) { return d.date; }),
-      datasets: [{ data: dd.map(function (d) { return d.value; }), borderColor: neg, backgroundColor: dgrad, borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
-      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } },
-        y: { grid: { color: soft }, ticks: { color: muted, callback: function (v) { return v + '%'; } } } } }
+      datasets: [{ label: {{ (t.an_drawdown if t.an_drawdown else 'Drawdown')|tojson }}, data: dd.map(function (d) { return d.value; }),
+        borderColor: neg, backgroundColor: dgrad, borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: idx,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: function (c) { return c.parsed.y.toFixed(2) + '%'; } } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } }, y: pctTicks() } }
   });
 
   new Chart(document.getElementById('an-pnlpos'), {
@@ -155,21 +217,85 @@
     data: { labels: weekday.map(function (w) { return w.label; }),
       datasets: [{ data: weekday.map(function (w) { return w.pct; }),
         backgroundColor: weekday.map(function (w) { return w.pct >= 0 ? pos : neg; }), borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: noLegend,
-      scales: { x: { grid: { display: false }, ticks: { color: muted } }, y: grid() } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: function (c) { return c.parsed.y.toFixed(3) + '%'; } } } },
+      scales: { x: { grid: { display: false }, ticks: { color: muted } }, y: pctTicks() } }
   });
 
-  var types = [['stock', '#a382f7'], ['mutual_fund', '#ff9d6b'], ['etf', '#5cc8ff'], ['bond', '#46cf83'], ['other', '#f0ab3e'], ['cash', '#756a8c']];
+  // ---- Allocation over time (Comet palette, stacked) ----
+  var types = [['stock', '#a382f7'], ['etf', '#5cc8ff'], ['mutual_fund', '#ff9d6b'], ['bond', '#46cf83'], ['other', '#f0ab3e'], ['cash', '#756a8c']];
   new Chart(document.getElementById('an-alloc'), {
     type: 'line',
     data: { labels: alloc.map(function (r) { return r.date; }),
       datasets: types.map(function (t) { return { label: t[0], data: alloc.map(function (r) { return r[t[0]] || 0; }),
-        borderColor: t[1], backgroundColor: t[1] + '55', borderWidth: 1, fill: true, stack: 's', tension: 0.2, pointRadius: 0 }; }) },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
-      tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + TV.fmtMoney(c.parsed.y, sym, 0); } } } },
+        borderColor: t[1], backgroundColor: 'transparent', borderWidth: 2, fill: false, stack: 's', tension: 0.3, pointRadius: 0 }; }) },
+    options: { responsive: true, maintainAspectRatio: false, interaction: idx,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + TV.fmtMoney(c.parsed.y, sym, 0); } } } },
       scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: muted } },
         y: { stacked: true, grid: { color: soft }, ticks: { color: muted, callback: function (v) { return TV.fmtMoney(v, sym, 0); } } } } }
   });
+
+  // ---- Treemap: positions grouped by type, sized by value, colored by % change ----
+  var treemap = {{ a.treemap|tojson }};
+  var prefField = {{ display_prefs.graphs_treemap_labels|tojson }};
+  var tmTypeLabels = {
+    stock: {{ (t.alloc_stock if t.alloc_stock else 'Stocks')|tojson }},
+    etf: {{ (t.alloc_etf if t.alloc_etf else 'ETFs')|tojson }},
+    mutual_fund: {{ (t.alloc_fund if t.alloc_fund else 'Funds')|tojson }},
+    bond: {{ (t.alloc_bond if t.alloc_bond else 'Bonds')|tojson }},
+    other: {{ (t.alloc_other if t.alloc_other else 'Other')|tojson }}
+  };
+  var tmMetric = 'daily';
+  function leafPct(p) { return tmMetric === 'total' ? (p.pnl_pct || 0) : (p.day_pct || 0); }
+  function tmBg(p) {
+    var a = Math.min(Math.abs(p) / 3, 1) * 0.78 + 0.14;
+    if (p > 0) return 'rgba(70,207,131,' + a.toFixed(2) + ')';
+    if (p < 0) return 'rgba(255,93,108,' + a.toFixed(2) + ')';
+    return css('--surface-inset');
+  }
+  function renderTreemap() {
+    var el = document.getElementById('an-treemap'); if (!el || !window.d3) return;
+    var W = el.clientWidth, H = el.clientHeight; if (!W || !H) return;
+    el.innerHTML = '';
+    var gm = {};
+    treemap.forEach(function (p) {
+      if (!(p.market_value > 0)) return;
+      var g = p.security_type || 'other';
+      (gm[g] || (gm[g] = { type: g, name: tmTypeLabels[g] || g, children: [] })).children.push({
+        name: p[prefField] || p.symbol || p.name, value: p.market_value,
+        pct: leafPct(p), holding_id: p.holding_id });
+    });
+    var root = d3.hierarchy({ name: 'root', children: Object.keys(gm).map(function (g) { return gm[g]; }) })
+      .sum(function (d) { return d.value || 0; })
+      .sort(function (a, b) { return b.value - a.value; });
+    d3.treemap().size([W, H]).paddingTop(20).paddingInner(2).paddingOuter(3).round(true)(root);
+
+    // Group containers + type label header.
+    root.children.forEach(function (grp) {
+      var box = document.createElement('div');
+      box.className = 'tv-tm-group';
+      box.style.cssText = 'left:' + grp.x0 + 'px;top:' + grp.y0 + 'px;width:' + (grp.x1 - grp.x0) +
+        'px;height:' + (grp.y1 - grp.y0) + 'px;';
+      box.innerHTML = '<div class="tv-tm-group-label">' + grp.data.name + '</div>';
+      el.appendChild(box);
+    });
+    root.leaves().forEach(function (leaf) {
+      var cell = document.createElement('div');
+      cell.className = 'tv-tm-cell';
+      cell.style.cssText = 'left:' + leaf.x0 + 'px;top:' + leaf.y0 + 'px;width:' + (leaf.x1 - leaf.x0) +
+        'px;height:' + (leaf.y1 - leaf.y0) + 'px;background:' + tmBg(leaf.data.pct) + ';';
+      if (leaf.data.holding_id) { cell.setAttribute('data-position-id', leaf.data.holding_id); cell.style.cursor = 'pointer'; }
+      var sign = leaf.data.pct >= 0 ? '+' : '';
+      cell.innerHTML = '<div class="tv-tm-name">' + leaf.data.name + '</div>' +
+        '<div class="tv-tm-pct ' + (leaf.data.pct >= 0 ? 'pos' : 'neg') + '">' + sign + leaf.data.pct.toFixed(2) + '%</div>';
+      el.appendChild(cell);
+    });
+  }
+  requestAnimationFrame(renderTreemap);
+  window.addEventListener('resize', renderTreemap);
+  var tmSeg = document.getElementById('an-treemap-metric');
+  if (tmSeg) tmSeg.addEventListener('tv:seg', function (e) { tmMetric = e.detail.value; renderTreemap(); });
 })();
 </script>
 {% endif %}

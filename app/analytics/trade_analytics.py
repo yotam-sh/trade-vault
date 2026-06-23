@@ -40,6 +40,7 @@ def get_activity(lang='he'):
         else:
             continue
         rows.append({
+            'id': t.doc_id, 'source': t.get('source'),
             'kind': kind, 'group': group, 'date': t.get('date'),
             'name': name, 'symbol': symbol,
             'shares': t.get('shares'), 'price': t.get('price_per_share'),

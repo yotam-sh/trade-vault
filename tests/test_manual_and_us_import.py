@@ -154,6 +154,34 @@ def test_has_nearby_trade_suppresses_on_manual_source():
     assert has_nearby_trade(hid, '2026-06-10', 'buy') is True
 
 
+def test_activity_rows_expose_id_and_source():
+    """Activity rows carry the transaction id + source so the timeline can offer edit/
+    delete (price-edit of interpolated trades)."""
+    get_db(); init_default_settings()
+    from app.manual_portfolio import record_trade
+    from app.analytics.trade_analytics import get_activity
+    hid = add_holding(name_he='Apple', ticker='AAPL', security_type='stock', currency='USD')
+    record_trade(hid, 'buy', '2026-06-01', shares=10, price=100.0)
+    row = next(r for r in get_activity('en') if r['kind'] == 'buy')
+    assert isinstance(row.get('id'), int) and 'source' in row
+
+
+def test_overview_realized_pnl_includes_partial_sells():
+    """All-time Realized P/L counts P&L from partial sells of still-open positions."""
+    get_db(); init_default_settings()
+    from app.manual_portfolio import record_trade
+    from app.snapshots import materialize_position_in_snapshot
+    from app.analytics.portfolio_analytics import get_overview
+
+    hid = add_holding(name_he='Apple', ticker='AAPL', security_type='stock', currency='USD')
+    record_trade(hid, 'buy', '2026-06-01', shares=10, price=100.0)
+    record_trade(hid, 'sell', '2026-06-05', shares=4, price=150.0)   # partial: realize 4*(150-100)=200
+    materialize_position_in_snapshot(hid, 150.0)                     # position still open (6 left)
+
+    ov = get_overview('en')
+    assert round(ov['realized_pnl'], 2) == 200.0
+
+
 def test_full_exit_to_zero_closes_lots_and_deactivates():
     """A holding still listed in the daily file at quantity 0 (full exit) must get an
     interpolated sell, have its lots closed, and be deactivated — not left as a phantom
@@ -243,3 +271,28 @@ def test_us_csv_import(tmp_path):
     # Re-importing the same bytes is a duplicate (no double snapshot).
     res2 = import_daily_portfolio(str(csv), force=True)
     assert res2['status'] == 'duplicate'
+
+
+def test_daily_import_interpolated_sell_credits_idle_cash(tmp_path):
+    """A daily import that reduces a holding interpolates a sell; its proceeds must land
+    in the snapshot's idle cash (the snapshot is healed after interpolation)."""
+    get_db(); init_default_settings()
+    from app.importers.daily_importer import import_daily_portfolio
+    from app.snapshots import list_snapshots
+
+    hdr = "Symbol,Qty,Last Price,Change %,Bid,Bid Size,Ask,Ask Size,Mkt. Value,Total Cost,Unr. P/L %,Consensus\n"
+    def row(sym, qty, mv):
+        return f"{sym},{qty},80,0,80,1,80,1,{mv},{mv},0,Neutral\n"
+    # day0 baseline (so day1's ASTS is a new position → interpolated buy → a lot exists);
+    # day1 adds ASTS@10 (interpolated buy, −800 cash); day2 reduces ASTS 10→6 (sell 4@80 = +320).
+    d0 = tmp_path / 'd0.csv'; d0.write_text("undefined (2026-06-17)\n" + hdr + row('AXTI', 1, 80), encoding='utf-8')
+    d1 = tmp_path / 'd1.csv'; d1.write_text("undefined (2026-06-18)\n" + hdr + row('AXTI', 1, 80) + row('ASTS', 10, 800), encoding='utf-8')
+    d2 = tmp_path / 'd2.csv'; d2.write_text("undefined (2026-06-19)\n" + hdr + row('AXTI', 1, 80) + row('ASTS', 6, 480), encoding='utf-8')
+
+    import_daily_portfolio(str(d0), force=True)
+    import_daily_portfolio(str(d1), force=True)
+    import_daily_portfolio(str(d2), force=True)
+
+    snaps = {s['date']: s for s in list_snapshots()}
+    # The sale of 4 shares @ 80 = 320 proceeds must raise idle cash day-over-day.
+    assert round(snaps['2026-06-19']['cash_balance'] - snaps['2026-06-18']['cash_balance'], 2) == 320.0

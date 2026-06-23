@@ -47,6 +47,24 @@ def test_daily_summary_change_pct_uses_canonical_basis():
     assert row['change_pct'] == round(50 / 9950 * 100, 2)
 
 
+def test_overview_holdings_carry_raw_name_fields():
+    """get_overview holdings must keep the raw enriched name/symbol fields so templates
+    can honor display_prefs (the per-context name-source preference)."""
+    _seed()
+    from app.analytics.portfolio_analytics import get_overview
+    h = get_overview('he')['holdings'][0]
+    for k in ('name_he', 'name_en', 'name_tase_he', 'name_tase_en', 'symbol', 'symbol_en', 'ticker', 'security_type'):
+        assert k in h, f'missing raw field {k}'
+
+
+def test_overview_total_equity_includes_idle_cash():
+    """Portfolio Value (total_equity) = positions market value + idle cash."""
+    _seed()
+    from app.analytics.portfolio_analytics import get_overview
+    ov = get_overview('he')
+    assert round(ov['total_equity'], 2) == round(ov['portfolio']['total_value'] + ov['idle_cash'], 2)
+
+
 def test_total_return_includes_idle_cash():
     """Total Return ('cost change') compares equity (positions + idle cash) to net
     invested, so uninvested cash isn't counted as a loss."""

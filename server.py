@@ -579,6 +579,28 @@ from app.icons import tv_icon as _tv_icon
 app.jinja_env.globals['tv_icon'] = _tv_icon
 
 
+def _disp_name(row, key):
+    """Resolve a display NAME for an enriched row, honoring the per-context
+    display_prefs setting (falls back to en/he/ticker). Mirrors the legacy
+    `row[display_prefs.<key>] or row.name_en or row.name_he` pattern."""
+    prefs = getattr(g, 'display_prefs', {}) or {}
+    field = prefs.get(key)
+    return ((row.get(field) if field else None)
+            or row.get('name_en') or row.get('name_he') or row.get('ticker') or '')
+
+
+def _disp_sym(row, key):
+    """Resolve a display SYMBOL for an enriched row, honoring display_prefs."""
+    prefs = getattr(g, 'display_prefs', {}) or {}
+    field = prefs.get(key)
+    return ((row.get(field) if field else None)
+            or row.get('symbol_en') or row.get('symbol') or row.get('ticker') or '')
+
+
+app.jinja_env.globals['disp_name'] = _disp_name
+app.jinja_env.globals['disp_sym'] = _disp_sym
+
+
 # Brand SVGs live in asset/ (separate from static/ JS/CSS). Served here since Flask's
 # default static handler only covers static/.
 _ASSET_DIR = os.path.join(app.root_path, 'asset')
@@ -1705,10 +1727,9 @@ def api_display_prefs():
 
 @app.route('/exports')
 def exports_view():
-    lang = _get_lang()
-    t = get_translations(lang)
-    return render_template('exports.html', t=t, lang=lang, dir='rtl' if lang == 'he' else 'ltr',
-                           t_json=get_translations_json(lang))
+    # Retired in v1.0 — the dedicated Export page is gone. The /export/<…> download
+    # endpoints remain; kept as a redirect so old links resolve.
+    return redirect(url_for('index'))
 
 
 @app.route('/settings/display')

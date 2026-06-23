@@ -84,13 +84,23 @@
           table.querySelectorAll('th[data-key]').forEach(function (o) { o.removeAttribute('data-dir'); o.classList.remove('tv-sorted'); });
           th.dataset.dir = asc ? 'asc' : 'desc';
           th.classList.add('tv-sorted');
-          var rows = Array.prototype.slice.call(tbody.rows);
-          rows.sort(function (a, b) {
+          function cmp(a, b) {
             var av = a.dataset[key] || '', bv = b.dataset[key] || '';
             if (type === 'num') { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0; return asc ? av - bv : bv - av; }
             return asc ? String(av).localeCompare(bv) : String(bv).localeCompare(av);
+          }
+          // Group-aware: sort data rows *within* each type segment (delimited by
+          // .tv-group-row), keeping the group headers in place. A flat table = one segment.
+          var segments = [{ header: null, items: [] }];
+          Array.prototype.forEach.call(tbody.rows, function (r) {
+            if (r.classList.contains('tv-group-row')) segments.push({ header: r, items: [] });
+            else segments[segments.length - 1].items.push(r);
           });
-          rows.forEach(function (r) { tbody.appendChild(r); });
+          segments.forEach(function (s) {
+            s.items.sort(cmp);
+            if (s.header) tbody.appendChild(s.header);
+            s.items.forEach(function (r) { tbody.appendChild(r); });
+          });
         });
       });
     });

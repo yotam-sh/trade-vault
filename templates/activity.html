@@ -15,11 +15,19 @@
 } %}
 
 {% block content %}
+{% set editable_count = rows | selectattr('id') | selectattr('kind', 'in', ['buy', 'sell']) | list | length %}
 <div class="tv-page-head">
   <div>
     <h1>{{ t.nav_activity if t.nav_activity else t.nav_transactions }}</h1>
     <div class="tv-page-sub">{{ t.activity_sub if t.activity_sub else '' }}</div>
   </div>
+  {% if editable_count %}
+  <button class="tv-btn tv-btn-ghost tv-btn-sm" data-edit-master
+          data-label-edit="{{ t.activity_edit if t.activity_edit else 'Edit' }}"
+          data-label-done="{{ t.btn_done if t.btn_done else 'Done' }}">
+    {{ tv_icon('pencil', 14) }} <span data-edit-master-label>{{ t.activity_edit if t.activity_edit else 'Edit' }}</span>
+  </button>
+  {% endif %}
 </div>
 
 <div class="tv-chips" data-chips="tv-activity-list">
@@ -34,21 +42,86 @@
   <div class="tv-activity" id="tv-activity-list">
     {% for r in rows %}
     {% set meta = kind_meta.get(r.kind, ('plus', r.kind)) %}
-    <div class="tv-act-row" data-kind="{{ r.group }}">
-      <span class="tv-act-tile {{ r.kind }}">{{ tv_icon(meta[0], 18) }}</span>
-      <div class="tv-act-main">
-        <div class="tv-act-kind">{{ meta[1] }}{% if r.symbol %} <span class="tv-sym-chip">{{ r.symbol }}</span>{% endif %}</div>
-        <div class="tv-act-sub">
-          {%- if r.name %}{{ r.name }}{% endif -%}
-          {%- if r.shares and r.price %} · {{ '{:g}'.format(r.shares) }} @ {{ sym }}{{ '{:,.2f}'.format(r.price) }}{% endif -%}
+    {% set editable = r.kind in ('buy', 'sell') and r.id %}
+    <div class="tv-act-item" data-kind="{{ r.group }}">
+      <div class="tv-act-row">
+        <span class="tv-act-tile {{ r.kind }}">{{ tv_icon(meta[0], 18) }}</span>
+        <div class="tv-act-main">
+          <div class="tv-act-kind">{{ meta[1] }}{% if r.symbol %} <span class="tv-sym-chip">{{ r.symbol }}</span>{% endif %}{% if r.source == 'interpolated' %} <span class="tv-sym-chip" style="color:var(--accent-hover);">{{ t.activity_auto if t.activity_auto else 'auto' }}</span>{% endif %}</div>
+          <div class="tv-act-sub">
+            {%- if r.name %}{{ r.name }}{% endif -%}
+            {%- if r.shares and r.price %} · {{ '{:g}'.format(r.shares) }} @ {{ sym }}{{ '{:,.2f}'.format(r.price) }}{% endif -%}
+          </div>
         </div>
+        <div class="tv-act-right">
+          <div class="tv-act-amt {{ 'pos' if r.amount >= 0 else 'neg' }}">{{ signed_money(r.amount) }}</div>
+          <div class="tv-act-date">{{ r.date }}</div>
+        </div>
+        {% if editable %}<button class="tv-icon-btn tv-act-edit-btn" data-edit-toggle aria-label="{{ t.activity_edit if t.activity_edit else 'Edit' }}">{{ tv_icon('pencil', 16) }}</button>{% endif %}
       </div>
-      <div class="tv-act-right">
-        <div class="tv-act-amt {{ 'pos' if r.amount >= 0 else 'neg' }}">{{ signed_money(r.amount) }}</div>
-        <div class="tv-act-date">{{ r.date }}</div>
+      {% if editable %}
+      <div class="tv-act-edit" data-act-id="{{ r.id }}" hidden>
+        <label class="tv-overline">{{ t.qa_price if t.qa_price else 'Price' }}</label>
+        <input type="number" step="any" class="tv-input mono" value="{{ r.price }}" data-price-input>
+        <button class="tv-btn tv-btn-primary tv-btn-sm" data-price-save>{{ tv_icon('check', 14) }} {{ t.btn_save if t.btn_save else 'Save' }}</button>
+        <button class="tv-btn tv-btn-secondary tv-btn-sm" data-act-delete style="color:var(--negative);">{{ tv_icon('trash-2', 14) }} {{ t.btn_delete if t.btn_delete else 'Delete' }}</button>
+        <span class="tv-act-edit-error" hidden></span>
       </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+  function post(url, body) {
+    return fetch(url, { method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: body ? JSON.stringify(body) : null });
+  }
+  var list = document.getElementById('tv-activity-list');
+  var master = document.querySelector('[data-edit-master]');
+  if (master) {
+    master.addEventListener('click', function () {
+      var on = list.classList.toggle('editing');
+      var label = master.querySelector('[data-edit-master-label]');
+      if (label) label.textContent = on ? master.dataset.labelDone : master.dataset.labelEdit;
+      master.classList.toggle('tv-btn-active', on);
+      if (!on) {
+        Array.prototype.forEach.call(list.querySelectorAll('.tv-act-edit'), function (ed) { ed.hidden = true; });
+      }
+    });
+  }
+  list.addEventListener('click', function (e) {
+    var toggle = e.target.closest('[data-edit-toggle]');
+    if (toggle) {
+      var ed = toggle.closest('.tv-act-item').querySelector('.tv-act-edit');
+      if (ed) ed.hidden = !ed.hidden;
+      return;
+    }
+    var ed = e.target.closest('.tv-act-edit'); if (!ed) return;
+    var id = ed.dataset.actId, err = ed.querySelector('.tv-act-edit-error');
+    function fail(msg) { err.textContent = msg || 'Error'; err.hidden = false; }
+    if (e.target.closest('[data-price-save]')) {
+      var price = parseFloat(ed.querySelector('[data-price-input]').value);
+      if (!(price > 0)) { fail('{{ t.qa_pick_symbol if false else "Price must be positive" }}'); return; }
+      err.hidden = true;
+      post('/api/transactions/' + id + '/update-price', { price_per_share: price })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) { if (res.ok && res.j.success) location.reload(); else fail(res.j.error); })
+        .catch(function () { fail('Error'); });
+    } else if (e.target.closest('[data-act-delete]')) {
+      if (!confirm('{{ t.activity_delete_confirm if t.activity_delete_confirm else "Delete this activity?" }}')) return;
+      post('/api/transactions/' + id + '/delete')
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) { if (res.ok && res.j.success) location.reload(); else fail(res.j.error); })
+        .catch(function () { fail('Error'); });
+    }
+  });
+})();
+</script>
 {% endblock %}

@@ -33,7 +33,7 @@
       </thead>
       <tbody>
         {% for r in data %}
-        <tr style="cursor:default;">
+        <tr data-href="{{ url_for('daily_details_view', start=r.date, end=r.date) }}">
           <td class="mono">{{ r.date }}</td>
           <td class="tv-num tv-hide-sm">{{ money(r.morning_value) }}</td>
           <td class="tv-num">{{ money(r.current_value) }}</td>
