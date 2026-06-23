@@ -1,56 +1,56 @@
 # TradeVault
 
-Personal stock portfolio tracker for IBI brokerage (Tel Aviv Stock Exchange). A self-hosted web app for importing brokerage data and tracking portfolio analytics.
+Self-hosted, web-based portfolio tracker. Originally built for IBI brokerage (Tel Aviv Stock Exchange) with full Hebrew/RTL support, it now tracks **multiple isolated portfolios** in **multiple currencies** (e.g. an ILS TASE portfolio and a USD US-stocks portfolio side by side), with FIFO tax-lot accounting, daily P&L analytics, and benchmark comparison.
 
-Built for tracking Israeli securities with full Hebrew support, FIFO tax lot accounting, and daily P&L analytics.
+TradeVault is **web-only** — everything is driven from the browser UI (the old command-line interface was retired). The interface is the **Comet** design system: a four-section app (Overview · Analytics · Holdings · Activity) with a Quick-Add drawer, a position deep-dive drawer, light/themeable styling, and a Hebrew/English toggle.
 
 Created with Claude Code.
 
 ## Features
 
-- **Daily portfolio snapshots** — Import daily holdings from IBI Excel exports, track value changes over time
-- **Transaction ledger** — Deposits and withdrawals with auto-computed monthly summaries derived from daily data; both can be entered via the web UI
-- **Auto-computed monthly summaries** — Month-end balance and cost-change metrics generated on-the-fly from portfolio snapshots (net of withdrawals), with partial-month warnings when trading days are missing
-- **Self-contained analytics** — All summary metrics (net invested, all-time cost change) computed from live DB data; no brokerage-specific Excel file required after initial import
-- **FIFO tax lots** — Automatic cost basis tracking using First-In-First-Out for capital gains
-- **Morning balance import** — Bulk import historic morning balance files (DDMMYYYY.xlsx), computing daily P&L from consecutive-day comparisons with quantity-aware logic
-- **Trade interpolation** — Detects position changes between daily snapshots and infers buy/sell transactions; handles new positions, closed positions, and quantity changes on existing positions (partial buys/sells)
-- **Data repair** — CLI repair commands fix P&L miscalculations, backfill missing percentages, remove non-trading days, and re-run trade interpolation from a given date
-- **Israeli holiday calendar** — Full TASE trading-day awareness via the `holidays` library: all Israeli public holidays (Passover, Rosh Hashana, Yom Kippur, Sukkot, Independence Day, etc.), holiday eves, and selected optional holidays (Purim, Memorial Day, Tisha B'Av) are treated as non-trading days. Monthly trading-day counts used for partial-month detection are computed from this calendar, not just weekday arithmetic
-- **Library update reminders** — A bimonthly console reminder (on server startup) prompts you to check for outdated packages. From **Settings → Maintenance**, "Check for outdated packages" shows what's outdated and "Upgrade all packages" upgrades everything in `requirements.txt` using the correct Python interpreter
-- **Bilingual UI** — Full Hebrew/English language switching via settings dropdown, persisted in a cookie. All UI chrome switches; stock data stays in its original language
-- **Theming system** — 4 color palettes (Default, Crimson, Teal, Slate) with visual previews, instant switching via CSS variables, and cookie persistence
-- **Version display** — App version shown in small text at the bottom of the settings dropdown on every page, injected via a Flask context processor
-- **Web dashboard** — Eight views: portfolio overview, account overview, daily summary, detailed daily breakdown, activity log, graphs, positions, and portfolio rebalancing — plus Display Settings, Exports, Profile, and Accessibility pages accessible from the settings menu
-- **Interactive charts** — Chart.js 4 charts on every page: allocation donut on the dashboard (with percentage labels on each segment), daily P&L bar on the summary page (daily granularity; period filter suppressed on Daily Summary since the page's own date filter already scopes the data), security-type stacked bar on the daily details page (period toggle suppressed on Daily Details for the same reason), tax breakdown donut and closed-positions bar on the trades page, portfolio value vs net invested + monthly return charts on the graphs page, and a benchmark comparison chart showing cumulative % return for the portfolio vs TA-125 and TA-35 indices (sourced via yfinance). The Graphs page aggregates all charts from across the app via shared Jinja2 partials — no duplication. All charts re-render instantly when you switch color themes
-- **Calendar Heatmap** — Renamed from "Daily P&L Heatmap". Period is controlled by two multi-select dropdowns (Year and Month) using a cross-product filter: selecting years [2025, 2026] + month [April] shows only April 2025 and April 2026, not the full intervening range. Three view modes: daily calendar grid (week columns, day-of-week rows), weekly bars, and monthly bars. Day mode shows separators between week columns (thin within a month, medium at adjacent-month boundaries, thick at non-adjacent gaps). Row-hover highlights the entire day-of-week row; the hovered cell gets an accent-colour outline. Clear button resets each dimension to the current year/month
-- **Calendar date picker** — Filter any view by single date or date range
-- **Pivot analytics** — Aggregations by security type and by date with subtotals
-- **Best/worst performers** — Daily summary highlights top and bottom movers
-- **Closed position tracking** — P&L summary for fully sold positions, including a Days Held column (integer count from first buy to last sell date)
-- **Deposit event markers** — Yellow dashed vertical lines mark deposit dates on the Portfolio Value Over Time and Asset Allocation Over Time charts, appearing on both the Account Overview and Graphs pages. Deposit dates also appear as a labelled dashed-line entry in each chart's legend so the markers are self-explanatory without hovering
-- **Potential future tax** — The Activity page shows an additional "Potential Future Tax" stat card (unrealized gains × 25%) and a fourth segment in the Tax Breakdown donut. A sortable "Potential Tax by Position" table lists each open position's holding duration, % change, unrealized P&L, and estimated tax liability or loss offset — displayed at the same height as the Realized Positions P&L chart with internal scrolling
-- **Yahoo Finance integration** — Map TASE securities to Yahoo Finance symbols to automatically fetch English names and tickers via yfinance API
-- **Stock name change detection** — Automatically detects when a security renames on TASE (by comparing incoming Hebrew names against stored ones per TASE ID). On detection, the Hebrew TASE symbol is also updated; English name and symbol are re-fetched from the TASE public API and the holding is updated silently; name changes are printed in the import log
-- **TASE API integration** — Fetches authoritative English names and symbols directly from the TASE public API (`api.tase.co.il`). Returns the English security name (e.g. `STRK-M`, `IBI.INDEX BANK`), the English TASE symbol (e.g. `STRK-M`, `IBI.F35`), and the derived Yahoo Finance ticker (e.g. `STRK-M.TA`, `IBI-F35.TA`). Triggered automatically on name change and available as a one-click "Fetch from TASE" button on each position page or bulk "Refresh All from TASE" on the Profile page
-- **Unified name management** — Each holding stores up to six name variants independently, each updated by its own source and never silently overwriting the others: `name_he` (IBI Hebrew brokerage name, authoritative), `name_tase_he` (Hebrew name from TASE registry), `name_tase_en` (English name from TASE registry), `name_yf_long` (full company name from Yahoo Finance), `name_yf_short` (short/ticker name from Yahoo Finance), and `name_en` (user-entered manual override). Sources write only to their own fields; visiting a position page never auto-modifies any name field
-- **Display preferences** — Per-column name source selection, accessible both from the `/settings/display` page and via a per-page ⚙ cog icon in each table card header. The cog opens a modal showing only the display settings relevant to that page; saving merges the change without touching other pages' settings. For each context (portfolio holdings, open/closed positions, daily details, trade log, rebalance, P&L chart labels, treemap labels, etc.) choose which name or symbol field to display — name columns offer the 6 name-type fields (TASE Hebrew/English, yfinance long/short, IBI Hebrew, manual English); symbol columns offer only the 2 symbol fields (Hebrew TASE symbol, English TASE symbol). Settings are stored per language: Hebrew mode defaults to Hebrew TASE names and Hebrew symbols; English mode defaults to English TASE names and English symbols
-- **yfinance name review workflow** — The position detail page shows a "Refresh from yfinance" button. Clicking it fetches the latest `longName` and `shortName` from Yahoo Finance and presents a current → proposed comparison with per-field checkboxes. Only the fields you check are written to the holding. No name fields are ever written automatically on page load
-- **TASE Hebrew name fetch** — The TASE API integration now fetches both English (lang=1) and Hebrew (lang=0) names in a single refresh. `name_tase_he` is populated automatically alongside `name_tase_en` during admin TASE refresh and on name-change detection during daily import
-- **Position name editing** — Edit a holding's Hebrew and English names directly from its position page. Typing in the English name field shows a live Yahoo Finance search dropdown. A "Fetch from TASE" button pre-fills English name and symbol from the TASE API. Changes require strict confirmation: the user must type the current Hebrew name exactly before saving
-- **Excel export** — Export any view (portfolio, transactions, trades, daily data) to Excel with one click, plus comprehensive tax report generation
-- **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings deduplicated by TASE ID
-- **Portfolio Map** — Squarified treemap on the home page: open positions sized by market value, grouped by security type (stocks/funds), cell color shows daily gain (green) or loss (red). Each cell is clickable (and keyboard-navigable) and navigates directly to that position's detail page
-- **Clickable daily dates** — In the Daily Summary table, clicking any date row navigates to the Daily Details page pre-filtered to that date
-- **IS 5568 / WCAG 2.1 AA accessibility** — Full keyboard navigation throughout; skip-to-main-content link; ARIA landmarks, roles, and live regions; calendar picker arrow-key navigation with focus management; sortable table headers keyboard-activated; `aria-current`, `aria-expanded`, `aria-sort`, `aria-pressed` on all interactive elements; visible focus ring; screen-reader announcements for flash messages and date changes
-- **Accessibility statement** — Dedicated `/accessibility` page (Hebrew and English) declaring IS 5568 conformance, listing implemented features, known limitations, and a feedback link to the GitHub repository
-- **Trade Log editing** — Every buy/sell row in the Trade Log has an inline edit button to correct the price per share (entered in Agorot; recalculates total and syncs the linked FIFO tax lot) and a delete button. All trades are editable regardless of source. Interpolated transactions (AUTO badge) also expose a delete action that removes the linked tax lot. Manually edited trades are marked with an EDIT badge. Changes are CSRF-protected and persist to the database immediately
-- **Position type badges** — Trade Log marks each trade as opening / increase / closing / reduction with a color-coded badge (blue / green / red / amber)
-- **Individual position pages** — Drill into any holding from the positions list to see a full position breakdown: current price, 52-week range, market stats (from Yahoo Finance), avg cost, unrealized P&L, open FIFO lots, trade history, a price chart with buy/sell markers, and a daily P&L bar chart. Closed positions show realized P&L, avg buy/sell prices, and a "what-if kept" hypothetical current value. An identity grid at the top of each page shows all name and symbol variants: Hebrew TASE name + symbol, English TASE name + symbol, Yahoo Finance ticker (linked), and TASE ID
-- **Price chart with trade markers** — Each position page includes an interactive Chart.js price chart sourced from Yahoo Finance history, with time-range filters (1W / 1M / 3M / 6M / YTD / 1Y / From Purchase / All) and buy/sell triangle markers snapped to the nearest trading day. Hovering shows a price tooltip with thousands-separated Agorot values
-- **Hebrew translation of company info** — When the UI is in Hebrew, the Company Info card on each position page automatically translates sector, industry, and description to Hebrew using Google Translate (cached 30 days per holding; re-translates if a prior attempt produced empty results)
-- **Agorot price display** — All per-share prices throughout the app (trade table, avg cost, open lots, positions list) are displayed in Israeli Agorot (as quoted on TASE) rather than Shekel, consistent with Yahoo Finance data and IBI raw price data
-- **Portfolio rebalancing tool** — Two-level target allocation editor at `/rebalance`. Set a target % of total portfolio per security type (stocks, funds, ETFs, bonds), then set a target % within each group per holding. Deltas and Buy/Sell/Hold actions in ILS update live as you type. Targets are capped at 100% per level and auto-saved to settings
+### Portfolios & data
+- **Multiple isolated portfolios** — each portfolio is its own database file. Create, rename, switch, or delete portfolios from the switcher in the top bar. Holdings, transactions, snapshots, tax lots, and view preferences are per-portfolio; market data (price cache, TASE ticker map, benchmark series) is shared.
+- **Multi-currency** — each portfolio has its own currency (e.g. ILS, USD). All values, charts, and the currency symbol render in the active portfolio's currency.
+- **TASE + non-TASE holdings** — import IBI/TASE Excel exports, or track manual / US-listed holdings that have no TASE security number. US daily data can be imported from CSV.
+- **Quick-Add drawer** — record a buy, sell, deposit, or withdrawal from anywhere via the **Add** button in the top bar, with a live symbol search and a running total. No file needed.
+- **Daily portfolio snapshots** — import daily holdings from brokerage exports; value changes are tracked over time.
+- **FIFO tax lots** — automatic cost-basis tracking using First-In-First-Out for capital gains.
+- **Trade interpolation** — position changes between daily snapshots are detected and inferred as buy/sell transactions (new positions, closed positions, and partial buys/sells on existing positions). Idle cash released by sales is extracted automatically so it shows up in portfolio value.
+- **Price refresh with history backfill** — the refresh button fetches current prices and **backfills missing daily history** for each holding; a background scheduler keeps recent history current.
+- **Deduplication** — SHA-256 file hashing prevents re-importing the same file; holdings are deduplicated by TASE ID.
+
+### The four sections
+- **Overview** (`/`) — total value, an equity-vs-net-invested value chart with deposit markers, a KPI strip (cost, cost change, realized YTD, all-time realized P/L, idle cash), an allocation-by-type donut, today's movers, and a holdings preview. Portfolio value includes idle cash.
+- **Analytics** (`/analytics`) — cumulative return vs **seven optional benchmark indices** (S&P 500, Nasdaq-100, TA-125, TA-35, Nikkei 225, KOSPI 200, EURO STOXX 50 — sourced via yfinance, default set toggleable), monthly return, drawdown from peak, P&L by position, average return by weekday, allocation over time, and a **Portfolio Map treemap** grouped by security type.
+- **Holdings** (`/positions`) — open and closed positions, **grouped by security type** with group subtotals. Columns are **sortable within each group** (group headers stay put), with live search. Clicking a row opens a **position deep-dive drawer** (value, P&L, mini price chart, FIFO lots, link to the full position page).
+- **Activity** (`/activity`) — a unified timeline of buys, sells, deposits, withdrawals, and dividends with type-filter chips. Interpolated/importer-derived trades carry an **auto** badge. A single master **Edit** toggle reveals per-row pencils; each opens an inline editor to correct the trade **price** (recomputes the total, replays FIFO lots, and heals cash) or **delete** the trade.
+
+### Analytics & accounting
+- **Self-contained metrics** — net invested, cost change, realized/unrealized P&L, and tax estimates are computed from live DB data; no brokerage-specific file is required after initial import.
+- **Auto-computed monthly summaries** — month-end balance and cost-change metrics generated on the fly from snapshots (net of withdrawals), with partial-month warnings when trading days are missing.
+- **Closed-position tracking** — realized P&L for fully sold positions, including a Days-Held count.
+- **Capital-gains tax** — per-year capital-gains calculation, loss carryover, and a "potential future tax" estimate on unrealized gains. Multi-sheet tax report export.
+- **Israeli holiday calendar** — TASE trading-day awareness via the `holidays` library (public holidays, eves, and selected optional holidays). Monthly trading-day counts for partial-month detection come from this calendar, not weekday arithmetic.
+- **Morning-balance import** — bulk-import historic morning-balance files (DDMMYYYY.xlsx), computing daily P&L from consecutive-day comparisons with quantity-aware logic.
+
+### Names, symbols & display
+- **Unified name management** — each holding stores up to six independently-sourced name variants — `name_he` (IBI Hebrew), `name_tase_he`, `name_tase_en` (TASE registry), `name_yf_long`, `name_yf_short` (Yahoo Finance), and `name_en` (manual override). Each source writes only its own field; nothing is silently overwritten.
+- **Display preferences** — choose which name/symbol field each table column shows, per language, from `/settings/display` or a per-table ⚙ cog. Hebrew mode defaults to Hebrew TASE names/symbols; English mode to English.
+- **TASE API integration** — fetches authoritative English and Hebrew names and symbols directly from the TASE public API (`api.tase.co.il`), plus the derived Yahoo Finance ticker. Triggered on name-change detection, per-position "Fetch from TASE", and bulk "Refresh All from TASE".
+- **Yahoo Finance integration** — map securities to yfinance symbols to fetch English names, tickers, prices, 52-week range, sector/industry, and (in Hebrew mode) Google-translated company info. Name fields are only written through an explicit review workflow — never on page load.
+- **Stock-name-change detection** — when a security renames on TASE, names and the Hebrew symbol are updated and English fields re-fetched; changes are logged in the import.
+
+### Position pages
+- **Individual position pages** — full breakdown per holding: current price, 52-week range, market stats, average cost, unrealized P&L, open FIFO lots, trade history, an interactive price chart with buy/sell markers (1W/1M/3M/6M/YTD/1Y/From Purchase/All), and a daily-P&L chart. Closed positions show realized P&L, average buy/sell prices, and a "what-if kept" value. An identity grid lists every name/symbol variant.
+- **Name editing** — edit Hebrew/English names from the position page with a live yfinance search dropdown; saving requires typing the current Hebrew name exactly.
+
+### Platform
+- **Bilingual UI** — full Hebrew/English switching (cookie-persisted). UI chrome switches; stock data stays in its original language. RTL/LTR layout flips automatically.
+- **Themeable** — the Comet design system uses CSS variables; charts re-render instantly on theme change.
+- **IS 5568 / WCAG 2.1 AA accessibility** — keyboard navigation, skip link, ARIA landmarks/roles/live regions, visible focus, screen-reader announcements, and a dedicated `/accessibility` statement (Hebrew + English).
+- **Per-session login (TOTP)** — optional time-based one-time-password gate; secret stored in a sidecar file outside the database.
+- **Schema versioning & auto-migration** — the DB self-migrates on startup and after import/restore.
+- **Library update reminders** — a bimonthly startup reminder; "Check for outdated packages" / "Upgrade all packages" from Maintenance.
 
 ## Prerequisites
 
@@ -84,16 +84,79 @@ No additional configuration needed. The database file (`db/db.json`) is created 
 Everything is driven from the web UI:
 
 1. **Start the app** — `docker compose up -d` (or `python server.py`), then open `http://localhost:2501`.
-2. **Import your first daily file** — on the Dashboard, use the upload form at the top: pick
-   import type **Daily portfolio**, choose the `.xlsx`, set the date, and submit. (The same form
-   imports **Trades** and **Morning balance** files.)
-3. **Add deposits/withdrawals** — on the Account Overview page (`/transactions`), use the **Add…** menu.
-4. **Explore** — portfolio, positions, activity, daily summaries, graphs, and the rebalancing tool
-   are all in the top nav.
+2. **Pick (or create) a portfolio** — use the switcher in the top bar; each portfolio has its own currency. The default portfolio is created on first run.
+3. **Get data in**, either way:
+   - **Import a daily file** — on the Overview page, use the upload form: pick import type **Daily portfolio**, choose the `.xlsx` (or US `.csv`), set the date, and submit. (The same form imports **Trades** and **Morning balance** files.)
+   - **Quick-Add** — click **Add** in the top bar to record a buy/sell/deposit/withdrawal directly.
+4. **Explore** — Overview, Analytics, Holdings, and Activity are in the top nav; Daily Summary/Details, Portfolios, Display Settings, and Maintenance are under the settings (⚙) menu.
 
-Operational tasks (reconcile, rebuild tax lots, sync holdings, repair, refresh Yahoo Finance,
-check/upgrade packages, set up login) live under **Settings → Maintenance**; database backup/restore
-is on the **Profile** page (`/admin`).
+Operational tasks (reconcile, rebuild tax lots, sync holdings, repair, refresh Yahoo Finance, check/upgrade packages, set up login) live under **Settings → Maintenance**; database backup/restore is on the **Profile** page (`/admin`).
+
+## The App
+
+The UI is organized into **four primary sections** (top nav, and a bottom nav on mobile) plus a set of secondary pages under the settings (⚙) menu.
+
+| Section | URL | Description |
+|---------|-----|-------------|
+| **Overview** | `/` | Total value, equity-vs-net-invested value chart (deposit markers), KPI strip (cost, cost change, realized YTD, all-time realized P/L, idle cash), allocation-by-type donut, today's movers, holdings preview, and the daily-file upload form |
+| **Analytics** | `/analytics` | Cumulative return vs 7 optional benchmark indices, monthly return, drawdown from peak, P&L by position, average return by weekday, allocation over time, and the Portfolio Map treemap (grouped by type) |
+| **Holdings** | `/positions` | Open + closed positions grouped by security type with subtotals; sortable-within-group columns; search; row click opens the position deep-dive drawer |
+| **Activity** | `/activity` | Unified timeline of buys/sells/deposits/withdrawals/dividends with filter chips; master Edit toggle → inline price edit + delete for trades (auto badge on interpolated ones) |
+
+Secondary pages (settings ⚙ menu):
+
+| Page | URL | Description |
+|------|-----|-------------|
+| **Position detail** | `/position/<id>` | Full position view: price chart with buy/sell markers, company info, trade history, FIFO lots, daily-P&L chart, identity grid |
+| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers and a daily-P&L bar chart; click a date row to jump to Daily Details for that day |
+| **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar |
+| **Portfolios** | `/settings/portfolios` | Create / rename / set-default / delete portfolios; set each portfolio's currency |
+| **Display Settings** | `/settings/display` | Per-column name/symbol source selector, per language |
+| **Profile** | `/admin` | Database backup (download `db.json`) and restore; bulk "Refresh All from TASE" |
+| **Maintenance** | `/maintenance` | Login & security (TOTP), data health (reconcile, rebuild lots), and ops (sync holdings, repair, refresh yfinance, rebuild history, check/upgrade packages) |
+| **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA statement (Hebrew + English) |
+
+> **Top-bar actions:** portfolio switcher, **refresh prices** (with history backfill), **Add** (Quick-Add drawer), and the settings (⚙) menu (language, theme, secondary pages, app version).
+
+Data exports remain available from the per-view download endpoints (`/export/<view>`, `/export/tax-report`); the standalone Export *page* was retired in v1.0 (`/exports` now redirects to Overview).
+
+## Operations
+
+Everything is driven from the web UI; there is no command-line interface.
+
+### Multiple portfolios
+
+Each portfolio is its own database file under `db/`. Switch the active portfolio, create, rename, set-default, or delete one from the **switcher in the top bar** (or the Portfolios page). Each portfolio has its **own currency**. Market data (yfinance price cache, TASE ticker map, benchmark series) is shared across all portfolios; everything else — holdings, transactions, snapshots, tax lots, view preferences — is per-portfolio. Login is global (one session covers all portfolios).
+
+### Importing data
+
+All file imports use the **upload form on the Overview page** (`/`): pick the import type, choose one or more files, set the date, and submit.
+
+- **Daily portfolio** — a brokerage daily export (IBI `.xlsx`, or a US `.csv`). Creates/updates holdings, records per-security daily prices, and writes a portfolio snapshot. Position changes vs. the previous day are auto-interpolated into buy/sell transactions, and idle cash released by sales is captured. The import is rejected if zero rows parse or the day's total deviates more than 50% from the previous snapshot — tick **Override deviation guard** to force it.
+- **Trades** — individual trade order files (`DDMMYYYY.xlsx`); creates buy/sell transactions.
+- **Morning balance** — historic morning-balance files (`DDMMYYYY.xlsx`); computes daily P&L from consecutive-day comparisons (quantity-aware), skipping TASE weekends and Israeli holidays.
+
+> For ad-hoc entries, use **Quick-Add** (top bar) to record a buy, sell, deposit, or withdrawal without a file. Trade **prices** can be corrected (or trades deleted) from the **Activity** page's Edit mode.
+
+### Maintenance (Settings → Maintenance)
+
+- **Data Health** — *reconcile* (verifies each snapshot's positions sum to its market value, `total_equity = market_value + cash`, and open tax-lot shares match positions) and *rebuild tax lots* (FIFO replay from the ledger; clears orphan/duplicate lots).
+- **Data & Integrations** — *sync active holdings*, *repair morning-balance*, *repair interpolated trades* (optional from-date), *rebuild daily history*, *refresh Yahoo Finance data*, *check for outdated packages*, *upgrade all packages*, and the TASE name refresh.
+- **Login & Security** — set up / disable per-session TOTP login (see below).
+
+Per-holding **ticker / Yahoo Finance mapping** is set on each position page (setting a ticker also registers the yfinance mapping). **Database backup/restore** is on the **Profile** page (`/admin`): export downloads the live `db.json`; import validates the file, backs up the current DB, replaces it, and auto-migrates to the current schema.
+
+### Per-session login (TOTP)
+
+Open **Settings → Maintenance → Login & Security → Set up login**, scan the QR in any authenticator app, and enter a code to confirm. Login activates immediately (no restart). The secret is saved to a sidecar file on the db volume (`db/auth.json`), never inside the database, so it is excluded from exports/backups. Disable it from the same page. An explicit `TOTP_SECRET` environment variable, if set, always takes precedence. When no secret is configured, the login gate is disabled (local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure cookies and per-IP rate limiting work correctly.
+
+### Recovery (when the web UI is unavailable)
+
+The data is plain files on the db volume, so you can always recover by hand:
+
+- **Locked out of login (TOTP)** — delete `db/auth.json` on the volume to clear the configured secret (the gate disables when no secret is set), or set/replace the `TOTP_SECRET` environment variable and restart, then set login up again from the Maintenance page.
+- **App won't boot / corrupted DB** — restore a backup by replacing `db/db.json` (or the relevant per-portfolio file) on the volume with a known-good copy (exports live in `db/imports/`), then restart. Each portfolio is a single TinyDB JSON file.
+- **Stuck dependencies after an upgrade** — in Docker, rebuild the image (the durable path); on a bare-metal install, run `pip install --upgrade -r requirements.txt` in the app's environment.
 
 ## Project Structure
 
@@ -105,297 +168,161 @@ TradeVault/
 ├── docker-compose.yml      # Compose stack with named volumes
 ├── .env.example            # Environment variable template
 ├── app/
-│   ├── connection.py       # TinyDB singleton & table constants
-│   ├── schemas.py          # 8 table schemas & validation
-│   ├── settings.py         # Key/value settings store
+│   ├── connection.py       # TinyDB singleton, per-portfolio DB routing & table constants
+│   ├── portfolios.py       # Multi-portfolio registry (per-portfolio DB files, currency)
+│   ├── schemas.py          # Table schemas & validation
+│   ├── settings.py         # Key/value settings store (per-portfolio)
 │   ├── holdings.py         # Security master registry
-│   ├── transactions.py     # Buy/sell/deposit CRUD
+│   ├── manual_portfolio.py # Manual / non-TASE holdings & trade recording
+│   ├── transactions.py     # Buy/sell/deposit/dividend CRUD + price editing
 │   ├── daily_prices.py     # Per-security daily price records
-│   ├── tax_lots.py         # FIFO tax lot engine
+│   ├── tax_lots.py         # FIFO tax-lot engine
 │   ├── yfinance_cache.py   # yfinance data cache table (separate from holdings)
 │   ├── snapshots.py        # Portfolio snapshot generation
 │   ├── imports.py          # Import audit trail & dedup
-│   ├── queries.py          # Analytics facade (imports from analytics/ modules)
-│   ├── excel_importer.py   # Import facade (imports from importers/ modules)
-│   ├── export.py           # Excel export functionality for all views
-│   ├── db_backup.py        # Database export/import utilities
+│   ├── icons.py            # Inline SVG (lucide) icon set, exposed as tv_icon()
 │   ├── i18n.py             # Hebrew/English translation strings
-│   ├── column_map.py       # Hebrew-English column mappings
+│   ├── lib_check.py        # Bimonthly library update reminder + check/upgrade
+│   ├── queries.py          # Analytics facade (delegates to analytics/ modules)
+│   ├── excel_importer.py   # Import facade (delegates to importers/ modules)
+│   ├── export.py           # Excel/CSV export for all views
+│   ├── db_backup.py        # Database export/import + schema migration
 │   ├── analytics/          # Modular analytics layer
-│   │   ├── daily_analytics.py      # Daily summary and detail views
-│   │   ├── monthly_summary.py      # Auto-computed monthly summaries
-│   │   ├── portfolio_analytics.py  # Portfolio value and P&L
-│   │   ├── position_analytics.py   # Individual position data & yfinance integration
-│   │   ├── tax_calculator.py       # Capital gains tax calculations
-│   │   └── trade_analytics.py      # Trade history and closed positions
+│   │   ├── portfolio_analytics.py   # Overview/portfolio value, P&L, movers, idle cash
+│   │   ├── trade_analytics.py       # Activity timeline, trade & closed-position history
+│   │   ├── benchmark_analytics.py   # 7-index benchmark series (yfinance, cached)
+│   │   ├── daily_analytics.py       # Daily summary & detail views
+│   │   ├── monthly_summary.py       # Auto-computed monthly summaries
+│   │   ├── position_analytics.py    # Individual position data & yfinance integration
+│   │   └── tax_calculator.py        # Capital-gains tax calculations
 │   ├── importers/          # Modular import layer
-│   │   ├── base_importer.py            # Base importer with deduplication
-│   │   ├── daily_importer.py           # Daily portfolio file imports
-│   │   ├── morning_balance_importer.py # Morning balance bulk imports
-│   │   ├── position_tracker.py         # Position change detection
-│   │   ├── repair_tools.py             # Data repair and validation
-│   │   └── trade_importer.py           # Trade file imports
-│   ├── lib_check.py            # Bimonthly library update reminder + check/upgrade commands
+│   │   ├── base_importer.py             # Base importer with deduplication
+│   │   ├── daily_importer.py            # IBI/TASE daily portfolio imports
+│   │   ├── us_daily_importer.py         # US daily CSV imports
+│   │   ├── morning_balance_importer.py  # Morning-balance bulk imports
+│   │   ├── position_tracker.py          # Position change detection / interpolation
+│   │   ├── repair_tools.py              # Data repair and validation
+│   │   └── trade_importer.py            # Trade file imports
 │   └── utils/              # Shared utilities
-│       ├── data_enrichment.py      # Centralized name/ticker enrichment
-│       ├── date_utils.py           # TASE weekend schedule helpers
-│       ├── file_utils.py           # File path and hash utilities
-│       ├── holding_resolver.py     # Name-based holding matching
-│       ├── trading_calendar.py     # Israeli holiday calendar (is_non_trading_day)
-│       └── translation_service.py  # Yahoo Finance API integration
+│       ├── data_enrichment.py       # Centralized name/ticker/symbol enrichment
+│       ├── date_utils.py            # TASE weekend schedule helpers
+│       ├── file_utils.py            # File path and hash utilities
+│       ├── holding_resolver.py      # Name-based holding matching
+│       ├── trading_calendar.py      # Israeli holiday calendar (is_non_trading_day)
+│       └── translation_service.py   # Yahoo Finance / translation integration
 ├── templates/
-│   ├── index.html          # Dashboard
-│   ├── positions.html      # All positions (open + closed tabs)
+│   ├── base.html           # Comet shell: top nav, drawers (position + Quick-Add), mobile nav
+│   ├── index.html          # Overview
+│   ├── analytics.html      # Analytics
+│   ├── holdings.html       # Holdings (open + closed, grouped by type)
+│   ├── activity.html       # Activity timeline (inline price editing)
 │   ├── position.html       # Individual position detail page
-│   ├── transactions.html   # Account Overview ledger
 │   ├── daily_summary.html  # Daily summary
 │   ├── daily_details.html  # Detailed daily breakdown
-│   ├── trades.html         # Activity / trade history
-│   ├── graphs.html         # Graphs & charts
-│   ├── rebalance.html      # Portfolio rebalancing tool
+│   ├── portfolios.html     # Portfolio management
+│   ├── settings_display.html # Display preferences
 │   ├── admin.html          # Profile (backup/restore)
-│   └── accessibility.html  # IS 5568 accessibility statement
+│   ├── maintenance.html    # Maintenance & security
+│   ├── accessibility.html  # IS 5568 accessibility statement
+│   ├── login.html          # TOTP login gate
+│   └── partials/           # Shared chart/card partials
 ├── static/
-│   ├── style.css           # Dark mode styling with RTL/LTR support and CSS variable theming
-│   ├── app.js              # Sorting, filtering, calendar picker, settings dropdown
-│   ├── logo.svg            # Favicon
-│   └── logo_with_name.svg  # Navigation header logo
+│   ├── comet.css           # Comet design system (themeable CSS variables, RTL/LTR)
+│   └── comet.js            # Sortable tables, search, chips, drawers, Quick-Add
+├── asset/                  # Brand SVGs served via /asset/<name>
+│   ├── tradevault-mark.svg
+│   ├── tradevault-favicon.svg
+│   └── tradevault-app-icon.svg
 ├── db/
-│   ├── db.json             # TinyDB database (auto-created)
-│   └── imports/            # DB export backups and pre-import safety copies (not tracked in git)
-└── data/                   # Your Excel data files (not tracked in git)
+│   ├── db.json             # Default portfolio (TinyDB; auto-created)
+│   ├── portfolios/         # Additional per-portfolio DB files
+│   ├── auth.json           # TOTP secret sidecar (not in the DB, not tracked)
+│   └── imports/            # DB export backups and pre-import safety copies (not tracked)
+└── data/                   # Your import files (not tracked in git)
     ├── daily_data/         # Daily portfolio exports, organized by month
     ├── morning_balance/    # Historic morning balance files (DDMMYYYY.xlsx)
-    ├── trades/             # Individual trade files (DDMMYYYY.xlsx)
+    └── trades/             # Individual trade files (DDMMYYYY.xlsx)
 ```
 
-## Operations
+> Some legacy templates/assets from the pre-Comet UI (`graphs.html`, `transactions.html`, `style.css`, `app.js`) may still be present for backward compatibility but are not part of the active four-section UI.
 
-Everything is driven from the web UI; there is no command-line interface.
+## Data Flow
 
-### Multiple portfolios
-
-TradeVault supports multiple **isolated** portfolios — each is its own database file under `db/`
-(the original `db.json` is the default portfolio, "IBI"). Switch the active portfolio, create, rename,
-or delete one from the **portfolio switcher in the top-left of the nav**. Market data (yfinance price
-cache, TASE ticker map, TA-125/35 benchmark) is shared across all portfolios; everything else —
-holdings, transactions, snapshots, tax lots, view preferences — is per-portfolio. Login is global
-(one session covers all portfolios).
-
-### Importing data
-
-All imports use the **upload form on the Dashboard** (`/`): pick the import type, choose one or more
-`.xlsx` files, set the date, and submit.
-
-- **Daily portfolio** — an IBI daily export. Creates/updates holdings, records per-security daily
-  prices, and writes a portfolio snapshot for the date. Position changes vs. the previous day are
-  auto-detected and interpolated into buy/sell transactions. The import is rejected if zero rows parse
-  or the day's total deviates more than 50% from the previous snapshot — tick **Override deviation
-  guard** to force it.
-- **Trades** — individual IBI trade order files (`DDMMYYYY.xlsx`); creates buy/sell transactions.
-- **Morning balance** — historic morning-balance files (`DDMMYYYY.xlsx`); computes daily P&L from
-  consecutive-day comparisons (quantity-aware), skipping TASE weekends and Israeli holidays.
-
-> Buys and sells come only from trade imports and from automatic interpolation of daily position
-> changes — there is no manual buy/sell entry. Use the **Activity** page to edit a price or delete a
-> trade. Add deposits/withdrawals/dividends from the **Account Overview** page's **Add…** menu.
-
-### Maintenance (Settings → Maintenance)
-
-- **Data Health** — *Run check* (reconcile: verifies each snapshot's positions sum to its market
-  value, `total_equity = market_value + cash`, and open tax-lot shares match positions) and *Rebuild
-  tax lots* (FIFO replay from the ledger; clears orphan/duplicate lots).
-- **Data & Integrations** — *Sync active holdings*, *Repair morning-balance*, *Repair interpolated
-  trades* (optional from-date), *Refresh Yahoo Finance data*, *Check for outdated packages*, *Upgrade
-  all packages*, and the TASE/Bizportal name refresh.
-- **Login & Security** — set up / disable per-session TOTP login (see below).
-
-Per-holding **ticker / Yahoo Finance mapping** is set on each position page (setting a ticker also
-registers the yfinance mapping). **Database backup/restore** is on the **Profile** page (`/admin`):
-export downloads the live `db.json`; import validates the file, backs up the current DB, replaces it,
-and auto-migrates to the current schema.
-
-### Per-session login (TOTP)
-
-Open **Settings → Maintenance → Login & Security → Set up login**, scan the QR in Google Authenticator
-(or any compatible app), and enter a code to confirm. Login activates immediately (no restart). The
-secret is saved to a sidecar file on the db volume (`db/auth.json`), never inside the database, so it
-is excluded from exports/backups. Disable it from the same page. An explicit `TOTP_SECRET` environment
-variable, if set, always takes precedence. When no secret is configured, the login gate is disabled
-(local-only dev). Behind a reverse proxy / Cloudflare Tunnel, also set `TRUST_PROXY=true` so secure
-cookies and per-IP rate limiting work correctly.
-
-### Recovery (when the web UI is unavailable)
-
-There is no CLI fallback, but the data is plain files on the db volume, so you can always recover by hand:
-
-- **Locked out of login (TOTP)** — delete `db/auth.json` on the volume to clear the configured secret
-  (the gate disables when no secret is set), or set/replace the `TOTP_SECRET` environment variable and
-  restart, then set login up again from the Maintenance page.
-- **App won't boot / corrupted DB** — restore a backup by replacing `db/db.json` on the volume with a
-  known-good copy (exports live in `db/imports/`), then restart. The DB is a single TinyDB JSON file.
-- **Stuck dependencies after an upgrade** — in Docker, rebuild the image (the durable path); on a
-  bare-metal install, run `pip install --upgrade -r requirements.txt` in the app's environment.
-
-
-## Web Dashboard
-
-Start the server:
-```bash
-python server.py
 ```
-Open `http://localhost:2501` in your browser.
+Brokerage exports (IBI .xlsx / US .csv)  +  Quick-Add (web)
+       │
+       ▼
+┌──────────────────┐     ┌──────────────┐
+│  excel_importer   │────▶│   imports     │  (audit trail + dedup)
+│  / importers/*    │     └──────────────┘
+│                   │
+│  daily file ──────┼───▶ holdings        (security master)
+│                   │───▶ daily_prices     (per-security per-day)
+│                   │───▶ snapshots        (portfolio totals)
+│                   │───▶ tax_lots         (FIFO cost basis)
+│                   │───▶ transactions     (interpolated buys/sells, idle cash)
+│                   │
+│  trade files /    │
+│  Quick-Add  ──────┼───▶ transactions     (buy/sell/deposit/withdraw/dividend)
+│                   │
+│  morning bal. ────┼───▶ daily_prices + snapshots + transactions
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│  analytics/*      │  get_overview() · get_analytics() · get_activity()
+│  (via queries.py) │  daily/monthly summaries · closed positions · tax · benchmarks
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│     i18n.py       │  (Hebrew/English translations)
+└──────────────────┘
+       │
+       ▼
+   Flask views (Comet templates)
+```
 
-### Settings & Theming
+**Note:** The implementation uses a modular architecture; `excel_importer.py` and `queries.py` are facades that delegate to the specialized `app/importers/` and `app/analytics/` modules.
 
-Click the gear icon (⚙) button in the top-left corner of the navigation bar to open the settings dropdown. The dropdown contains:
+## Database
 
-**Language selector:**
-- Switch between Hebrew (עברית) and English
-- The page reloads to apply translations
-- The setting is saved in a cookie and persists across pages and sessions
-- The dropdown automatically reopens after language switch for convenience
+Uses TinyDB (a lightweight JSON document database). Each portfolio is a separate JSON file; the default portfolio lives at `db/db.json`, additional ones under `db/portfolios/`. Files are created automatically on first use.
 
-**Theme selector:**
-- Choose from 4 color palettes:
-  - **Default** — GitHub Dark theme (dark blue/gray with blue accents)
-  - **Crimson** — Deep burgundy with coral accents
-  - **Teal** — Ocean blues with bright teal accents
-  - **Slate** — Warm grays with orange/amber accents
-- Each theme shows a visual color preview
-- Switching is instant (no page reload)
-- The theme preference is saved in a cookie and persists across pages and sessions
+### Tables (per portfolio)
 
-**Pages:**
-- **Display Settings** — Configure which name/symbol field each table column shows, per language
-- **Exports** — Centralized export hub: all six data exports (portfolio, transactions, trade log, tax report, daily summary, daily details) in one place with date-range pickers and format selector (XLSX/CSV)
-- **Profile** — Database backup and restore (formerly "Admin")
-- **Accessibility** — IS 5568 accessibility statement
-- **Maintenance** — Login & security, data health, and ops (imports parity, package checks)
+| Table | Purpose |
+|-------|---------|
+| `holdings` | Security master — TASE ID, security type, currency, Hebrew/English TASE symbols, Yahoo Finance ticker, and six name fields (`name_he`, `name_tase_he`, `name_tase_en`, `name_yf_long`, `name_yf_short`, `name_en`) |
+| `transactions` | All financial events (buys, sells, deposits, withdrawals, dividends) |
+| `daily_prices` | Per-security per-day price and value records |
+| `portfolio_snapshots` | End-of-day portfolio totals |
+| `tax_lots` | FIFO cost-basis lots for capital-gains tracking |
+| `yfinance_cache` | Cached Yahoo Finance data per holding (price, sector, description, translations) |
+| `imports` | Audit trail of imported files (SHA-256 dedup) |
+| `settings` | Key/value configuration (currency, yfinance mappings, display prefs, etc.) |
 
-### Pages
+### Resetting a portfolio
 
-| Page | URL | Description |
-|------|-----|-------------|
-| **Dashboard** | `/` | Portfolio value, cost, P&L, positions table, portfolio map treemap (cells clickable → position page), allocation donut, daily file upload |
-| **Positions** | `/positions` | All holdings with open/closed tabs, market value, cost, P&L, avg buy/sell prices (in Agorot); open positions show Days Holding; closed positions show Days Held (integer) |
-| **Position detail** | `/position/<id>` | Full individual position view: price chart with buy/sell markers, company info from Yahoo Finance, trade history, FIFO lots, daily P&L chart |
-| **Account Overview** | `/transactions` | Deposit and withdrawal ledger with auto-computed monthly summaries; aggregate stat cards (net invested, cost change, tax); deposit/withdrawal/dividend entry via "Add..." modal forms; portfolio value vs net invested and asset allocation history charts |
-| **Activity** | `/trades` | Buy/sell history with position labels, closed position P&L, capital gains tax; tax breakdown donut and stat cards (including Potential Future Tax) equal-height side-by-side; closed-positions P&L bar chart alongside a Potential Tax by Position table (height-matched, scrollable); defaults to current month on first load |
-| **Daily Summary** | `/daily-summary` | Per-day totals with best/worst performers, daily P&L bar chart (daily bars; period controlled by the page's date filter, no separate period toggle); click any date row to jump to Daily Details for that date |
-| **Daily Details** | `/daily-details` | Per-security daily breakdown, pivots by security and date, security-type stacked bar chart |
-| **Graphs** | `/graphs` | All charts in one place via shared partials: portfolio value vs net invested, monthly return %, historical performance, drawdown, calendar heatmap, asset allocation over time, P&L by position, daily P&L bar, security-type stacked bar, tax breakdown donut, closed-positions bar, portfolio map treemap, and allocation donut — drag-and-drop layout, resizable cards, show/hide per chart, reset-layout button |
-| **Exports** | `/exports` | Centralized export hub: portfolio holdings, transactions, trade log, annual tax report, daily summary, and daily details — all in one table with date-range pickers and XLSX/CSV format selector — accessible from the settings (⚙) dropdown |
-| **Display Settings** | `/settings/display` | Per-column name source selector: name columns show only name fields (TASE Hebrew/English, yfinance long/short, IBI Hebrew, manual English); symbol columns show only symbol fields (Hebrew/English TASE symbol). Settings are per-language — accessible from the settings (⚙) dropdown |
-| **Profile** | `/admin` | Database backup (download `db.json` as JSON) and restore (upload a backup file to replace the live database); bulk "Refresh All from TASE" to fetch English and Hebrew names for all holdings — accessible from the settings (⚙) dropdown |
-| **Accessibility** | `/accessibility` | IS 5568 / WCAG 2.1 AA accessibility statement in Hebrew and English — accessible from the settings (⚙) dropdown |
-| **Maintenance** | `/maintenance` | Login & security (TOTP), data health (reconcile, rebuild lots), and ops (sync holdings, repair, refresh yfinance, check/upgrade packages) — accessible from the settings (⚙) dropdown |
+Delete its JSON file (`db/db.json` for the default, or the relevant file under `db/portfolios/`) and re-import your data. The file is regenerated automatically.
 
-### Uploading daily files via the web
+## Import File Formats
 
-On the Dashboard (`/`), use the upload form at the top:
-1. Select the date for the data
-2. Choose the `.xlsx` file
-3. Click Import
+### Daily portfolio — IBI (`data.xlsx`)
 
-The file is saved to `data/daily_data/<month>_<year>/` and imported automatically.
+The standard IBI daily portfolio export. Expected Hebrew column headers include סוג נייר, מספר ני"ע, שם ני"ע, מטבע, כמות, שער, שווי שוק, עלות, רווח/הפסד, שינוי יומי, and others. Security types "תפ"ס" and "פח"ק" (tax-advantaged savings products) are automatically skipped.
 
-### Portfolio Map
+### Daily portfolio — US (`.csv`)
 
-The Dashboard home page shows a **Portfolio Map** — a squarified treemap below the holdings table. Each rectangle represents one open position; its area is proportional to market value.
+A US-broker daily holdings CSV for USD portfolios — symbol, quantity, price, market value, and cost columns. Holdings without a TASE security number are tracked as manual/US holdings.
 
-- Positions are grouped by security type (stocks, funds, other); group boundaries are shown as dark dividers.
-- Cell colour shifts from neutral grey toward green (daily gain) or red (daily loss), capped at ±3 %.
-- Labels show the symbol (configurable via Display Settings) and the position's daily change percentage.
-- Each cell is clickable (and keyboard-navigable) and navigates to that position's detail page.
-- The chart is responsive — it re-renders automatically when the browser window is resized.
-- The same treemap appears on the Graphs page via a shared partial.
+### Morning balance files (`DDMMYYYY.xlsx`)
 
-### Charts
+Historic morning-balance exports from IBI; the filename encodes the date. Contains 11 columns (security name, quantity, price, market value, holding weight, average cost, cost basis, unrealized P&L %, FIFO cost, FIFO change %, FIFO change ILS). Holdings are matched by Hebrew name (exact, then substring, then component overlap). Rows named "מס לשלם", "מס עתידי", or "מגן מס" are skipped.
 
-Each page includes contextual charts relevant to its data. All charts use [Chart.js 4](https://www.chartjs.org/) loaded from CDN (no install required) and re-render automatically when you switch color themes.
+### Trade files (`DDMMYYYY.xlsx`)
 
-| Page | Chart | Type |
-|------|-------|------|
-| **Dashboard** | Portfolio allocation by security type with percentage labels | Donut |
-| **Daily Summary** | Daily P&L over the page-filtered period — daily bars only | Bar (green/red) |
-| **Daily Details** | P&L contribution by security type per day — period scoped by page date filter | Stacked bar |
-| **Trades** | Tax breakdown (gross gains / loss offset / net tax / potential future tax) | Donut |
-| **Trades** | Closed positions P&L % ranked | Horizontal bar |
-| **Position detail** | Price history with buy/sell markers — 8 range filter buttons | Line + markers |
-| **Position detail** | Daily P&L over time for the position | Bar (green/red) |
-| **Graphs** | Portfolio value vs net invested over time — deposit markers on chart and in legend, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
-| **Graphs** | Monthly return % — toggle between total return and standalone monthly return; partial-month indicator | Bar |
-| **Graphs** | Historical performance — daily P&L bar with daily/weekly/monthly granularity toggle | Bar |
-| **Graphs** | Drawdown from peak — scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Line |
-| **Graphs** | Daily P&L heatmap — daily/weekly/monthly view modes; cells scale to container; day-of-week and month guides | Heatmap |
-| **Graphs** | Asset allocation over time — deposit markers on chart and in legend, scroll/pinch to zoom X axis, drag to pan, ↺ to reset | Stacked area |
-| **Graphs** | P&L by position — ranked by ILS or % toggle; label source configurable via Display Settings; full name on hover | Horizontal bar |
-| **Graphs** | Daily P&L bar (shared with Daily Summary page) — period, mode, and unit toggles | Bar |
-| **Graphs** | Security-type stacked bar (shared with Daily Details page) — period and unit toggles | Stacked bar |
-| **Graphs** | Tax breakdown donut (shared with Activity page) | Donut |
-| **Graphs** | Closed positions P&L (shared with Activity page) | Horizontal bar |
-| **Graphs** | Portfolio map treemap (shared with Dashboard) — grouped by security type | Treemap |
-| **Graphs** | Allocation by type donut (shared with Dashboard) | Donut |
-| **Account Overview** | Portfolio value vs net invested over time — deposit markers on chart and in legend | Line |
-| **Account Overview** | Asset allocation over time — deposit markers on chart and in legend | Stacked area |
-
-The **Graphs** page (`/graphs`) is the dedicated chart hub with all charts from every page aggregated via shared Jinja2 partials — any change to a chart is reflected everywhere automatically. Cards can be dragged to reorder, resized between 50% and 100% width, hidden individually, and locked in place. A **Reset Layout** button restores the default order and sizes.
-
-### Adding deposits, withdrawals, and dividends via the web
-
-On the Account Overview page (`/transactions`), click the **Add...** button in the transactions card header. A dropdown appears with three options:
-
-- **Deposit** — enter amount and date
-- **Withdrawal** — enter amount and date
-- **Dividend** — enter amount, date, ticker (optional), tax withheld (optional), and notes (optional)
-
-Each option opens a modal form. Submit to record the transaction; the page reloads with the new entry in the table.
-
-### Account Overview stat cards
-
-Above the transactions table, six stat cards show metrics computed entirely from live DB data:
-- **Total Deposits** — sum of all deposit transactions
-- **Total Dividends** — sum of all dividend income (shown only if non-zero)
-- **Net Invested** — deposits minus withdrawals
-- **Cost Change (₪)** — current portfolio value minus net invested (all-time gain/loss)
-- **Cost Change (%)** — same as above, expressed as a percentage
-- **Net Tax** — estimated capital gains tax for the current year
-
-No brokerage-specific import is required for these figures to be accurate.
-
-### Monthly summaries
-
-Monthly summaries on the General page are computed automatically from your imported daily data. Each summary shows the month-end portfolio balance and cost-change metrics relative to net invested (deposits minus withdrawals) up to that date. If a month has fewer than 80% of expected TASE trading days, it is flagged with a "Partial" badge.
-
-### Date filtering
-
-The Daily Summary, Daily Details, and Trades pages have a calendar date picker:
-- **Single day mode** — Click a date to filter to that day
-- **Range mode** — Click a start date, then an end date
-- **Presets** — Quick buttons for this week, this month, or last 30 days
-- **Clear** — Remove the filter and show all data
-
-The Daily Details page defaults to the most recent day when no filter is applied.
-
-### Table features
-
-- Click any column header to sort ascending/descending
-- P&L values are color-coded: green for gains, red for losses
-- On Daily Details, use the type dropdown to filter by security type (stocks, ETFs, bonds, mutual funds)
-- Search box on Dashboard and Daily Details pages for filtering by security name
-
-### Exporting data
-
-Each page has an Export button (📥) that downloads the current view as an Excel file:
-- **Dashboard** — Exports current portfolio positions with values and P&L
-- **Account Overview** — Exports deposit history and monthly summaries
-- **Trades** — Exports all buy/sell transactions plus closed positions summary
-  - **Tax Report** — Special multi-sheet Excel export with per-year capital gains calculations, loss carryover tracking, and comprehensive tax summary
-- **Daily Summary** — Exports daily totals with best/worst performers
-- **Daily Details** — Exports per-security daily breakdown (respects active date filter)
-
-The export respects your current filters and language settings. Date ranges, security type filters, and search filters are all preserved in the exported data.
+Individual trade order files from IBI; the filename encodes the trade date. Contains security name, action (buy/sell), quantity, price, and execution status.
 
 ## Deployment
 
@@ -408,15 +335,15 @@ docker compose up -d
 ```
 
 The compose file mounts two named volumes:
-- `tradevault_db` → `/data/db` (the TinyDB database; `DB_PATH=/data/db/db.json`)
-- `tradevault_data` → `/app/data` (your Excel import files)
+- `tradevault_db` → `/data/db` (the TinyDB databases; `DB_PATH=/data/db/db.json`)
+- `tradevault_data` → `/app/data` (your import files)
 
 To update to a newer image:
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-> **Note:** Gunicorn is started with `--workers 1` because TinyDB's `CachingMiddleware` is not safe for concurrent writes across multiple worker processes.
+> **Note:** Gunicorn runs with `--workers 1` because TinyDB's `CachingMiddleware` is not safe for concurrent writes across multiple worker processes.
 
 ### TrueNAS Scale
 
@@ -429,118 +356,34 @@ Use TrueNAS → Apps → Custom App, or SSH into the server and run `docker comp
 | `SECRET_KEY` | `tradevault-dev-key-change-in-production` | Flask session signing key — **change this** |
 | `DEBUG` | `false` | Enable Flask debug mode |
 | `PORT` | `2501` | Port the server listens on |
-| `DB_PATH` | `db/db.json` (relative to project root) | Path to TinyDB JSON file |
-
-## Data Flow
-
-```
-IBI Excel exports
-       │
-       ▼
-┌─────────────────┐     ┌──────────────┐
-│ excel_importer   │────▶│   imports     │  (audit trail + dedup)
-│                  │     └──────────────┘
-│  daily file ─────┼───▶ holdings        (security master)
-│                  │───▶ daily_prices     (per-security per-day)
-│                  │───▶ snapshots        (portfolio totals)
-│                  │───▶ tax_lots         (FIFO cost basis)
-│                  │───▶ transactions     (interpolated buys/sells)
-│                  │
-│  trade files ────┼───▶ transactions     (buy/sell with details)
-│                  │
-│  morning bal. ───┼───▶ daily_prices     (historic per-security)
-│                  │───▶ snapshots        (historic portfolio totals)
-│                  │───▶ transactions     (interpolated buys/sells)
-└─────────────────┘
-       │
-       ▼
-┌─────────────────┐
-│    queries.py    │  (analytics layer)
-│                  │
-│  get_portfolio_value()
-│  get_transaction_log()     (+ computed monthly summaries)
-│  get_daily_summary()
-│  get_daily_details()
-│  get_pivot_by_security()
-│  get_pivot_by_date()
-│  get_trade_history()
-│  get_closed_positions()
-└─────────────────┘
-       │
-       ▼
-┌─────────────────┐
-│     i18n.py      │  (Hebrew/English translations)
-└─────────────────┘
-       │
-       ▼
-   Flask views / CLI output
-```
-
-**Note:** This diagram shows the logical data flow. The actual implementation uses a modular architecture with `app/importers/` (daily, trades, morning balance) and `app/analytics/` (portfolio, monthly, daily, trades, tax) modules. The `excel_importer.py` and `queries.py` files act as facades that delegate to these specialized modules.
-
-## Database
-
-Uses TinyDB (a lightweight JSON document database). The database file is created at `db/db.json` on first run.
-
-### Tables
-
-| Table | Purpose |
-|-------|---------|
-| `holdings` | Security master registry — TASE ID, security type, Hebrew/English TASE symbols, Yahoo Finance ticker, and six name fields: `name_he` (IBI), `name_tase_he` (TASE Hebrew), `name_tase_en` (TASE English), `name_yf_long` (yfinance longName), `name_yf_short` (yfinance shortName), `name_en` (manual override) |
-| `transactions` | All financial events (buys, sells, deposits, summaries) |
-| `daily_prices` | Per-security per-day price and value snapshots |
-| `portfolio_snapshots` | End-of-day portfolio totals |
-| `tax_lots` | FIFO cost basis lots for capital gains tracking |
-| `yfinance_cache` | Cached Yahoo Finance data per holding (price, sector, description, translations) |
-| `imports` | Audit trail of imported files (SHA-256 dedup) |
-| `settings` | Key/value configuration (currency, yfinance mappings, etc.) |
-
-### Resetting the database
-
-Delete `db/db.json` and re-import your data files. The file is regenerated automatically.
-
-## Excel File Formats
-
-### Daily portfolio (`data.xlsx`)
-
-The standard IBI daily portfolio export. Expected Hebrew column headers include:
-
-סוג נייר, מספר ני"ע, שם ני"ע, מטבע, כמות, שער, שווי שוק, עלות, רווח/הפסד, שינוי יומי, and others.
-
-Security types "תפ"ס" and "פח"ק" (tax-advantaged savings products) are automatically skipped.
-
-### Morning balance files (`DDMMYYYY.xlsx`)
-
-Historic morning balance exports from IBI. Filename encodes the date. Contains 11 columns: security name, quantity, price, market value, holding weight, average cost, cost basis, unrealized P&L %, FIFO cost, FIFO change %, FIFO change ILS. Holdings are matched to the database by Hebrew name (exact match, then substring, then component overlap). Rows named "מס לשלם", "מס עתידי", or "מגן מס" are skipped.
-
-### Trade files (`DDMMYYYY.xlsx`)
-
-Individual trade order files from IBI. Filename encodes the trade date. Contains order details: security name, action (buy/sell), quantity, price, execution status.
+| `DB_PATH` | `db/db.json` (relative to project root) | Path to the default portfolio's TinyDB JSON file |
+| `TOTP_SECRET` | _(unset)_ | If set, forces a fixed TOTP login secret (takes precedence over the sidecar) |
+| `TRUST_PROXY` | `false` | Set `true` behind a reverse proxy / tunnel for secure cookies and per-IP rate limiting |
 
 ## Technical Notes
 
-- **Modular architecture**: The codebase uses a three-layer architecture with facades for backward compatibility. `app/importers/` contains specialized import modules (daily, trades, morning balance, repair tools). `app/analytics/` contains query modules (portfolio, daily, monthly, trades, tax). `app/utils/` provides shared utilities (data enrichment, holding resolution, Yahoo Finance integration). The top-level `excel_importer.py` and `queries.py` are facades that import from these modules.
-- **Name source isolation**: Each of the six name fields has exactly one writer — `name_he` is set only on IBI import, `name_tase_he`/`name_tase_en` only by TASE API calls, `name_yf_long`/`name_yf_short` only via the explicit yfinance review workflow on the position page, and `name_en` only via the name edit panel. No page visit or automatic background task writes to any name field without user intent.
-- **Display preferences**: The `display_name_prefs` setting stores per-language dicts (`{'he': {...}, 'en': {...}}`), each mapping context IDs (e.g. `positions_open_name`, `daily_details_symbol`, `graphs_pnl_labels`) to a name field key. Injected into every template via a Flask context processor that caches the merged result in `flask.g` per request. Defaults are language-aware: Hebrew defaults use `name_tase_he` and `symbol`; English defaults use `name_tase_en` and `symbol_en`.
-- **Data enrichment**: The `utils/data_enrichment.py` module provides centralized logic for adding names and symbols to query results. Enriched position dicts carry all six name fields plus `symbol` (Hebrew TASE symbol), `symbol_en` (English TASE symbol), and `ticker`. All analytics functions populate these fields so display preference lookups work in every template.
-- **TASE symbol fields**: Holdings store three separate symbol fields: `tase_symbol` (Hebrew TASE symbol, required), `tase_symbol_en` (English TASE symbol, e.g. `STRK-M`, `IBI.F35` — populated on TASE refresh), and `ticker` (Yahoo Finance symbol derived from `tase_symbol_en`, e.g. `STRK-M.TA`, `IBI-F35.TA`). Ticker derivation replaces dots with hyphens and appends `.TA`.
-- **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict mapping keys to `{'he': '...', 'en': '...'}` values. A Flask context processor injects the translations, language code, and text direction into every template. JavaScript strings are passed via a `<script>var T = ...;</script>` JSON blob.
-- **RTL/LTR**: The `<html>` tag gets `dir="rtl"` or `dir="ltr"` based on the selected language. CSS uses `[dir="ltr"]` attribute selectors to flip layout properties (text alignment, border sides, dropdown anchoring). The navigation bar forces LTR layout to keep settings button and logo in fixed positions regardless of page direction.
-- **CSS theming**: The entire color system uses CSS variables (custom properties) defined in `:root` for the default theme and `[data-theme="..."]` attribute selectors for alternate palettes. The JavaScript theme switcher updates the `data-theme` attribute on the `<html>` element, triggering instant recoloring without page reload. Theme preference is persisted in a cookie. Chart.js charts use a `MutationObserver` on the `data-theme` attribute to read updated CSS variable values and re-render with the new palette immediately.
-- **TASE trading calendar**: `app/utils/trading_calendar.py` provides `is_non_trading_day()`, which combines weekend detection (`date_utils.is_tase_weekend()`, handling the Sun-Thu→Mon-Fri switch on 2026-01-05) with Israeli public holiday detection via the `holidays` library (PUBLIC holidays + eves + selected OPTIONAL holidays: Purim, Memorial Day, Tisha B'Av). All non-trading-day checks throughout the codebase (morning balance import skipping, repair cleanup, daily analytics filtering) use this single function.
-- **Morning balance P&L**: Daily P&L for morning balance imports is computed as `market_value - prev_market_value` when quantity is stable. When quantity changes (buys/sells), only the price movement on `min(prev_qty, today_qty)` shares is counted, preventing purchases from inflating P&L.
-- **Auto-computed monthly summaries**: `monthly_summary.py:_compute_monthly_summaries()` groups portfolio snapshots by month, computes balance and cost-change metrics relative to cumulative net invested (deposits minus withdrawals up to each month-end), and flags incomplete months by comparing actual snapshot count to expected TASE trading days (computed via `trading_calendar.is_non_trading_day()`, accounting for weekends and Israeli holidays).
-- **No brokerage dependency**: The Summary panel (`get_transaction_summary()`) computes all metrics — total deposits, net invested, cost change — from live transaction and snapshot data. Deposits and withdrawals are entered via the web UI or CLI; no brokerage-specific file import is needed.
-- **Date sorting**: Table sort uses an ISO date regex guard (`/^\d{4}-\d{2}-\d{2}$/`) before falling back to `parseFloat`, so YYYY-MM-DD dates sort correctly instead of all comparing equal within the same year
-- **Windows DB import**: `NamedTemporaryFile` on Windows keeps an exclusive file handle open; the import route explicitly calls `tmp.close()` before writing the uploaded file so `os.unlink` can succeed after import
-- **Hebrew encoding**: The CLI uses `io.TextIOWrapper` to force UTF-8 output on Windows consoles
-- **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g., "שקל חדש                    000") which are cleaned to standard codes (ILS, USD, EUR)
-- **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot
-- **Interpolation**: When a daily import detects position changes compared to the previous day, it automatically creates buy/sell transactions (unless a nearby real trade already exists). Three cases are handled: new holdings (full buy), disappeared holdings (full sell), and quantity changes on existing holdings (partial buy or partial sell). The `repair interpolated` command re-runs this inference from a given date with the latest logic
-- **Schema versioning and auto-migration**: `db_backup.py` maintains a `SCHEMA_VERSION` constant. On every startup (`init_default_settings()`), `migrate_db()` checks the stored `schema_version` setting and runs any pending migrations (moving `yfinance_data` to the cache table, stripping obsolete fields, dropping dead tables, etc.). After migrating it stamps the new version so subsequent startups are a no-op. The same migration runs automatically after a DB import, so restoring an old backup always yields a fully up-to-date schema.
-- **yfinance cache isolation**: Yahoo Finance data (price, sector, description, Hebrew translations, fetch timestamps) is stored in a dedicated `yfinance_cache` table rather than embedded inside holding records. This keeps holdings lean and makes cache invalidation and TTL management clean
-- **Import audit linkage**: Every buy/sell transaction created by a trade import or interpolation carries an `import_id` reference back to its originating import record, enabling full traceability from transaction to source file
-- **daily_prices deduplication**: Duplicate price records are detected by `(holding_id, date)` rather than `(ticker, date)`, preventing spurious duplicates when a holding's ticker is updated between imports
+- **Comet design system**: The UI is built on `static/comet.css` (themeable CSS custom properties, RTL/LTR-aware) and `static/comet.js` (group-aware sortable tables, table search, filter chips, the position and Quick-Add drawers). Icons are inline lucide SVGs via the `tv_icon(name, size)` Jinja global from `app/icons.py`.
+- **Multi-portfolio routing**: `app/connection.py` resolves the active portfolio (session-scoped) to its TinyDB file; `app/portfolios.py` manages the registry and per-portfolio currency. Market-data tables (price cache, TASE map, benchmark cache) are shared; all account data is per-portfolio.
+- **Group-aware sorting**: `comet.js` `wireSortable` partitions a table's rows into segments delimited by `.tv-group-row` markers and sorts each segment's data rows independently, so grouped Holdings tables sort *within* each security-type group while the group headers stay in place. Flat (ungrouped) tables are a single segment.
+- **Activity price editing**: The Activity timeline reuses the existing `update_transaction_price` / `delete_transaction` endpoints (`/api/transactions/<id>/update-price` and `/delete`). Editing a price recomputes the total, replays FIFO lots, and repairs cash via `recompute_after_trade_change`; editing an interpolated price promotes its `source` to manual.
+- **Idle cash**: Cash released by sales detected during daily import is captured so portfolio value (equity) reflects it; the Overview includes idle cash in total equity.
+- **Benchmarks**: `benchmark_analytics.py` fetches seven indices (TA-125, TA-35, S&P 500 `^GSPC`, Nasdaq-100 `^NDX`, Nikkei 225 `^N225`, KOSPI 200 `^KS200`, EURO STOXX 50 `^STOXX50E`) via yfinance, cached in settings with a TTL; the cache key is versioned and refetches when the index set changes.
+- **Name source isolation**: Each of the six name fields has exactly one writer — `name_he` on IBI import, `name_tase_he`/`name_tase_en` by TASE API calls, `name_yf_long`/`name_yf_short` via the explicit yfinance review workflow, and `name_en` via the name edit panel. No page visit or background task writes a name field without user intent.
+- **Display preferences**: The `display_name_prefs` setting stores per-language dicts mapping context IDs (e.g. `positions_open_name`, `daily_details_symbol`) to a name/symbol field key, injected into templates via a context processor and cached in `flask.g` per request. Defaults are language-aware.
+- **Data enrichment**: `utils/data_enrichment.py` adds all six name fields plus `symbol` (Hebrew TASE symbol), `symbol_en` (English TASE symbol), and `ticker` to query results so display-preference lookups work everywhere.
+- **TASE symbol fields**: Holdings store `tase_symbol` (Hebrew, required), `tase_symbol_en` (English, populated on TASE refresh), and `ticker` (yfinance symbol derived from `tase_symbol_en` — dots → hyphens, `.TA` appended).
+- **Bilingual i18n**: All UI strings live in `app/i18n.py` as a flat dict of `{'he', 'en'}` values. A context processor injects translations, language code, and text direction into every template; JavaScript strings are passed via a `var T = …` JSON blob.
+- **RTL/LTR**: The `<html>` tag gets `dir="rtl"`/`dir="ltr"` by language; CSS uses `[dir="ltr"]` selectors to flip layout. The top bar keeps a fixed orientation regardless of page direction.
+- **TASE trading calendar**: `app/utils/trading_calendar.py` `is_non_trading_day()` combines weekend detection (handling the Sun-Thu→Mon-Fri switch on 2026-01-05) with Israeli public-holiday detection via the `holidays` library. All non-trading-day checks (import skipping, repair cleanup, analytics filtering) use this single function.
+- **Morning-balance P&L**: computed as `market_value - prev_market_value` when quantity is stable; when quantity changes, only the price movement on `min(prev_qty, today_qty)` shares is counted, so purchases don't inflate P&L.
+- **FIFO engine**: `tax_lots.py:sell_fifo()` consumes lots oldest-first, tracking remaining shares and realized P&L per lot.
+- **Interpolation**: When a daily import detects position changes vs. the previous day, it creates buy/sell transactions (unless a nearby real trade exists) — new holdings (full buy), disappeared holdings (full sell), and quantity changes (partial buy/sell). "Repair interpolated trades" re-runs this from a given date with the latest logic.
+- **Schema versioning & auto-migration**: `db_backup.py` maintains a `SCHEMA_VERSION`; `migrate_db()` runs pending migrations on every startup and after a DB import, then stamps the version, so restoring an old backup always yields a current schema.
+- **yfinance cache isolation**: Yahoo Finance data is stored in a dedicated `yfinance_cache` table rather than inside holding records, keeping holdings lean and cache invalidation clean.
+- **Currency normalization**: IBI exports currencies with trailing whitespace and codes (e.g. "שקל חדש                    000"), cleaned to standard codes (ILS, USD, EUR).
+- **Date sorting**: table sort uses an ISO date regex guard (`/^\d{4}-\d{2}-\d{2}$/`) before falling back to `parseFloat`, so `YYYY-MM-DD` dates sort correctly.
+- **Windows DB import**: `NamedTemporaryFile` on Windows keeps an exclusive handle open; the import route explicitly `close()`s before writing so `os.unlink` can succeed.
+- **daily_prices deduplication**: duplicate price records are detected by `(holding_id, date)` rather than `(ticker, date)`, preventing spurious duplicates when a holding's ticker changes between imports.
 
 ## Credits
 
