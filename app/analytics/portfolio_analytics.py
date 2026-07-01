@@ -227,16 +227,23 @@ def get_analytics(lang='he'):
         return None
 
     # Total-return path: (equity − net_invested) / net_invested, per snapshot date.
-    ret_path, peak, max_dd = [], None, 0.0
-    dd_path = []
+    # Drawdown uses TWR index so deposits/withdrawals don't inflate or mask the peak.
+    ret_path, dd_path = [], []
+    twr_index, twr_peak, max_dd = 1.0, 1.0, 0.0
+    prev_eq, prev_inv = None, None
     for s in eq:
         inv = s['net_invested'] or 0
-        tr_pct = ((s['total_equity'] - inv) / inv * 100) if inv else 0
+        eq_val = s['total_equity']
+        tr_pct = ((eq_val - inv) / inv * 100) if inv else 0
         ret_path.append({'date': s['date'], 'value': round(tr_pct, 2)})
-        peak = s['total_equity'] if peak is None else max(peak, s['total_equity'])
-        dd = (s['total_equity'] / peak - 1) * 100 if peak else 0
+        if prev_eq is not None and prev_eq > 0:
+            cf = inv - (prev_inv or 0)
+            twr_index *= 1 + (eq_val - prev_eq - cf) / prev_eq
+        twr_peak = max(twr_peak, twr_index)
+        dd = (twr_index / twr_peak - 1) * 100
         dd_path.append({'date': s['date'], 'value': round(dd, 2)})
         max_dd = min(max_dd, dd)
+        prev_eq, prev_inv = eq_val, inv
 
     # Monthly returns from Δ(equity − net_invested) within each calendar month.
     by_month = {}

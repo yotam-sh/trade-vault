@@ -653,11 +653,15 @@
         });
 
         // ── Chart D: Drawdown from Peak ───────────────────────────────────────
-        // Drawdown on equity (securities + cash) so cash redeployment isn't a false dip.
-        var peak = -Infinity;
-        var drawdowns = snapValues.map(function(v) {
-            if (v > peak) peak = v;
-            return peak > 0 ? +((v - peak) / peak * 100).toFixed(3) : 0;
+        // TWR drawdown: strips deposits/withdrawals so only market moves drive the chart.
+        var twrIdx = 1.0, twrPeak = 1.0;
+        var drawdowns = snapValues.map(function(v, i) {
+            if (i > 0 && snapValues[i - 1] > 0) {
+                var cf = (snapInvested[i] || 0) - (snapInvested[i - 1] || 0);
+                twrIdx *= 1 + (v - snapValues[i - 1] - cf) / snapValues[i - 1];
+            }
+            if (twrIdx > twrPeak) twrPeak = twrIdx;
+            return twrPeak > 0 ? +((twrIdx / twrPeak - 1) * 100).toFixed(3) : 0;
         });
 
         var ctxD = document.getElementById('drawdownChart').getContext('2d');
