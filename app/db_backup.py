@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime
 from app.connection import (
     get_db, close_db, flush_db, forget_path, active_db_path, get_shared_table,
-    get_table, HOLDINGS, DAILY_PRICES, IMPORTS, SETTINGS, YFINANCE_CACHE, CHART_CACHE,
+    get_table, HOLDINGS, DAILY_PRICES, IMPORTS, TRANSACTIONS, SETTINGS, YFINANCE_CACHE, CHART_CACHE,
 )
 
 # Export/backup directories live next to the *active* portfolio's db file, so each
@@ -83,7 +83,7 @@ def export_db(output_path=None):
 
 _DEPRECATED_ENUM_VALUES = {
     'transactions': {'type': {'month_summary'}},
-    'imports':      {'import_type': {'transaction_history'}},
+    'imports':      {'import_type': {'transaction_history', 'trade_history'}},
 }
 
 
