@@ -81,6 +81,12 @@ def export_db(output_path=None):
     return output_path
 
 
+_DEPRECATED_ENUM_VALUES = {
+    'transactions': {'type': {'month_summary'}},
+    'imports':      {'import_type': {'transaction_history'}},
+}
+
+
 def validate_backup(path):
     """Validate a backup file. Returns (ok: bool, message: str)."""
     try:
@@ -111,6 +117,11 @@ def validate_backup(path):
             if not isinstance(record, dict):
                 invalid += 1
                 continue
+            # Tolerate records with known-deprecated enum values — migrate_db() removes them.
+            if table_name in _DEPRECATED_ENUM_VALUES:
+                if any(record.get(f) in vals
+                       for f, vals in _DEPRECATED_ENUM_VALUES[table_name].items()):
+                    continue
             ok_rec, errs = validate_record(table_name, record)
             if not ok_rec:
                 invalid += 1
@@ -223,6 +234,13 @@ def migrate_db():
             imports_table.update({'filepath': basename}, doc_ids=[rec.doc_id])
             fixed_paths += 1
     summary['import_paths_fixed'] = fixed_paths
+
+    # ── 7. Remove deprecated record types no longer written by the app ────────
+    txn_table = get_table(TRANSACTIONS)
+    removed_txn = txn_table.remove(lambda r: r.get('type') == 'month_summary')
+    imp_table = get_table(IMPORTS)
+    removed_imp = imp_table.remove(lambda r: r.get('import_type') == 'transaction_history')
+    summary['deprecated_records_removed'] = len(removed_txn or []) + len(removed_imp or [])
 
     set_setting('schema_version', SCHEMA_VERSION)
     flush_db()
