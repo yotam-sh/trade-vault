@@ -120,6 +120,9 @@
         {{ tv_icon(icon, 19) }} <span>{{ label }}</span>
       </a>
       {% endfor %}
+      <a href="#" id="tv-more-btn" aria-expanded="false" aria-controls="tv-more-drawer">
+        {{ tv_icon('more-horizontal', 19) }} <span>{% if lang == 'he' %}עוד{% else %}More{% endif %}</span>
+      </a>
     </nav>
 
     {# ---- Position deep-dive drawer (populated by comet.js) ---- #}
@@ -220,6 +223,55 @@
             <button type="button" class="tv-btn tv-btn-secondary" id="tv-qa-again" style="flex:1;">{{ t.qa_add_another if t.qa_add_another else 'Add another' }}</button>
             <button type="button" class="tv-btn tv-btn-primary" id="tv-qa-done" style="flex:1;">{{ t.qa_done if t.qa_done else 'Done' }}</button>
           </div>
+        </div>
+      </div>
+    </aside>
+
+    {# ---- More sheet (mobile only — portfolio switcher + settings links) ---- #}
+    <aside class="tv-drawer" id="tv-more-drawer" hidden>
+      <div class="tv-drawer-head">
+        <span class="tv-drawer-tile">{{ tv_icon('layers', 18) }}</span>
+        <div><div class="tv-drawer-title">TradeVault</div></div>
+        <button class="tv-icon-btn tv-drawer-close" data-drawer-close aria-label="{{ t.btn_close if t.btn_close else 'Close' }}">{{ tv_icon('x', 18) }}</button>
+      </div>
+      <div class="tv-drawer-body">
+        <div>
+          <div class="tv-overline" style="margin-bottom:8px;">{{ t.nav_portfolios if t.nav_portfolios else 'Portfolios' }}</div>
+          {% for p in portfolio_list %}
+          <form method="post" action="{{ url_for('portfolio_switch') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="portfolio_id" value="{{ p.id }}">
+            <button type="submit" class="tv-menu-item {% if active_portfolio and p.id == active_portfolio.id %}active{% endif %}" style="width:100%;">
+              <span class="tv-switcher-dot" style="{% if not (active_portfolio and p.id == active_portfolio.id) %}background:var(--text-muted){% endif %}"></span>
+              <span>{{ p.name }}</span>
+              <span class="tv-switcher-val" style="margin-inline-start:auto;">{{ p.currency }}</span>
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+        <div class="tv-menu-divider"></div>
+        <form method="post" action="{{ url_for('portfolio_refresh_prices') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="tv-menu-item" style="width:100%;">{{ tv_icon('refresh-cw', 16) }} <span>{{ t.refresh_prices_btn }}</span></button>
+        </form>
+        <div class="tv-menu-divider"></div>
+        <div>
+          <div class="tv-overline" style="margin-bottom:8px;">{{ t.settings_language }}</div>
+          <div class="tv-lang-row">
+            <button class="tv-btn tv-btn-sm {{ 'tv-btn-primary' if lang == 'he' else 'tv-btn-secondary' }}" data-lang="he">עברית</button>
+            <button class="tv-btn tv-btn-sm {{ 'tv-btn-primary' if lang == 'en' else 'tv-btn-secondary' }}" data-lang="en">English</button>
+          </div>
+        </div>
+        <div class="tv-menu-divider"></div>
+        <div>
+          <div class="tv-overline" style="margin-bottom:8px;">{{ t.settings_pages }}</div>
+          <a href="{{ url_for('daily_summary_view') }}" class="tv-menu-item">{{ t.nav_daily_summary }}</a>
+          <a href="{{ url_for('daily_details_view') }}" class="tv-menu-item">{{ t.nav_daily_details }}</a>
+          <a href="{{ url_for('settings_portfolios') }}" class="tv-menu-item">{{ t.nav_portfolios }}</a>
+          <a href="{{ url_for('settings_display') }}" class="tv-menu-item">{{ t.nav_display_settings }}</a>
+          <a href="{{ url_for('accessibility_view') }}" class="tv-menu-item">{{ t.nav_accessibility }}</a>
+          <a href="{{ url_for('maintenance') }}" class="tv-menu-item">{{ t.nav_maintenance }}</a>
+          <a href="{{ url_for('admin') }}" class="tv-menu-item">{{ t.nav_admin }}</a>
         </div>
       </div>
     </aside>

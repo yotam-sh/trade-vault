@@ -375,6 +375,24 @@
     var done = qaEl('tv-qa-done'); if (done) done.addEventListener('click', function () { window.location.reload(); });
   }
 
+  // ---- More sheet (mobile bottom nav) -----------------------------------
+  function wireMore() {
+    var moreBtn = document.getElementById('tv-more-btn');
+    if (!moreBtn) return;
+    moreBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openDrawer('tv-more-drawer');
+      moreBtn.setAttribute('aria-expanded', 'true');
+    });
+    // Reset aria-expanded whenever any drawer closes (scrim, ESC, data-drawer-close).
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('[data-drawer-close]')) moreBtn.setAttribute('aria-expanded', 'false');
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') moreBtn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     wireMenu('tv-switcher-btn', 'tv-switcher-menu');
     wireMenu('tv-settings-btn', 'tv-settings-menu');
@@ -383,6 +401,7 @@
     wireRowNav();
     wireDrawer();
     wireQuickAdd();
+    wireMore();
     wireSortable();
     wireSearch();
     wireChips();

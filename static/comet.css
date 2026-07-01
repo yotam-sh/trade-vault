@@ -346,7 +346,18 @@ a:hover{color:var(--accent-hover);}
   .tv-desktop-nav{display:none;}
   .tv-mobile-nav{display:grid;}
   .tv-hide-sm{display:none!important;}
-  .tv-main{padding-bottom:84px;}
+  .tv-main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));}
+  body{overflow-x:hidden;}
+  /* Gap 1 — 5-column mobile nav */
+  .tv-mobile-nav{grid-template-columns:repeat(5,1fr); padding-block-end:env(safe-area-inset-bottom,0px);}
+  /* Gap 5 — prevent iOS input zoom (Safari zooms on focus when font-size < 16px) */
+  .tv-input{font-size:16px;}
+  /* Gap 6 — drawers become bottom sheets */
+  .tv-drawer{inset-inline-end:0; inset-inline-start:0; inset-block-start:auto; inset-block-end:0; width:100%; max-height:85dvh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; border-inline-start:none; border-block-start:1px solid var(--border); transform:translateY(100%); overflow-x:hidden; padding-block-end:env(safe-area-inset-bottom,0px);}
+  [dir="rtl"] .tv-drawer{transform:translateY(100%);}
+  .tv-drawer.open{transform:translateY(0);}
+  .tv-drawer-body{flex:1; min-height:0;}
+  .tv-drawer::before{content:''; display:block; width:36px; height:4px; background:var(--border-strong); border-radius:2px; margin:10px auto 4px; flex-shrink:0;}
 }
 @media (max-width:720px){
   .tv-grid-2{grid-template-columns:1fr;}
@@ -355,4 +366,41 @@ a:hover{color:var(--accent-hover);}
 }
 @media (max-width:560px){
   .tv-brand-name{display:none;}
+}
+/* Gap 4 — touch targets ≥44px on coarse-pointer (touch) devices */
+@media (pointer:coarse){
+  .tv-icon-btn{min-width:44px; min-height:44px;}
+  .tv-btn-sm{min-height:44px;}
+  .tv-seg button{min-height:44px;}
+  .tv-chip{min-height:44px;}
+  .tv-mobile-nav a{min-height:44px;}
+}
+/* Gap 2 — holdings table → card layout on small phones; Gap 7 — chart utilities */
+@media (max-width:640px){
+  /* Holdings open positions */
+  #tv-holdings thead{display:none;}
+  #tv-holdings,#tv-holdings tbody{display:block;}
+  #tv-holdings tr:not(.tv-group-row){display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto auto; padding:12px 16px; background:var(--surface-card); border:1px solid var(--border-soft); border-radius:var(--radius); margin-block-end:6px; row-gap:4px; cursor:pointer;}
+  #tv-holdings tr:not(.tv-group-row) td{border:none; padding:0; font-size:var(--fs-sm);}
+  #tv-holdings td:nth-child(1){grid-column:1; grid-row:1; align-self:center;}
+  #tv-holdings td:nth-child(2){grid-column:2; grid-row:1; text-align:end; align-self:center;}
+  #tv-holdings td:nth-child(3),#tv-holdings td:nth-child(4){display:none!important;}
+  #tv-holdings td:nth-child(5){grid-column:1; grid-row:2; font-size:var(--fs-xs); color:var(--text-secondary); align-self:center;}
+  #tv-holdings td:nth-child(6){grid-column:2; grid-row:2; text-align:end; font-size:var(--fs-xs); align-self:center;}
+  #tv-holdings td:nth-child(7){grid-column:1 / -1; grid-row:3;}
+  #tv-holdings tr.tv-group-row{display:block; background:none; border:none; margin-block-end:2px; padding:8px 0 2px;}
+  #tv-holdings tr.tv-group-row td{display:block; font-size:var(--fs-2xs); text-transform:uppercase; letter-spacing:var(--ls-caps); color:var(--text-muted); font-weight:var(--fw-semibold);}
+  /* Closed positions (inside <details>) — 3 columns, qty hidden */
+  details .tv-table thead{display:none;}
+  details .tv-table,details .tv-table tbody{display:block;}
+  details .tv-table tr:not(.tv-group-row){display:grid; grid-template-columns:1fr auto; padding:12px 16px; background:var(--surface-card); border:1px solid var(--border-soft); border-radius:var(--radius); margin-block-end:6px; cursor:pointer;}
+  details .tv-table tr:not(.tv-group-row) td{border:none; padding:0; font-size:var(--fs-sm);}
+  details .tv-table td:nth-child(1){grid-column:1; grid-row:1; align-self:center;}
+  details .tv-table td:nth-child(2){display:none!important;}
+  details .tv-table td:nth-child(3){grid-column:2; grid-row:1; text-align:end; align-self:center;}
+  details .tv-table tr.tv-group-row{display:block; background:none; border:none; margin-block-end:2px; padding:8px 0 2px;}
+  details .tv-table tr.tv-group-row td{display:block; font-size:var(--fs-2xs); text-transform:uppercase; letter-spacing:var(--ls-caps); color:var(--text-muted); font-weight:var(--fw-semibold);}
+  /* Chart utilities */
+  .chart-canvas-wrap{min-height:180px;}
+  .tv-chart-h-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
 }

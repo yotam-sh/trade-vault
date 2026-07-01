@@ -102,7 +102,7 @@
       <button data-value="total">{{ t.toggle_total_pct if t.toggle_total_pct else 'Total %' }}</button>
     </div>
   </div>
-  <div class="tv-panel-body"><div id="an-treemap" style="height:420px; position:relative; overflow:hidden;"></div></div>
+  <div class="tv-panel-body"><div class="tv-chart-h-scroll"><div id="an-treemap" style="height:420px; position:relative; overflow:hidden; min-width:360px;"></div></div></div>
 </div>
 {% endif %}
 {% endblock %}
