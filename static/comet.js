@@ -375,6 +375,20 @@
     var done = qaEl('tv-qa-done'); if (done) done.addEventListener('click', function () { window.location.reload(); });
   }
 
+  // ---- Swipe-to-close for bottom sheet drawers --------------------------
+  function wireDrawerSwipe(drawer) {
+    var startY = 0;
+    var body = drawer.querySelector('.tv-drawer-body');
+    drawer.addEventListener('touchstart', function (e) {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    drawer.addEventListener('touchend', function (e) {
+      var dy = e.changedTouches[0].clientY - startY;
+      var st = body ? body.scrollTop : 0;
+      if (dy > 80 && st <= 0) closeDrawer();
+    }, { passive: true });
+  }
+
   // ---- More sheet (mobile bottom nav) -----------------------------------
   function wireMore() {
     var moreBtn = document.getElementById('tv-more-btn');
@@ -402,6 +416,7 @@
     wireDrawer();
     wireQuickAdd();
     wireMore();
+    document.querySelectorAll('.tv-drawer').forEach(wireDrawerSwipe);
     wireSortable();
     wireSearch();
     wireChips();

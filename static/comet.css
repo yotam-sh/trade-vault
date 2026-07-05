@@ -259,6 +259,8 @@ a:hover{color:var(--accent-hover);}
 .tv-flash-info{background:var(--accent-soft); border-color:var(--accent); color:var(--accent-hover);}
 
 .tv-grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+.tv-grid-2 > *{min-width:0;}
+.tv-panel canvas{max-width:100%;}
 .tv-stack{display:flex; flex-direction:column; gap:16px;}
 
 /* ============================================================ Drawer (slide-over) ============================================================ */
@@ -353,10 +355,10 @@ a:hover{color:var(--accent-hover);}
   /* Gap 5 — prevent iOS input zoom (Safari zooms on focus when font-size < 16px) */
   .tv-input{font-size:16px;}
   /* Gap 6 — drawers become bottom sheets */
-  .tv-drawer{inset-inline-end:0; inset-inline-start:0; inset-block-start:auto; inset-block-end:0; width:100%; max-height:85dvh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; border-inline-start:none; border-block-start:1px solid var(--border); transform:translateY(100%); overflow-x:hidden; padding-block-end:env(safe-area-inset-bottom,0px);}
+  .tv-drawer{inset-inline-end:0; inset-inline-start:0; inset-block-start:auto; inset-block-end:0; width:100%; max-height:85dvh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; border-inline-start:none; border-block-start:1px solid var(--border); transform:translateY(100%); overflow-x:hidden; padding-block-end:env(safe-area-inset-bottom,0px); overscroll-behavior:contain;}
   [dir="rtl"] .tv-drawer{transform:translateY(100%);}
   .tv-drawer.open{transform:translateY(0);}
-  .tv-drawer-body{flex:1; min-height:0;}
+  .tv-drawer-body{flex:1; min-height:0; overscroll-behavior-y:contain;}
   .tv-drawer::before{content:''; display:block; width:36px; height:4px; background:var(--border-strong); border-radius:2px; margin:10px auto 4px; flex-shrink:0;}
 }
 @media (max-width:720px){
@@ -383,9 +385,9 @@ a:hover{color:var(--accent-hover);}
   #tv-holdings tr:not(.tv-group-row){display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto auto; padding:12px 16px; background:var(--surface-card); border:1px solid var(--border-soft); border-radius:var(--radius); margin-block-end:6px; row-gap:4px; cursor:pointer;}
   #tv-holdings tr:not(.tv-group-row) td{border:none; padding:0; font-size:var(--fs-sm);}
   #tv-holdings td:nth-child(1){grid-column:1; grid-row:1; align-self:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  #tv-holdings td:nth-child(2){grid-column:2; grid-row:1; text-align:end; align-self:center;}
+  #tv-holdings td:nth-child(2){grid-column:1; grid-row:2; align-self:center; color:var(--text-secondary);}
   #tv-holdings td:nth-child(3),#tv-holdings td:nth-child(4){display:none!important;}
-  #tv-holdings td:nth-child(5){grid-column:1; grid-row:2; font-size:var(--fs-xs); color:var(--text-secondary); align-self:center;}
+  #tv-holdings td:nth-child(5){grid-column:2; grid-row:1; text-align:end; align-self:center;}
   #tv-holdings td:nth-child(6){grid-column:2; grid-row:2; text-align:end; font-size:var(--fs-xs); align-self:center;}
   #tv-holdings td:nth-child(7){grid-column:1 / -1; grid-row:3;}
   #tv-holdings tr.tv-group-row{display:block; background:none; border:none; margin-block-end:2px; padding:8px 0 2px;}
@@ -405,4 +407,12 @@ a:hover{color:var(--accent-hover);}
   .tv-chart-h-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   /* Fix A — all tv-tables except the holdings card layout scroll horizontally */
   .tv-table:not(#tv-holdings){display:block; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  /* Fix 1 — KPI strip → horizontal scroll strip */
+  .tv-kpi-strip{display:flex; gap:0; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  .tv-kpi-strip::-webkit-scrollbar{display:none;}
+  .tv-kpi-strip .tv-kpi{flex:0 0 auto; min-width:120px;}
+  /* Fix 2 — allocation donut → centered column layout */
+  .tv-alloc{flex-direction:column; align-items:center;}
+  .tv-donut-wrap{width:180px; height:180px;}
+  .tv-alloc-legend{min-width:unset; width:100%;}
 }
