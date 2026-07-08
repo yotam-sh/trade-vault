@@ -880,7 +880,8 @@ def index():
     from app.analytics.portfolio_analytics import get_overview
     overview = get_overview(_get_lang())
     portfolio = overview['portfolio'] if overview else None
-    return render_template('index.html', portfolio=portfolio, ov=overview)
+    return render_template('index.html', portfolio=portfolio, ov=overview,
+                           today=datetime.now().strftime('%Y-%m-%d'))
 
 
 def _upload_trades(lang):

@@ -208,7 +208,7 @@
           <option value="morning-balance">{{ t.import_type_morning }}</option>
         </select>
         <input type="file" name="file" accept=".xlsx,.xls,.csv" required multiple class="tv-input" style="width:auto; padding-top:7px;">
-        <input type="date" name="date" required class="tv-input mono" style="width:auto;">
+        <input type="date" name="date" required value="{{ today }}" class="tv-input mono" style="width:auto;">
         <label style="display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-xs); color:var(--text-secondary);">
           <input type="checkbox" name="force" value="on"> {{ t.upload_force_label }}
         </label>
