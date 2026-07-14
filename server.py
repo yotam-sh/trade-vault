@@ -1450,6 +1450,9 @@ def graphs_view():
     deposit_dates = [d['date'] for d in list_transactions(type_='deposit')]
     potential_tax_data = compute_potential_tax()
 
+    from app.analytics.portfolio_analytics import get_overview
+    overview = get_overview()
+
     return render_template(
         'graphs.html',
         snapshots=snapshots,
@@ -1466,6 +1469,7 @@ def graphs_view():
         sales_summary=sales_summary,
         deposit_dates=deposit_dates,
         potential_tax_data=potential_tax_data,
+        ov=overview,
     )
 
 

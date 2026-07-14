@@ -18,7 +18,7 @@
 </div>
 <script>
 (function() {
-    var positions = {{ portfolio.positions|tojson }};
+    var positions = {{ ov.holdings|tojson }};
     var lang = "{{ lang }}";
     var treemapLabelField = "{{ display_prefs.graphs_treemap_labels }}";
     var activeMetric = 'daily';
@@ -46,16 +46,10 @@
         positions.forEach(function(pos) {
             var g = pos.security_type || 'other';
             if (!gm[g]) gm[g] = { name: T['type_' + g] || g, pct: 0, mv: 0, cb: 0, pnl: 0, leaves: [] };
-            var leafPct;
-            if (metric === 'total') {
-                var cb = pos.cost_basis || 0;
-                leafPct = cb > 0 ? (pos.market_value - cb) / cb * 100 : 0;
-            } else {
-                leafPct = pos.market_value > 0 ? (pos.daily_pnl || 0) / pos.market_value * 100 : 0;
-            }
+            var leafPct = (metric === 'total') ? (pos.pnl_pct || 0) : (pos.day_pct || 0);
             var sym = pos[treemapLabelField] || pos.symbol;
             gm[g].leaves.push({ name: sym, value: pos.market_value, pct: leafPct, holding_id: pos.holding_id });
-            gm[g].pnl += (pos.daily_pnl || 0);
+            gm[g].pnl += (pos.day_pnl || 0);
             gm[g].mv  += pos.market_value;
             gm[g].cb  += (pos.cost_basis || 0);
         });
