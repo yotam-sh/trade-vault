@@ -136,9 +136,13 @@ def get_overview(lang='he'):
                            'value': round(val, 2), 'weight': round(val / total_alloc * 100, 1),
                            'color': color})
 
-    # Previous trading day's prices (one query) so we can derive a per-position day
-    # change for manual/US books, whose snapshot positions carry daily_pnl=0.
+    # Today's and previous trading day's prices. Read daily_prices directly to use
+    # the canonical price_change_pct (instead of re-deriving it from market_value).
     from app.daily_prices import get_prices_by_date, list_dates
+    today_px = {}
+    for r in get_prices_by_date(pv['date']):
+        if (r.get('quantity', 0) or 0) > 0:
+            today_px[r.get('holding_id')] = r
     prior = [d for d in list_dates() if d < pv['date']]
     prev_px = {}
     if prior:
@@ -147,8 +151,14 @@ def get_overview(lang='he'):
                 prev_px[r.get('holding_id')] = r
 
     def _day_change(p, mv, dpnl):
-        """(day_pnl, day_pct) for a position. Prefer the snapshot's stored daily_pnl
-        (IBI); else derive per-share vs the previous trading day (manual/US)."""
+        """(day_pnl, day_pct) for a position. Read canonical price_change_pct from
+        today's daily_prices. Fall back to deriving from market_value/prior-day for
+        legacy data or manual/US books where price_change_pct may be missing."""
+        today_rec = today_px.get(p.get('holding_id'))
+        stored_pct = today_rec.get('price_change_pct') if today_rec else None
+        if stored_pct is not None:
+            return dpnl, round(stored_pct, 2)
+        # Fallback: re-derive (for legacy data gaps or manual/US books w/o price_change_pct)
         if dpnl:
             morning = mv - dpnl
             return dpnl, (dpnl / morning * 100 if morning else 0)
